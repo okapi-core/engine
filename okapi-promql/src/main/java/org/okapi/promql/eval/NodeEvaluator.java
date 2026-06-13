@@ -14,6 +14,7 @@ import org.okapi.promql.eval.ops.HistogramFunctions;
 import org.okapi.promql.eval.ops.InstantFunctions;
 import org.okapi.promql.eval.ops.RangeFunctions;
 import org.okapi.promql.eval.ops.RangeStats;
+import org.okapi.promql.eval.ops.SeriesIds;
 import org.okapi.promql.eval.ops.TrigFunctions;
 import org.okapi.promql.parse.LabelMatcher;
 import org.apache.commons.math3.util.FastMath;
@@ -280,7 +281,7 @@ public final class NodeEvaluator {
     if (isArithmetic(e.op)) return mapVectorDropName(v, val -> applyArith(s, val, e.op));
     if (isComparison(e.op)) {
       return e.boolModifier
-          ? mapVector(v, val -> compare(s, val, e.op) ? 1f : 0f)
+          ? mapVectorDropName(v, val -> compare(s, val, e.op) ? 1f : 0f)
           : filterVector(v, val -> compare(s, val, e.op));
     }
     throw new EvaluationException("set operators require instant vectors, not scalars");
@@ -290,7 +291,7 @@ public final class NodeEvaluator {
     if (isArithmetic(e.op)) return mapVectorDropName(v, val -> applyArith(val, s, e.op));
     if (isComparison(e.op)) {
       return e.boolModifier
-          ? mapVector(v, val -> compare(val, s, e.op) ? 1f : 0f)
+          ? mapVectorDropName(v, val -> compare(val, s, e.op) ? 1f : 0f)
           : filterVector(v, val -> compare(val, s, e.op));
     }
     throw new EvaluationException("set operators require instant vectors, not scalars");
@@ -302,8 +303,9 @@ public final class NodeEvaluator {
     String op = e.op.toLowerCase(Locale.ROOT);
     var ms = e.matchSpec;
 
-    var leftIdx = indexByJoinKey(left.data(), ms);
-    var rightIdx = indexByJoinKey(right.data(), ms);
+    var ignoredMetadata = metadataAbsentFromEitherSide(left.data(), right.data());
+    var leftIdx = indexByJoinKey(left.data(), ms, ignoredMetadata);
+    var rightIdx = indexByJoinKey(right.data(), ms, ignoredMetadata);
     List<SeriesSample> out = new ArrayList<>();
 
     switch (op) {
@@ -374,8 +376,8 @@ public final class NodeEvaluator {
     long ts = l.sample().ts();
     if (isCmp) {
       boolean ok = compare(a, b, e.op);
-      if (e.boolModifier) return Optional.of(new SeriesSample(dropName(l.series()), new Sample(ts, ok ? 1f : 0f)));
-      return ok ? Optional.of(new SeriesSample(dropName(l.series()), l.sample())) : Optional.empty();
+      if (e.boolModifier) return Optional.of(new SeriesSample(SeriesIds.derived(l.series()), new Sample(ts, ok ? 1f : 0f)));
+      return ok ? Optional.of(new SeriesSample(SeriesIds.derived(l.series()), l.sample())) : Optional.empty();
     }
     float v = applyArith(a, b, e.op);
     return Optional.of(new SeriesSample(mergeLabels(l.series(), r.series(), e.matchSpec), new Sample(ts, v)));
@@ -408,7 +410,7 @@ public final class NodeEvaluator {
     for (var entry : groups.entrySet()) {
       var list = entry.getValue();
       long ts = list.get(0).sample().ts();
-      var id = new SeriesId(e.op, new Labels(entry.getKey().labels()));
+      var id = new SeriesId("", new Labels(entry.getKey().labels()));
 
       switch (op) {
         case "sum" -> out.add(sample(id, ts, (float) list.stream().mapToDouble(s -> s.sample().value()).sum()));
@@ -737,7 +739,7 @@ public final class NodeEvaluator {
     for (var s : iv.data())
       out.add(
           new SeriesSample(
-              dropName(s.series()),
+              SeriesIds.derived(s.series()),
               new Sample(s.sample().ts(), s.sample().sourceTs(), fn.apply(s.sample().value()))));
     return new InstantVectorResult(out);
   }
@@ -749,24 +751,28 @@ public final class NodeEvaluator {
     return new InstantVectorResult(out);
   }
 
-  private Map<JoinKey, List<SeriesSample>> indexByJoinKey(List<SeriesSample> samples, MatchSpec ms) {
+  private Map<JoinKey, List<SeriesSample>> indexByJoinKey(
+      List<SeriesSample> samples, MatchSpec ms, Set<String> ignoredMetadata) {
     Map<JoinKey, List<SeriesSample>> map = new LinkedHashMap<>();
     for (var s : samples) {
-      var key = buildJoinKey(s.series().labels().tags(), s.sample().ts(), ms);
+      var key = buildJoinKey(s.series().labels().tags(), s.sample().ts(), ms, ignoredMetadata);
       if (key != null) map.computeIfAbsent(key, k -> new ArrayList<>()).add(s);
     }
     return map;
   }
 
-  private JoinKey buildJoinKey(Map<String, String> labels, long ts, MatchSpec ms) {
+  private JoinKey buildJoinKey(
+      Map<String, String> labels, long ts, MatchSpec ms, Set<String> ignoredMetadata) {
     Map<String, String> key = new TreeMap<>();
     if (ms == null) {
       for (var e : labels.entrySet())
-        if (!e.getKey().equals("__name__")) key.put(e.getKey(), e.getValue());
+        if (!e.getKey().equals("__name__") && !ignoredMetadata.contains(e.getKey()))
+          key.put(e.getKey(), e.getValue());
       return new JoinKey(key, ts);
     }
     if (ms.mode == MatchSpec.Mode.ON) {
       for (String k : ms.labels) {
+        if (ignoredMetadata.contains(k)) continue;
         String v = labels.get(k);
         if (v == null) return null;
         key.put(k, v);
@@ -775,9 +781,21 @@ public final class NodeEvaluator {
     }
     for (var e : labels.entrySet()) {
       if (e.getKey().equals("__name__")) continue;
-      if (!ms.labels.contains(e.getKey())) key.put(e.getKey(), e.getValue());
+      if (!ms.labels.contains(e.getKey()) && !ignoredMetadata.contains(e.getKey()))
+        key.put(e.getKey(), e.getValue());
     }
     return new JoinKey(key, ts);
+  }
+
+  private Set<String> metadataAbsentFromEitherSide(
+      List<SeriesSample> left, List<SeriesSample> right) {
+    Set<String> ignored = new HashSet<>();
+    for (String label : List.of("__type__", "__unit__")) {
+      boolean leftHasLabel = left.stream().anyMatch(s -> s.series().labels().tags().containsKey(label));
+      boolean rightHasLabel = right.stream().anyMatch(s -> s.series().labels().tags().containsKey(label));
+      if (!leftHasLabel || !rightHasLabel) ignored.add(label);
+    }
+    return ignored;
   }
 
   private long ceilToStep(long value, long step) {
@@ -789,22 +807,20 @@ public final class NodeEvaluator {
     return value - Math.floorMod(value, step);
   }
 
-  private SeriesId dropName(SeriesId id) {
-    Map<String, String> tags = new HashMap<>(id.labels().tags());
-    tags.remove("__name__");
-    return new SeriesId("", new Labels(tags));
-  }
-
   private SeriesId mergeLabels(SeriesId left, SeriesId right, MatchSpec ms) {
     Map<String, String> out = new HashMap<>(left.labels().tags());
-    out.remove("__name__");
+    if (ms != null && ms.mode == MatchSpec.Mode.ON) {
+      out.keySet().retainAll(ms.labels);
+    } else if (ms != null) {
+      out.keySet().removeAll(ms.labels);
+    }
     if (ms != null && ms.include != null) {
       for (String k : ms.include) {
         String v = right.labels().tags().get(k);
         if (v != null) out.put(k, v);
       }
     }
-    return new SeriesId("", new Labels(out));
+    return SeriesIds.derived(out);
   }
 
   private static GroupKey groupKey(boolean isBy, List<String> groupLabels, Map<String, String> src) {

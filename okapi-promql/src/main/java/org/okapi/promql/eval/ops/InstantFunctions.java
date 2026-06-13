@@ -55,7 +55,7 @@ public final class InstantFunctions {
     for (var s : iv.data())
       out.add(
           new SeriesSample(
-              dropName(s.series()),
+              SeriesIds.derived(s.series()),
               new Sample(s.sample().ts(), s.sample().sourceTs() / 1000f)));
     return new InstantVectorResult(out);
   }
@@ -75,7 +75,7 @@ public final class InstantFunctions {
     for (var s : iv.data()) {
       out.add(
           new SeriesSample(
-              dropName(s.series()),
+              SeriesIds.derived(s.series()),
               new Sample(s.sample().ts(), calendarValue(name, s.sample().value()))));
     }
     return new InstantVectorResult(out);
@@ -95,12 +95,6 @@ public final class InstantFunctions {
       case "minute" -> time.getMinute();
       default -> throw new IllegalArgumentException("unknown calendar function: " + name);
     };
-  }
-
-  private static SeriesId dropName(SeriesId id) {
-    Map<String, String> tags = new HashMap<>(id.labels().tags());
-    tags.remove("__name__");
-    return new SeriesId("", new Labels(tags));
   }
 
   public static ScalarResult toScalar(InstantVectorResult iv) {

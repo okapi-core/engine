@@ -11,9 +11,7 @@ import org.okapi.promql.eval.RangeVectorResult;
 import org.okapi.promql.eval.VectorData.*;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /** Pure functions over RangeVectorResult for window statistics. */
 public final class RangeStats {
@@ -217,15 +215,10 @@ public final class RangeStats {
       for (long t = ctx.startMs; t <= ctx.endMs; t += ctx.stepMs) {
         long anchor = anchorMs >= 0 ? anchorMs : t;
         float v = fn.apply(ts, vals, anchor - rangeMs, anchor);
-        out.add(new SeriesSample(stripName(w.id()), new Sample(t, v)));
+        out.add(new SeriesSample(SeriesIds.derived(w.id()), new Sample(t, v)));
       }
     }
     return new InstantVectorResult(out);
   }
 
-  private static SeriesId stripName(SeriesId id) {
-    Map<String, String> tags = new HashMap<>(id.labels().tags());
-    tags.remove("__name__");
-    return new SeriesId("", new Labels(tags));
-  }
 }

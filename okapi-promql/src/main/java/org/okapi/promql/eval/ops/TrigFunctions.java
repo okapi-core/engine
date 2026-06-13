@@ -5,9 +5,7 @@
 package org.okapi.promql.eval.ops;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import org.apache.commons.math3.util.FastMath;
 import org.okapi.promql.eval.InstantVectorResult;
 import org.okapi.promql.eval.VectorData.Labels;
@@ -25,7 +23,7 @@ public final class TrigFunctions {
     for (var sample : iv.data()) {
       out.add(
           new SeriesSample(
-              dropName(sample.series()),
+              SeriesIds.derived(sample.series()),
               new Sample(
                   sample.sample().ts(),
                   sample.sample().sourceTs(),
@@ -55,9 +53,4 @@ public final class TrigFunctions {
         };
   }
 
-  private static SeriesId dropName(SeriesId id) {
-    Map<String, String> tags = new HashMap<>(id.labels().tags());
-    tags.remove("__name__");
-    return new SeriesId("", new Labels(tags));
-  }
 }

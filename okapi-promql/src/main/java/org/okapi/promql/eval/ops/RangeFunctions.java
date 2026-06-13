@@ -12,9 +12,7 @@ import org.okapi.promql.eval.RangeVectorResult;
 import org.okapi.promql.eval.VectorData.*;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /** Pure functions over RangeVectorResult for counter/gauge transforms. */
 public final class RangeFunctions {
@@ -34,7 +32,7 @@ public final class RangeFunctions {
             ? sumInWindow(ss, anchor - rangeMs, anchor)
             : sampledCounterIncrease((GaugeScan) w.scan(), anchor - rangeMs, anchor);
         float v = (rangeMs > 0) ? inc / (rangeMs / 1000f) : Float.NaN;
-        out.add(new SeriesSample(stripName(w.id()), new Sample(t, v)));
+        out.add(new SeriesSample(SeriesIds.derived(w.id()), new Sample(t, v)));
       }
     }
     return new InstantVectorResult(out);
@@ -49,7 +47,7 @@ public final class RangeFunctions {
         float v = w.scan() instanceof SumScan ss
             ? irateInWindow(ss, anchor - rangeMs, anchor)
             : sampledCounterIrate((GaugeScan) w.scan(), anchor - rangeMs, anchor);
-        out.add(new SeriesSample(stripName(w.id()), new Sample(t, v)));
+        out.add(new SeriesSample(SeriesIds.derived(w.id()), new Sample(t, v)));
       }
     }
     return new InstantVectorResult(out);
@@ -64,7 +62,7 @@ public final class RangeFunctions {
         float v = w.scan() instanceof SumScan ss
             ? sumInWindow(ss, anchor - rangeMs, anchor)
             : sampledCounterIncrease((GaugeScan) w.scan(), anchor - rangeMs, anchor);
-        out.add(new SeriesSample(stripName(w.id()), new Sample(t, v)));
+        out.add(new SeriesSample(SeriesIds.derived(w.id()), new Sample(t, v)));
       }
     }
     return new InstantVectorResult(out);
@@ -76,7 +74,7 @@ public final class RangeFunctions {
       if (!(w.scan() instanceof GaugeScan gs)) continue;
       for (long t = ctx.startMs; t <= ctx.endMs; t += ctx.stepMs) {
         long anchor = anchorMs >= 0 ? anchorMs : t;
-        out.add(new SeriesSample(stripName(w.id()), new Sample(t, deltaInWindow(gs, anchor - rangeMs, anchor))));
+        out.add(new SeriesSample(SeriesIds.derived(w.id()), new Sample(t, deltaInWindow(gs, anchor - rangeMs, anchor))));
       }
     }
     return new InstantVectorResult(out);
@@ -88,7 +86,7 @@ public final class RangeFunctions {
       if (!(w.scan() instanceof GaugeScan gs)) continue;
       for (long t = ctx.startMs; t <= ctx.endMs; t += ctx.stepMs) {
         long anchor = anchorMs >= 0 ? anchorMs : t;
-        out.add(new SeriesSample(stripName(w.id()), new Sample(t, ideltaInWindow(gs, anchor - rangeMs, anchor))));
+        out.add(new SeriesSample(SeriesIds.derived(w.id()), new Sample(t, ideltaInWindow(gs, anchor - rangeMs, anchor))));
       }
     }
     return new InstantVectorResult(out);
@@ -100,7 +98,7 @@ public final class RangeFunctions {
       if (!(w.scan() instanceof GaugeScan gs)) continue;
       for (long t = ctx.startMs; t <= ctx.endMs; t += ctx.stepMs) {
         long anchor = anchorMs >= 0 ? anchorMs : t;
-        out.add(new SeriesSample(stripName(w.id()), new Sample(t, derivInWindow(gs, anchor - rangeMs, anchor))));
+        out.add(new SeriesSample(SeriesIds.derived(w.id()), new Sample(t, derivInWindow(gs, anchor - rangeMs, anchor))));
       }
     }
     return new InstantVectorResult(out);
@@ -131,16 +129,10 @@ public final class RangeFunctions {
           double intercept = (sumY - slope * sumX) / n;
           v = (float) (slope * (anchor / 1000.0 + t) + intercept);
         }
-        out.add(new SeriesSample(stripName(w.id()), new Sample(step, v)));
+        out.add(new SeriesSample(SeriesIds.derived(w.id()), new Sample(step, v)));
       }
     }
     return new InstantVectorResult(out);
-  }
-
-  private static SeriesId stripName(SeriesId id) {
-    Map<String, String> tags = new HashMap<>(id.labels().tags());
-    tags.remove("__name__");
-    return new SeriesId("", new Labels(tags));
   }
 
   // --- window computations ---
