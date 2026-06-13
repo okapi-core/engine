@@ -232,15 +232,6 @@ public class ChMetricsWalConsumer {
   }
 
   public void consumeRecords() throws IOException, InterruptedException, ExecutionException {
-    // todo: use a MetricEventSupplier -> pull based model to get MetricEvents, keep the rest of the
-    // logic the same.
-    // todo: replace WalReader with MetricEvent interface with methods: String payload(), lsn()
-    // todo: this interface should have served from either Wal or KafkaStreamPayload
-    // todo: add a EventLsn  interface with implementations for Lsn, KafkaLsn (this should be a
-    // Kafka offset)
-    // todo: MetricEventSupplier should supply a List<MetricEvent>
-    // todo: add another MetricEventCommitter interface -> this should have a commit(EventLsn lsn).
-    // Two implementations: one of Kafka and one for Disk.
     var batch = walReader.readBatchAndAdvance(batchSize);
 
     Multimap<String, String> writeLoad = ArrayListMultimap.create();

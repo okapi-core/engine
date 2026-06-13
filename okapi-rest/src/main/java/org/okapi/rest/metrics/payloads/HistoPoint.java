@@ -33,7 +33,9 @@ public final class HistoPoint {
 
   private static long sum(long[] values) {
     long sum = 0L;
-    for (long value : values) sum += value;
+    if (values != null) {
+      for (long value : values) sum += value;
+    }
     return sum;
   }
 }
