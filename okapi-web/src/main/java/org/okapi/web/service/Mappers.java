@@ -10,10 +10,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import org.okapi.agent.dto.JOB_STATUS;
-import org.okapi.agent.dto.PendingJob;
 import org.okapi.agent.dto.QuerySpec;
-import org.okapi.data.ddb.attributes.*;
-import org.okapi.data.dto.*;
+import org.okapi.data.model.*;
 import org.okapi.web.dtos.auth.GetUserProfileResponse;
 import org.okapi.web.dtos.dashboards.*;
 import org.okapi.web.dtos.dashboards.vars.DASH_VAR_TYPE;
@@ -24,19 +22,19 @@ import org.okapi.web.dtos.token.GetTokenResponse;
 public class Mappers {
 
   public static GetDashboardResponse.GetDashboardResponseBuilder mapDashboardToPartial(
-      DashboardDdb dashboardDto,
+      Dashboard dashboardDto,
       PersonalName owner,
       PersonalName lastEditor,
-      List<UserEntityRelations> userRelations) {
+      List<UserEntityRelation> userRelations) {
     var hasFaved =
         userRelations.stream()
             .anyMatch(
-                rel -> rel.getEdgeId().getRelationType() == USER_RELATION_TYPE.DASHBOARD_FAVE);
+                rel -> rel.getEdgeId().getRelationType() == UserRelationType.DASHBOARD_FAVE);
     var lastViewed =
         userRelations.stream()
             .filter(
                 rel ->
-                    rel.getEdgeId().getRelationType() == USER_RELATION_TYPE.DASHBOARD_LAST_VIEWED)
+                    rel.getEdgeId().getRelationType() == UserRelationType.DASHBOARD_LAST_VIEWED)
             .map(s -> Instant.ofEpochMilli(s.getEdgeAttributes().getTimestamp()))
             .findFirst();
     var partial =
@@ -60,10 +58,10 @@ public class Mappers {
   }
 
   public static GetDashboardResponse mapDashboardDtoToResponse(
-      DashboardDdb dashboardDto,
+      Dashboard dashboardDto,
       PersonalName owner,
       PersonalName lastEditor,
-      List<UserEntityRelations> entityRelations) {
+      List<UserEntityRelation> entityRelations) {
     return mapDashboardToPartial(dashboardDto, owner, lastEditor, entityRelations).build();
   }
 
@@ -81,7 +79,7 @@ public class Mappers {
     return Arrays.asList(serialized.split(","));
   }
 
-  public static GetUserProfileResponse mapUserProfileDtoToResponse(UserDtoDdb dto) {
+  public static GetUserProfileResponse mapUserProfileDtoToResponse(User dto) {
     return GetUserProfileResponse.builder()
         .id(dto.getUserId())
         .firstName(dto.getFirstName())
@@ -142,11 +140,13 @@ public class Mappers {
         .build();
   }
 
-  public static List<PendingJob> mapPendingJobDtosToResponses(List<PendingJobDdb> dtos) {
+  public static List<org.okapi.agent.dto.PendingJob> mapPendingJobDtosToResponses(
+      List<org.okapi.data.model.PendingJob> dtos) {
     return dtos.stream().map(Mappers::mapPendingJobDtoToResponse).toList();
   }
 
-  public static PendingJob mapPendingJobDtoToResponse(PendingJobDdb dto) {
+  public static org.okapi.agent.dto.PendingJob mapPendingJobDtoToResponse(
+      org.okapi.data.model.PendingJob dto) {
     if (dto == null) return null;
     QuerySpec spec =
         dto.getQuery() != null
@@ -163,7 +163,7 @@ public class Mappers {
             case FAILED -> JOB_STATUS.FAILED;
           };
     }
-    return PendingJob.builder()
+    return org.okapi.agent.dto.PendingJob.builder()
         .jobId(dto.getJobId())
         .sourceId(dto.getSourceId())
         .spec(spec)
@@ -171,7 +171,7 @@ public class Mappers {
         .build();
   }
 
-  public static GetTokenResponse mapTokenMetaToResponse(TokenMetaDdb tokenMeta) {
+  public static GetTokenResponse mapTokenMetaToResponse(TokenMetadata tokenMeta) {
     return GetTokenResponse.builder()
         .tokenId(tokenMeta.getTokenId())
         .tokenStatus(tokenMeta.getTokenStatus().name())
@@ -185,7 +185,7 @@ public class Mappers {
         toWebDashVarType(dashVar.getVarType()), dashVar.getVarName(), dashVar.getTag());
   }
 
-  public static DASH_VAR_TYPE toWebDashVarType(DashboardVariable.DASHBOARD_VAR_TYPE type) {
+  public static DASH_VAR_TYPE toWebDashVarType(DashboardVariable.Type type) {
     if (type == null) return null;
     return switch (type) {
       case METRIC -> DASH_VAR_TYPE.METRIC;

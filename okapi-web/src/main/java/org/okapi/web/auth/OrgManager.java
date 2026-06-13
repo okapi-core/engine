@@ -4,8 +4,8 @@
  */
 package org.okapi.web.auth;
 
-import static org.okapi.data.ddb.attributes.ENTITY_TYPE.ORG;
-import static org.okapi.data.ddb.attributes.ENTITY_TYPE.USER;
+import static org.okapi.data.model.EntityType.ORG;
+import static org.okapi.data.model.EntityType.USER;
 import static org.okapi.validation.OkapiChecks.checkArgument;
 
 import java.util.*;
@@ -14,8 +14,8 @@ import lombok.RequiredArgsConstructor;
 import org.okapi.data.dao.OrgDao;
 import org.okapi.data.dao.RelationGraphDao;
 import org.okapi.data.dao.UsersDao;
-import org.okapi.data.ddb.attributes.EntityId;
-import org.okapi.data.ddb.attributes.RELATION_TYPE;
+import org.okapi.data.model.EntityId;
+import org.okapi.data.model.RelationType;
 import org.okapi.exceptions.BadRequestException;
 import org.okapi.exceptions.NotFoundException;
 import org.okapi.exceptions.UnAuthorizedException;
@@ -106,7 +106,7 @@ public class OrgManager {
     accessManager.checkUserHasIsOrgMember(userId, orgId);
     List<OrgMemberWDto> members =
         relationGraphDao
-            .getAllRelationsOfType(EntityId.of(ORG, orgId), USER, RELATION_TYPE.ORG_MEMBER)
+            .getAllRelationsOfType(EntityId.of(ORG, orgId), USER, RelationType.ORG_MEMBER)
             .stream()
             .map(
                 entityId -> {
@@ -126,7 +126,7 @@ public class OrgManager {
                       relationGraphDao.hasRelationBetween(
                           EntityId.of(ORG, orgId),
                           EntityId.of(USER, parsedId.get().id()),
-                          RELATION_TYPE.ORG_ADMIN);
+                          RelationType.ORG_ADMIN);
                   return new OrgMemberWDto(
                       userDto.getUserId(),
                       userDto.getFirstName(),
@@ -160,8 +160,8 @@ public class OrgManager {
       }
       var orgDto = maybeOrgDto.get();
       var relationType = relation.getRelationships();
-      var isAdmin = relationType.contains(RELATION_TYPE.ORG_ADMIN);
-      var isMember = relationType.contains(RELATION_TYPE.ORG_MEMBER);
+      var isAdmin = relationType.contains(RelationType.ORG_ADMIN);
+      var isMember = relationType.contains(RelationType.ORG_MEMBER);
       var roles = new ArrayList<ORG_ROLE>();
       if (isAdmin) {
         roles.add(ORG_ROLE.ADMIN);

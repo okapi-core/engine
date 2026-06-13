@@ -5,8 +5,8 @@
 package org.okapi.web.service.dashboards.rows;
 
 import lombok.Getter;
-import org.okapi.data.ddb.dao.ResourceIdCreator;
 import org.okapi.exceptions.BadRequestException;
+import org.okapi.web.service.ResourceIdCreator;
 
 @Getter
 public class DashboardRowId {

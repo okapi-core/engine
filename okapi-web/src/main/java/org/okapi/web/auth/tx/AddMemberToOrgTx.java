@@ -4,13 +4,13 @@
  */
 package org.okapi.web.auth.tx;
 
-import static org.okapi.data.ddb.attributes.ENTITY_TYPE.ORG;
+import static org.okapi.data.model.EntityType.ORG;
 
 import lombok.AllArgsConstructor;
 import org.okapi.data.dao.RelationGraphDao;
-import org.okapi.data.ddb.attributes.ENTITY_TYPE;
-import org.okapi.data.ddb.attributes.EntityId;
-import org.okapi.data.ddb.attributes.RELATION_TYPE;
+import org.okapi.data.model.EntityType;
+import org.okapi.data.model.EntityId;
+import org.okapi.data.model.RelationType;
 import org.okapi.web.auth.GraphTx;
 
 @AllArgsConstructor
@@ -21,10 +21,10 @@ public class AddMemberToOrgTx implements GraphTx {
   @Override
   public void doTx(RelationGraphDao relationGraphDao) {
     relationGraphDao.addRelationship(
-        EntityId.of(ENTITY_TYPE.USER, userId), EntityId.of(ORG, orgId), RELATION_TYPE.ORG_MEMBER);
+        EntityId.of(EntityType.USER, userId), EntityId.of(ORG, orgId), RelationType.ORG_MEMBER);
 
     // inverse relation
     relationGraphDao.addRelationship(
-        EntityId.of(ORG, orgId), EntityId.of(ENTITY_TYPE.USER, userId), RELATION_TYPE.ORG_MEMBER);
+        EntityId.of(ORG, orgId), EntityId.of(EntityType.USER, userId), RelationType.ORG_MEMBER);
   }
 }

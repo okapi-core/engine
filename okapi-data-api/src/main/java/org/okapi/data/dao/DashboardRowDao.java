@@ -6,7 +6,7 @@ package org.okapi.data.dao;
 
 import java.util.List;
 import java.util.Optional;
-import org.okapi.data.dto.DashboardRow;
+import org.okapi.data.model.DashboardRow;
 
 public interface DashboardRowDao {
   Optional<DashboardRow> get(String orgId, String dashboardId, String versionId, String rowId);

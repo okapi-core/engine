@@ -4,7 +4,7 @@
  */
 package org.okapi.web.service.dashboards;
 
-import static org.okapi.data.ddb.attributes.ENTITY_TYPE.*;
+import static org.okapi.data.model.EntityType.*;
 import static org.okapi.validation.OkapiChecks.checkArgument;
 
 import java.time.Instant;
@@ -16,10 +16,7 @@ import org.okapi.data.dao.DashboardRowDao;
 import org.okapi.data.dao.DashboardVersionDao;
 import org.okapi.data.dao.RelationGraphDao;
 import org.okapi.data.dao.UserEntityRelationsDao;
-import org.okapi.data.ddb.attributes.*;
-import org.okapi.data.ddb.attributes.EntityId;
-import org.okapi.data.ddb.dao.ResourceIdCreator;
-import org.okapi.data.dto.*;
+import org.okapi.data.model.*;
 import org.okapi.data.exceptions.ResourceNotFoundException;
 import org.okapi.exceptions.UnAuthorizedException;
 import org.okapi.ids.UuidV7;
@@ -93,7 +90,7 @@ public class DashboardService
     var orgId = context.getOrgMemberContext().getOrgId();
     var userId = context.getOrgMemberContext().getUserId();
     var newDto =
-        DashboardDdb.builder()
+        Dashboard.builder()
             .dashboardId(dashboardId)
             .orgId(orgId)
             .creator(userId)
@@ -108,7 +105,6 @@ public class DashboardService
             .orgId(orgId)
             .dashboardId(dashboardId)
             .versionId(versionId)
-            .dashboardVersionId(DashboardVersion.dashboardVersionId(dashboardId, versionId))
             .status("PUBLISHED")
             .createdAt(Instant.now().toEpochMilli())
             .createdBy(userId)
@@ -215,15 +211,15 @@ public class DashboardService
     return partial.build();
   }
 
-  protected List<UserEntityRelations> getUserDashboardRelations(String userId, String dashboardId) {
+  protected List<UserEntityRelation> getUserDashboardRelations(String userId, String dashboardId) {
     var faveRelation =
         entityRelationsDao.getRelation(
             userId,
-            new EntityRelationId(DASHBOARD, dashboardId, USER_RELATION_TYPE.DASHBOARD_FAVE));
+            new EntityRelationId(DASHBOARD, dashboardId, UserRelationType.DASHBOARD_FAVE));
     var lastViewedRelation =
         entityRelationsDao.getRelation(
             userId,
-            new EntityRelationId(DASHBOARD, dashboardId, USER_RELATION_TYPE.DASHBOARD_LAST_VIEWED));
+            new EntityRelationId(DASHBOARD, dashboardId, UserRelationType.DASHBOARD_LAST_VIEWED));
     return List.of(faveRelation, lastViewedRelation).stream()
         .filter(Optional::isPresent)
         .map(Optional::get)
@@ -232,11 +228,11 @@ public class DashboardService
 
   protected void handleUserView(String userId, String dashboardId) {
     var relation =
-        UserEntityRelations.builder()
+        UserEntityRelation.builder()
             .userId(userId)
             .edgeId(
                 new EntityRelationId(
-                    DASHBOARD, dashboardId, USER_RELATION_TYPE.DASHBOARD_LAST_VIEWED))
+                    DASHBOARD, dashboardId, UserRelationType.DASHBOARD_LAST_VIEWED))
             .edgeAttributes(
                 EdgeAttributes.builder().timestamp(Instant.now().toEpochMilli()).build())
             .build();
@@ -278,9 +274,9 @@ public class DashboardService
       return;
     }
     var relation =
-        UserEntityRelations.builder()
+        UserEntityRelation.builder()
             .userId(userId)
-            .edgeId(new EntityRelationId(DASHBOARD, dashboardId, USER_RELATION_TYPE.DASHBOARD_FAVE))
+            .edgeId(new EntityRelationId(DASHBOARD, dashboardId, UserRelationType.DASHBOARD_FAVE))
             .build();
     if (isFavorite) {
       entityRelationsDao.createRelation(relation);

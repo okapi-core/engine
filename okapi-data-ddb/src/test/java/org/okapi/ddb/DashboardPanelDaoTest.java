@@ -18,11 +18,11 @@ import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.okapi.data.CreateDynamoDBTables;
 import org.okapi.data.DaoModule;
 import org.okapi.data.dao.DashboardPanelDao;
-import org.okapi.data.ddb.attributes.EXPECTED_RESULT_TYPE_DDB;
-import org.okapi.data.ddb.attributes.MultiQueryPanelConfig;
-import org.okapi.data.ddb.attributes.PanelQueryConfig;
+import org.okapi.data.model.ExpectedResultType;
+import org.okapi.data.model.MultiQueryPanelConfig;
+import org.okapi.data.model.PanelQueryConfig;
 import org.okapi.data.ddb.dao.DashboardPanelDaoDdbImpl;
-import org.okapi.data.dto.DashboardPanel;
+import org.okapi.data.model.DashboardPanel;
 import org.okapi.testutils.OkapiTestUtils;
 
 @Execution(ExecutionMode.CONCURRENT)
@@ -101,7 +101,7 @@ public class DashboardPanelDaoTest {
         List.of(
             PanelQueryConfig.builder()
                 .query("rate(http_requests_total[5m])")
-                .expectedResultType(EXPECTED_RESULT_TYPE_DDB.TIME_MATRIX)
+                .expectedResultType(ExpectedResultType.TIME_MATRIX)
                 .build()));
   }
 }

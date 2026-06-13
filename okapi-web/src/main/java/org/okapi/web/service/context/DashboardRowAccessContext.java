@@ -6,7 +6,7 @@ package org.okapi.web.service.context;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import org.okapi.data.dto.DashboardDdb;
+import org.okapi.data.model.Dashboard;
 import org.okapi.web.service.dashboards.rows.DashboardRowId;
 
 @AllArgsConstructor
@@ -14,6 +14,6 @@ import org.okapi.web.service.dashboards.rows.DashboardRowId;
 public class DashboardRowAccessContext {
   OrgMemberContext orgMemberContext;
   DashboardRowId rowId;
-  DashboardDdb dashboardDdb;
+  Dashboard dashboardDdb;
   String versionId;
 }

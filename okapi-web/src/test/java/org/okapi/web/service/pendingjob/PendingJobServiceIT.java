@@ -11,9 +11,9 @@ import org.okapi.agent.dto.QueryResult;
 import org.okapi.data.dao.PendingJobsDao;
 import org.okapi.data.dao.RelationGraphDao;
 import org.okapi.data.dao.UsersDao;
-import org.okapi.data.dto.DataSourceQuery;
-import org.okapi.data.dto.JOB_STATUS;
-import org.okapi.data.dto.PendingJobDdb;
+import org.okapi.data.model.DataSourceQuery;
+import org.okapi.data.model.JobStatus;
+import org.okapi.data.model.PendingJob;
 import org.okapi.exceptions.BadRequestException;
 import org.okapi.web.auth.AbstractIT;
 import org.okapi.web.auth.ApiTokenManager;
@@ -76,16 +76,14 @@ class PendingJobServiceIT extends AbstractIT {
   void submit_result_marks_job_completed() throws Exception {
     var jobId = UUID.randomUUID().toString();
     var pendingJob =
-        PendingJobDdb.builder()
+        PendingJob.builder()
             .orgId(orgId)
             .jobId(jobId)
-            .jobStatus(JOB_STATUS.PENDING)
+            .jobStatus(JobStatus.PENDING)
             .sourceId(jobSource)
             .query(new DataSourceQuery("query", jobSource))
             .attemptCount(0)
             .createdAt(System.currentTimeMillis())
-            .orgSourceStatusKey(
-                PendingJobDdb.buildOrgSourceStatusKey(orgId, jobSource, JOB_STATUS.PENDING))
             .build();
     pendingJobsDao.createPendingJob(pendingJob);
 
@@ -100,23 +98,21 @@ class PendingJobServiceIT extends AbstractIT {
     pendingJobService.submitJobResult(authHeader, jobId, result);
 
     var stored = pendingJobsDao.getPendingJob(orgId, jobId).orElseThrow();
-    assertEquals(JOB_STATUS.COMPLETED, stored.getJobStatus());
+    assertEquals(JobStatus.COMPLETED, stored.getJobStatus());
   }
 
   @Test
   void cancel_after_completion_fails() throws Exception {
     var jobId = UUID.randomUUID().toString();
     var pendingJob =
-        PendingJobDdb.builder()
+        PendingJob.builder()
             .orgId(orgId)
             .jobId(jobId)
-            .jobStatus(JOB_STATUS.PENDING)
+            .jobStatus(JobStatus.PENDING)
             .sourceId(jobSource)
             .query(new DataSourceQuery("query", jobSource))
             .attemptCount(0)
             .createdAt(System.currentTimeMillis())
-            .orgSourceStatusKey(
-                PendingJobDdb.buildOrgSourceStatusKey(orgId, jobSource, JOB_STATUS.PENDING))
             .build();
     pendingJobsDao.createPendingJob(pendingJob);
 
@@ -136,16 +132,14 @@ class PendingJobServiceIT extends AbstractIT {
   void retry_failed_job_becomes_pending_again() throws Exception {
     var jobId = UUID.randomUUID().toString();
     var pendingJob =
-        PendingJobDdb.builder()
+        PendingJob.builder()
             .orgId(orgId)
             .jobId(jobId)
-            .jobStatus(JOB_STATUS.PENDING)
+            .jobStatus(JobStatus.PENDING)
             .sourceId(jobSource)
             .query(new DataSourceQuery("retry-query", jobSource))
             .attemptCount(0)
             .createdAt(System.currentTimeMillis())
-            .orgSourceStatusKey(
-                PendingJobDdb.buildOrgSourceStatusKey(orgId, jobSource, JOB_STATUS.PENDING))
             .build();
     pendingJobsDao.createPendingJob(pendingJob);
 
@@ -154,7 +148,7 @@ class PendingJobServiceIT extends AbstractIT {
     pendingJobService.submitPendingJobError(authHeader, jobId, QueryResult.ofError("failed"));
 
     var failed = pendingJobsDao.getPendingJob(orgId, jobId).orElseThrow();
-    assertEquals(JOB_STATUS.FAILED, failed.getJobStatus());
+    assertEquals(JobStatus.FAILED, failed.getJobStatus());
 
     pendingJobsDao.retryJob(orgId, jobId);
 
@@ -166,6 +160,6 @@ class PendingJobServiceIT extends AbstractIT {
   }
 
   private void moveToInProgress(String jobId) throws Exception {
-    pendingJobsDao.updateJobStatus(orgId, jobId, JOB_STATUS.IN_PROGRESS);
+    pendingJobsDao.updateJobStatus(orgId, jobId, JobStatus.IN_PROGRESS);
   }
 }

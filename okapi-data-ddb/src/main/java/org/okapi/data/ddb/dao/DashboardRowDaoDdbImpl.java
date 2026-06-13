@@ -32,10 +32,15 @@ public class DashboardRowDaoDdbImpl implements DashboardRowDao {
   }
 
   @Override
-  public void save(String orgId, String dashboardId, String versionId, DashboardRow row) {
+  public void save(
+      String orgId,
+      String dashboardId,
+      String versionId,
+      org.okapi.data.model.DashboardRow row) {
     var orgDashKey = ResourceIdCreator.createResourceId(orgId, dashboardId, versionId);
-    row.setOrgDashKey(orgDashKey);
-    table.putItem(row);
+    var stored = DdbMapper.toDdb(row);
+    stored.setOrgDashKey(orgDashKey);
+    table.putItem(stored);
   }
 
   @Override
@@ -45,17 +50,22 @@ public class DashboardRowDaoDdbImpl implements DashboardRowDao {
   }
 
   @Override
-  public Optional<DashboardRow> get(
+  public Optional<org.okapi.data.model.DashboardRow> get(
       String orgId, String dashboardId, String versionId, String rowId) {
     var orgDashHashKey = ResourceIdCreator.createResourceId(orgId, dashboardId, versionId);
     var item = table.getItem(Key.builder().partitionValue(orgDashHashKey).sortValue(rowId).build());
-    return Optional.ofNullable(item);
+    return Optional.ofNullable(DdbMapper.toApi(item));
   }
 
   @Override
-  public List<DashboardRow> getAll(String orgId, String dashboardId, String versionId) {
+  public List<org.okapi.data.model.DashboardRow> getAll(
+      String orgId, String dashboardId, String versionId) {
     var orgDashHashKey = ResourceIdCreator.createResourceId(orgId, dashboardId, versionId);
-    return this.queryPatterns.listByPartitionKey(
-        this.enhancedClient, table, AttributeValue.builder().s(orgDashHashKey).build());
+    return this.queryPatterns
+        .listByPartitionKey(
+            this.enhancedClient, table, AttributeValue.builder().s(orgDashHashKey).build())
+        .stream()
+        .map(DdbMapper::toApi)
+        .toList();
   }
 }

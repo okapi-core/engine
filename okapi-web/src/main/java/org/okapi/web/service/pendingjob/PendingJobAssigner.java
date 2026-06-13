@@ -5,8 +5,8 @@
 package org.okapi.web.service.pendingjob;
 
 import java.util.List;
-import org.okapi.data.dto.PendingJobDdb;
+import org.okapi.data.model.PendingJob;
 
 public interface PendingJobAssigner {
-  List<PendingJobDdb> getPendingJobs(String orgId, List<String> sources, int maxJobs);
+  List<PendingJob> getPendingJobs(String orgId, List<String> sources, int maxJobs);
 }

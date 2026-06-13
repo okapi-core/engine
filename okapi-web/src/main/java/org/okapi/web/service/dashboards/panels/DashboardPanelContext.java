@@ -7,7 +7,7 @@ package org.okapi.web.service.dashboards.panels;
 import java.util.Optional;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import org.okapi.data.dto.DashboardDdb;
+import org.okapi.data.model.Dashboard;
 import org.okapi.exceptions.BadRequestException;
 import org.okapi.web.service.context.OrgMemberContext;
 
@@ -15,7 +15,7 @@ import org.okapi.web.service.context.OrgMemberContext;
 public class DashboardPanelContext {
   @Getter OrgMemberContext orgMemberContext;
   DashboardPanelId panelFqId;
-  @Getter DashboardDdb dashboardDdb;
+  @Getter Dashboard dashboardDdb;
   @Getter String versionId;
 
   public Optional<String> getPanelFqId() {
@@ -26,12 +26,12 @@ public class DashboardPanelContext {
   }
 
   public static final DashboardPanelContext of(
-      OrgMemberContext memberContext, DashboardDdb dashboardDdb, String versionId) {
+      OrgMemberContext memberContext, Dashboard dashboardDdb, String versionId) {
     return new DashboardPanelContext(memberContext, null, dashboardDdb, versionId);
   }
 
   public static DashboardPanelContext of(
-      OrgMemberContext memberContext, String panelFqId, DashboardDdb dashboardDdb, String versionId)
+      OrgMemberContext memberContext, String panelFqId, Dashboard dashboardDdb, String versionId)
       throws BadRequestException {
     var parsedId = DashboardPanelIdParser.parseStatic(panelFqId);
     return new DashboardPanelContext(memberContext, parsedId, dashboardDdb, versionId);

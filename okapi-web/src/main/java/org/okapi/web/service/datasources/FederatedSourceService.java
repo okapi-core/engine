@@ -9,7 +9,7 @@ import java.time.Instant;
 import java.util.List;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.okapi.data.dao.FederatedSourceRepo;
-import org.okapi.data.dto.FederatedSource;
+import org.okapi.data.model.FederatedSource;
 import org.okapi.data.exceptions.ResourceNotFoundException;
 import org.okapi.exceptions.BadRequestException;
 import org.okapi.exceptions.UnAuthorizedException;

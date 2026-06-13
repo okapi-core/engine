@@ -4,36 +4,44 @@
  */
 package org.okapi.data.ddb.dao;
 
-import com.google.common.base.Preconditions;
 import com.google.inject.Inject;
-import java.util.*;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Optional;
+import java.util.Queue;
 import lombok.AllArgsConstructor;
 import org.okapi.data.dao.RelationGraphDao;
-import org.okapi.data.ddb.attributes.ENTITY_TYPE;
-import org.okapi.data.ddb.attributes.EdgeSeq;
-import org.okapi.data.ddb.attributes.EntityId;
-import org.okapi.data.ddb.attributes.RELATION_TYPE;
 import org.okapi.data.ddb.iterators.FlatteningIterator;
 import org.okapi.data.ddb.iterators.MappingIterator;
-import org.okapi.data.dto.*;
+import org.okapi.data.dto.RelationGraphNodeDdb;
+import org.okapi.data.dto.TablesAndIndexes;
+import org.okapi.data.model.EdgeSequence;
+import org.okapi.data.model.EntityId;
+import org.okapi.data.model.EntityType;
+import org.okapi.data.model.RelationGraphNode;
+import org.okapi.data.model.RelationType;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
+import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
 import software.amazon.awssdk.enhanced.dynamodb.Key;
+import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
 import software.amazon.awssdk.enhanced.dynamodb.model.QueryConditional;
 import software.amazon.awssdk.enhanced.dynamodb.model.QueryEnhancedRequest;
 
-public class RelationGraphDaoImpl extends AbstractDdbDao<RelationGraphNodeDdb, RelationGraphNode>
-    implements RelationGraphDao {
+public class RelationGraphDaoImpl implements RelationGraphDao {
+  private final DynamoDbTable<RelationGraphNodeDdb> table;
 
   @Inject
-  public RelationGraphDaoImpl(DynamoDbEnhancedClient dynamoDbEnhancedClient) {
-    super(
-        TablesAndIndexes.RELATIONSHIP_GRAPH_TABLE,
-        dynamoDbEnhancedClient,
-        RelationGraphNodeDdb.class);
+  public RelationGraphDaoImpl(DynamoDbEnhancedClient client) {
+    table =
+        client.table(
+            TablesAndIndexes.RELATIONSHIP_GRAPH_TABLE,
+            TableSchema.fromBean(RelationGraphNodeDdb.class));
   }
 
-  public String getEntityIdString(EntityId id) {
-    return id.type().name() + ":" + id.id();
+  private String key(EntityId id) {
+    return id.toString();
   }
 
   private Iterator<RelationGraphNode> getAllRelationsOf(EntityId id) {
@@ -41,160 +49,100 @@ public class RelationGraphDaoImpl extends AbstractDdbDao<RelationGraphNodeDdb, R
         table.query(
             QueryEnhancedRequest.builder()
                 .queryConditional(
-                    QueryConditional.keyEqualTo(
-                        Key.builder().partitionValue(getEntityIdString(id)).build()))
+                    QueryConditional.keyEqualTo(Key.builder().partitionValue(key(id)).build()))
                 .build());
     return new MappingIterator<>(
-        new FlatteningIterator<>(results.iterator()), this::toRelationGraphNode);
+        new FlatteningIterator<>(results.iterator()), this::toApi);
   }
 
   @Override
   public Optional<RelationGraphNode> getRelationsBetween(EntityId left, EntityId right) {
-    var relation =
-        table.getItem(
-            Key.builder()
-                .partitionValue(getEntityIdString(left))
-                .sortValue(getEntityIdString(right))
-                .build());
-    return Optional.ofNullable(toRelationGraphNode(relation));
+    return Optional.ofNullable(
+            table.getItem(
+                Key.builder().partitionValue(key(left)).sortValue(key(right)).build()))
+        .map(this::toApi);
   }
 
   @Override
-  public boolean hasRelationBetween(EntityId left, EntityId right, RELATION_TYPE relationType) {
-    var relationNode = getRelationsBetween(left, right);
-    return relationNode
-        .map(relationGraphNode -> relationGraphNode.getRelationships().contains(relationType))
+  public boolean hasRelationBetween(EntityId left, EntityId right, RelationType relationType) {
+    return getRelationsBetween(left, right)
+        .map(node -> node.getRelationships().contains(relationType))
         .orElse(false);
   }
 
   @Override
   public void removeAllRelations(EntityId left, EntityId right) {
-    table.deleteItem(
-        Key.builder()
-            .partitionValue(getEntityIdString(left))
-            .sortValue(getEntityIdString(right))
-            .build());
-    table.deleteItem(
-        Key.builder()
-            .partitionValue(getEntityIdString(right))
-            .sortValue(getEntityIdString(left))
-            .build());
+    table.deleteItem(Key.builder().partitionValue(key(left)).sortValue(key(right)).build());
+    table.deleteItem(Key.builder().partitionValue(key(right)).sortValue(key(left)).build());
   }
 
   @Override
-  public void removeRelation(EntityId left, EntityId right, RELATION_TYPE relation) {
-    var relationNode = getRelationsBetween(left, right);
-    if (relationNode.isEmpty()) return;
-    var dto = relationNode.get();
-    var obj = getDdbNodeFromDto(dto);
-    dto.getRelationships().remove(relation);
-    table.putItem(obj);
-  }
-
-  private void save(RelationGraphNodeDdb node) {
-    Preconditions.checkNotNull(node);
-    table.putItem(node);
-  }
-
-  private void save(RelationGraphNode node) {
-    Preconditions.checkNotNull(node);
-    var obj = getDdbNodeFromDto(node);
-    table.putItem(obj);
+  public void removeRelation(EntityId left, EntityId right, RelationType relationType) {
+    getRelationsBetween(left, right)
+        .ifPresent(
+            node -> {
+              node.getRelationships().remove(relationType);
+              table.putItem(toDdb(node));
+            });
   }
 
   @Override
   public RelationGraphNode addRelationship(
-      EntityId left, EntityId right, RELATION_TYPE relationType) {
-    var optionalRelationGraphNode = getRelationsBetween(left, right);
-    if (optionalRelationGraphNode.isEmpty()) {
-      var relation =
-          RelationGraphNodeDdb.builder()
-              .relatedEntityType(right.type())
-              .entityId(getEntityIdString(left))
-              .relatedEntity(getEntityIdString(right))
-              .relationships(Arrays.asList(relationType))
-              .build();
-
-      save(relation);
-      return toRelationGraphNode(relation);
-    } else {
-      var relation = optionalRelationGraphNode.get();
-      if (!relation.getRelationships().contains(relationType)) {
-        relation.getRelationships().add(relationType);
-      }
-      if (relation.getRelatedEntityType() != right.type()) {
-        relation.setRelatedEntityType(right.type());
-      }
-      save(relation);
-      return relation;
-    }
+      EntityId left, EntityId right, RelationType relationType) {
+    return addAllRelationships(left, right, List.of(relationType));
   }
 
   @Override
   public RelationGraphNode addAllRelationships(
-      EntityId left, EntityId right, List<RELATION_TYPE> relations) {
-    var optionalRelationGraphNode = getRelationsBetween(left, right);
-    if (optionalRelationGraphNode.isEmpty()) {
-      var relationBuilder =
-          RelationGraphNodeDdb.builder()
-              .entityId(getEntityIdString(left))
-              .relationships(relations)
-              .relatedEntity(getEntityIdString(right))
-              .build();
-      save(relationBuilder);
-      return toRelationGraphNode(relationBuilder);
-    } else {
-      var relationNode = optionalRelationGraphNode.get();
-      for (var relation : relations) {
-        if (!relationNode.getRelationships().contains(relation)) {
-          relationNode.getRelationships().add(relation);
-        }
-      }
-      save(relationNode);
-      return relationNode;
-    }
+      EntityId left, EntityId right, List<RelationType> relationTypes) {
+    var node =
+        getRelationsBetween(left, right)
+            .orElseGet(
+                () ->
+                    RelationGraphNode.builder()
+                        .entityId(key(left))
+                        .relatedEntity(key(right))
+                        .relatedEntityType(right.type())
+                        .relationships(new ArrayList<>())
+                        .build());
+    relationTypes.stream()
+        .filter(relation -> !node.getRelationships().contains(relation))
+        .forEach(node.getRelationships()::add);
+    node.setRelatedEntityType(right.type());
+    table.putItem(toDdb(node));
+    return node;
   }
 
   @AllArgsConstructor
-  public static class PathNode {
-    public int pathIndex;
-    public EntityId node;
+  private static class PathNode {
+    private int pathIndex;
+    private EntityId node;
   }
 
   @Override
-  public boolean isPathBetween(EntityId start, EntityId dest, EdgeSeq acceptedPath) {
-    // list all outgoing edges, accept those that are to an accepted edge via an accepted node
-    var destId = getEntityIdString(dest);
-    // loop prevention: loop prevention is guaranteed since jumps are constrained
+  public boolean isPathBetween(EntityId start, EntityId destination, EdgeSequence acceptedPath) {
     Queue<PathNode> nodes = new ArrayDeque<>();
     nodes.add(new PathNode(0, start));
     while (!nodes.isEmpty()) {
       var pathNode = nodes.poll();
-      if (pathNode.pathIndex >= acceptedPath.accepted().size()) {
-        continue;
-      }
+      if (pathNode.pathIndex >= acceptedPath.accepted().size()) continue;
+      var requiredEdge = acceptedPath.accepted().get(pathNode.pathIndex);
       if (pathNode.pathIndex == acceptedPath.accepted().size() - 1) {
-        // last hop, check direct relationship
-        var relations = getRelationsBetween(pathNode.node, dest);
-        if (relations.isPresent()) {
-          var relNode = relations.get();
-          var requiredEdge = acceptedPath.accepted().get(pathNode.pathIndex);
-          if (relNode.getRelatedEntityType() == requiredEdge.outgoingNodeType()
-              && relNode.getRelationships().contains(requiredEdge.relationType())) {
-            return true;
-          }
+        var relation = getRelationsBetween(pathNode.node, destination);
+        if (relation.isPresent()
+            && relation.get().getRelatedEntityType() == requiredEdge.outgoingNodeType()
+            && relation.get().getRelationships().contains(requiredEdge.relationType())) {
+          return true;
         }
         continue;
       }
-      var iterator = getAllRelationsOf(pathNode.node);
-      while (iterator.hasNext()) {
-        var relNode = iterator.next();
-        var requiredEdge = acceptedPath.accepted().get(pathNode.pathIndex);
-        if (relNode.getRelatedEntityType() == requiredEdge.outgoingNodeType()
-            && relNode.getRelationships().contains(requiredEdge.relationType())) {
-          var nextNodeOpt = RelationGraphNodeDdb.parse(relNode.getRelatedEntity());
-          nextNodeOpt.ifPresent(
-              entityId -> nodes.add(new PathNode(pathNode.pathIndex + 1, entityId)));
+      var relations = getAllRelationsOf(pathNode.node);
+      while (relations.hasNext()) {
+        var relation = relations.next();
+        if (relation.getRelatedEntityType() == requiredEdge.outgoingNodeType()
+            && relation.getRelationships().contains(requiredEdge.relationType())) {
+          EntityId.parse(relation.getRelatedEntity())
+              .ifPresent(next -> nodes.add(new PathNode(pathNode.pathIndex + 1, next)));
         }
       }
     }
@@ -202,83 +150,82 @@ public class RelationGraphDaoImpl extends AbstractDdbDao<RelationGraphNodeDdb, R
   }
 
   @Override
-  public boolean isAnyPathBetween(EntityId start, EntityId dest, List<EdgeSeq> acceptedPaths) {
-    for (var acceptedPath : acceptedPaths) {
-      if (isPathBetween(start, dest, acceptedPath)) {
-        return true;
-      }
-    }
-    return false;
+  public boolean isAnyPathBetween(
+      EntityId start, EntityId destination, List<EdgeSequence> acceptedPaths) {
+    return acceptedPaths.stream().anyMatch(path -> isPathBetween(start, destination, path));
   }
 
   @Override
   public List<RelationGraphNode> getAllRelationsOfType(
-      EntityId entityId, ENTITY_TYPE entityType, RELATION_TYPE relationType) {
-    var allRelations = getAllRelationsOf(entityId);
-    var filteredRelations = new ArrayList<RelationGraphNode>();
-    while (allRelations.hasNext()) {
-      var relation = allRelations.next();
-      if (relation.getRelatedEntityType() == entityType
-          && relation.getRelationships().contains(relationType)) {
-        filteredRelations.add(relation);
-      }
-    }
-    return filteredRelations;
+      EntityId entityId, EntityType entityType, RelationType relationType) {
+    var matches = new ArrayList<RelationGraphNode>();
+    getAllRelationsOf(entityId)
+        .forEachRemaining(
+            relation -> {
+              if (relation.getRelatedEntityType() == entityType
+                  && relation.getRelationships().contains(relationType)) {
+                matches.add(relation);
+              }
+            });
+    return matches;
   }
 
   @Override
-  public List<RelationGraphNode> getAllRelationsOfNodeType(EntityId entityId, ENTITY_TYPE type) {
-    var allRelations = getAllRelationsOf(entityId);
-    var filteredRelations = new ArrayList<RelationGraphNode>();
-    while (allRelations.hasNext()) {
-      var relation = allRelations.next();
-      if (relation.getRelatedEntityType() == type) {
-        filteredRelations.add(relation);
-      }
-    }
-    return filteredRelations;
+  public List<RelationGraphNode> getAllRelationsOfNodeType(
+      EntityId entityId, EntityType entityType) {
+    var matches = new ArrayList<RelationGraphNode>();
+    getAllRelationsOf(entityId)
+        .forEachRemaining(
+            relation -> {
+              if (relation.getRelatedEntityType() == entityType) matches.add(relation);
+            });
+    return matches;
   }
 
   @Override
   public void deleteEntity(EntityId entityId) {
-    var allRelations = getAllRelationsOf(entityId);
-    while (allRelations.hasNext()) {
-      var relation = allRelations.next();
-      var relatedEntityOpt = RelationGraphNodeDdb.parse(relation.getRelatedEntity());
-      relatedEntityOpt.ifPresent(
-          relatedEntity ->
-              table.deleteItem(
-                  Key.builder()
-                      .partitionValue(getEntityIdString(relatedEntity))
-                      .sortValue(getEntityIdString(entityId))
-                      .build()));
+    var relations = getAllRelationsOf(entityId);
+    while (relations.hasNext()) {
+      var relation = relations.next();
+      EntityId.parse(relation.getRelatedEntity())
+          .ifPresent(
+              related ->
+                  table.deleteItem(
+                      Key.builder()
+                          .partitionValue(key(related))
+                          .sortValue(key(entityId))
+                          .build()));
       table.deleteItem(
           Key.builder()
-              .partitionValue(getEntityIdString(entityId))
+              .partitionValue(key(entityId))
               .sortValue(relation.getRelatedEntity())
               .build());
     }
   }
 
-  @Override
-  public RelationGraphNodeDdb getDdbNodeFromDto(RelationGraphNode dto) {
-    if (dto == null) return null;
+  private RelationGraphNodeDdb toDdb(RelationGraphNode value) {
     return RelationGraphNodeDdb.builder()
-        .entityId(dto.getEntityId())
-        .relatedEntity(dto.getRelatedEntity())
-        .relationships(dto.getRelationships())
-        .relatedEntityType(dto.getRelatedEntityType())
+        .entityId(value.getEntityId())
+        .relatedEntity(value.getRelatedEntity())
+        .relatedEntityType(
+            org.okapi.data.ddb.attributes.ENTITY_TYPE.valueOf(
+                value.getRelatedEntityType().name()))
+        .relationships(
+            value.getRelationships().stream()
+                .map(r -> org.okapi.data.ddb.attributes.RELATION_TYPE.valueOf(r.name()))
+                .toList())
         .build();
   }
 
-  @Override
-  public RelationGraphNode toRelationGraphNode(RelationGraphNodeDdb obj) {
-    if (obj == null) return null;
+  private RelationGraphNode toApi(RelationGraphNodeDdb value) {
     return RelationGraphNode.builder()
-        .entityId(obj.getEntityId())
-        .relatedEntity(obj.getRelatedEntity())
-        .relationships(obj.getRelationships())
-        .relatedEntityType(obj.getRelatedEntityType())
+        .entityId(value.getEntityId())
+        .relatedEntity(value.getRelatedEntity())
+        .relatedEntityType(EntityType.valueOf(value.getRelatedEntityType().name()))
+        .relationships(
+            value.getRelationships().stream()
+                .map(r -> RelationType.valueOf(r.name()))
+                .collect(java.util.stream.Collectors.toCollection(ArrayList::new)))
         .build();
   }
 }

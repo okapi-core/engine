@@ -4,12 +4,12 @@
  */
 package org.okapi.web.service.dashboards;
 
-import static org.okapi.data.ddb.attributes.ENTITY_TYPE.DASHBOARD;
-import static org.okapi.data.ddb.attributes.ENTITY_TYPE.USER;
+import static org.okapi.data.model.EntityType.DASHBOARD;
+import static org.okapi.data.model.EntityType.USER;
 import static org.okapi.validation.OkapiChecks.checkArgument;
 
 import org.okapi.data.dao.RelationGraphDao;
-import org.okapi.data.ddb.attributes.EntityId;
+import org.okapi.data.model.EntityId;
 import org.okapi.data.exceptions.ResourceNotFoundException;
 import org.okapi.exceptions.BadRequestException;
 import org.okapi.exceptions.UnAuthorizedException;

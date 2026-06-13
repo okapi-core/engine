@@ -18,8 +18,8 @@ import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.okapi.data.CreateDynamoDBTables;
 import org.okapi.data.DaoModule;
 import org.okapi.data.dao.DashboardRowDao;
-import org.okapi.data.ddb.attributes.ResourceOrder;
-import org.okapi.data.dto.DashboardRow;
+import org.okapi.data.model.ResourceOrder;
+import org.okapi.data.model.DashboardRow;
 import org.okapi.testutils.OkapiTestUtils;
 
 @Execution(ExecutionMode.CONCURRENT)

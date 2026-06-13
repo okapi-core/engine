@@ -13,13 +13,13 @@ import org.okapi.data.dao.DashboardRowDao;
 import org.okapi.data.dao.DashboardVarDao;
 import org.okapi.data.dao.DashboardVersionDao;
 import org.okapi.data.dao.RelationGraphDao;
-import org.okapi.data.ddb.attributes.MultiQueryPanelConfig;
-import org.okapi.data.ddb.attributes.PanelQueryConfig;
-import org.okapi.data.dto.DashboardDdb;
-import org.okapi.data.dto.DashboardPanel;
-import org.okapi.data.dto.DashboardRow;
-import org.okapi.data.dto.DashboardVariable;
-import org.okapi.data.dto.DashboardVersion;
+import org.okapi.data.model.MultiQueryPanelConfig;
+import org.okapi.data.model.PanelQueryConfig;
+import org.okapi.data.model.Dashboard;
+import org.okapi.data.model.DashboardPanel;
+import org.okapi.data.model.DashboardRow;
+import org.okapi.data.model.DashboardVariable;
+import org.okapi.data.model.DashboardVersion;
 import org.okapi.data.exceptions.ResourceNotFoundException;
 import org.okapi.exceptions.UnAuthorizedException;
 import org.okapi.ids.UuidV7;
@@ -103,7 +103,7 @@ public class DashboardYamlIngestionService {
     return new AccessManager.AuthContext(userId, orgId);
   }
 
-  private DashboardDdb ensureDashboard(
+  private Dashboard ensureDashboard(
       String userId, String orgId, String dashboardId, DashboardYaml yaml) {
     var existing = dashboardDao.get(orgId, dashboardId);
     if (existing.isPresent()) {
@@ -111,7 +111,7 @@ public class DashboardYamlIngestionService {
     }
     var dashSpec = yaml.getDashboard();
     var dto =
-        DashboardDdb.builder()
+        Dashboard.builder()
             .dashboardId(dashboardId)
             .orgId(orgId)
             .creator(userId)
@@ -172,7 +172,6 @@ public class DashboardYamlIngestionService {
             .orgId(auth.orgId())
             .dashboardId(dashboardId)
             .versionId(versionId)
-            .dashboardVersionId(DashboardVersion.dashboardVersionId(dashboardId, versionId))
             .status("READY")
             .createdAt(System.currentTimeMillis())
             .createdBy(auth.userId())
@@ -223,12 +222,12 @@ public class DashboardYamlIngestionService {
     return new MultiQueryPanelConfig(configs);
   }
 
-  private static DashboardVariable.DASHBOARD_VAR_TYPE mapVarType(String type) {
+  private static DashboardVariable.Type mapVarType(String type) {
     if (type == null) return null;
     var normalized = type.trim().toUpperCase();
     return switch (normalized) {
-      case "METRIC" -> DashboardVariable.DASHBOARD_VAR_TYPE.METRIC;
-      case "TAG_VALUE" -> DashboardVariable.DASHBOARD_VAR_TYPE.TAG;
+      case "METRIC" -> DashboardVariable.Type.METRIC;
+      case "TAG_VALUE" -> DashboardVariable.Type.TAG;
       default -> null;
     };
   }

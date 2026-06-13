@@ -7,7 +7,7 @@ package org.okapi.web.service.dashboards.panels;
 import lombok.AllArgsConstructor;
 import org.okapi.data.dao.DashboardDao;
 import org.okapi.data.dao.DashboardVersionDao;
-import org.okapi.data.dto.DashboardDdb;
+import org.okapi.data.model.Dashboard;
 import org.okapi.data.exceptions.ResourceNotFoundException;
 import org.okapi.exceptions.BadRequestException;
 import org.okapi.exceptions.UnAuthorizedException;
@@ -92,7 +92,7 @@ public class DashboardPanelValidator
     }
   }
 
-  private DashboardDdb getDashboardOrThrow(String orgId, String dashboardId)
+  private Dashboard getDashboardOrThrow(String orgId, String dashboardId)
       throws ResourceNotFoundException {
     var dashboard = dashboardDao.get(orgId, dashboardId);
     if (dashboard.isEmpty()) {

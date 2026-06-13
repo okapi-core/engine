@@ -6,7 +6,7 @@ package org.okapi.data.dao;
 
 import java.util.List;
 import java.util.Optional;
-import org.okapi.data.dto.DashboardVariable;
+import org.okapi.data.model.DashboardVariable;
 import org.okapi.data.exceptions.ResourceNotFoundException;
 
 public interface DashboardVarDao {

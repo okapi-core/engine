@@ -6,14 +6,14 @@ package org.okapi.data.dao;
 
 import java.util.List;
 import java.util.Optional;
-import org.okapi.data.ddb.attributes.DEP_TYPE;
-import org.okapi.data.ddb.attributes.InfraEntityId;
-import org.okapi.data.ddb.attributes.InfraNodeOutgoingEdge;
-import org.okapi.data.dto.InfraEntityNodeDdb;
 import org.okapi.data.exceptions.EntityDoesNotExistException;
+import org.okapi.data.model.DependencyType;
+import org.okapi.data.model.InfraEntityId;
+import org.okapi.data.model.InfraEntityNode;
+import org.okapi.data.model.InfraNodeOutgoingEdge;
 
 public interface InfraEntityNodeDao {
-  void createNode(InfraEntityNodeDdb nodeDdb);
+  void createNode(InfraEntityNode node);
 
   <T> void updateNodeAttributes(InfraEntityId infraEntityId, T attributes, Class<T> clazz);
 
@@ -24,9 +24,9 @@ public interface InfraEntityNodeDao {
 
   void removeEdge(InfraEntityId entityId, InfraEntityId targetNodeId);
 
-  List<InfraNodeOutgoingEdge> getEdgesByType(InfraEntityId entityId, DEP_TYPE depType);
+  List<InfraNodeOutgoingEdge> getEdgesByType(InfraEntityId entityId, DependencyType depType);
 
   List<InfraNodeOutgoingEdge> getAllOutgoingEdges(InfraEntityId entityId);
 
-  Optional<InfraEntityNodeDdb> getNode(InfraEntityId infraEntityId);
+  Optional<InfraEntityNode> getNode(InfraEntityId infraEntityId);
 }

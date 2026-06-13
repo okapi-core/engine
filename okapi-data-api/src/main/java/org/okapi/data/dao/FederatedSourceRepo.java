@@ -6,7 +6,7 @@ package org.okapi.data.dao;
 
 import java.util.List;
 import java.util.Optional;
-import org.okapi.data.dto.FederatedSource;
+import org.okapi.data.model.FederatedSource;
 
 public interface FederatedSourceRepo {
 

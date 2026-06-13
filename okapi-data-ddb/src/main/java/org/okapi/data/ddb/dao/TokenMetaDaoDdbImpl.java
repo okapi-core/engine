@@ -12,6 +12,8 @@ import org.okapi.data.ddb.iterators.FlatteningIterator;
 import org.okapi.data.dto.TOKEN_STATUS;
 import org.okapi.data.dto.TablesAndIndexes;
 import org.okapi.data.dto.TokenMetaDdb;
+import org.okapi.data.model.TokenMetadata;
+import org.okapi.data.model.TokenStatus;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
 import software.amazon.awssdk.enhanced.dynamodb.Key;
@@ -32,32 +34,35 @@ public class TokenMetaDaoDdbImpl implements TokenMetaDao {
   }
 
   @Override
-  public void createTokenMetadata(TokenMetaDdb tokenMeta) {
-    tokenMetaTable.putItem(tokenMeta);
+  public void createTokenMetadata(TokenMetadata tokenMeta) {
+    tokenMetaTable.putItem(DdbMapper.toDdb(tokenMeta));
   }
 
   @Override
-  public TokenMetaDdb getTokenMetadata(String orgId, String tokenId) {
-    return tokenMetaTable.getItem(Key.builder().partitionValue(orgId).sortValue(tokenId).build());
+  public TokenMetadata getTokenMetadata(String orgId, String tokenId) {
+    return DdbMapper.toApi(
+        tokenMetaTable.getItem(Key.builder().partitionValue(orgId).sortValue(tokenId).build()));
   }
 
   @Override
-  public void updateTokenStatus(String orgId, String tokenId, TOKEN_STATUS status) {
+  public void updateTokenStatus(String orgId, String tokenId, TokenStatus status) {
     var token = getTokenMetadata(orgId, tokenId);
     if (token == null) {
       return;
     }
     token.setTokenStatus(status);
-    tokenMetaTable.updateItem(token);
+    tokenMetaTable.updateItem(DdbMapper.toDdb(token));
   }
 
   @Override
-  public List<TokenMetaDdb> listTokensByOrgAndStatus(String orgId, TOKEN_STATUS status) {
+  public List<TokenMetadata> listTokensByOrgAndStatus(String orgId, TokenStatus status) {
     var index = tokenMetaTable.index(TablesAndIndexes.TOKEN_META_BY_ORG_STATUS_GSI);
     var results =
         index.query(
             QueryConditional.keyEqualTo(
                 Key.builder().partitionValue(orgId).sortValue(status.name()).build()));
-    return Lists.newArrayList(new FlatteningIterator<>(results.iterator()));
+    return Lists.newArrayList(new FlatteningIterator<>(results.iterator())).stream()
+        .map(DdbMapper::toApi)
+        .toList();
   }
 }

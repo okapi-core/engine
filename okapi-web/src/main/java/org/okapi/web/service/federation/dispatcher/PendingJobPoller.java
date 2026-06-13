@@ -10,7 +10,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import org.okapi.agent.dto.QueryResult;
 import org.okapi.data.dao.PendingJobsDao;
-import org.okapi.data.dto.JOB_STATUS;
+import org.okapi.data.model.JobStatus;
 import org.okapi.web.spring.config.PollingTaskCfg;
 import org.springframework.stereotype.Service;
 
@@ -45,10 +45,10 @@ public class PendingJobPoller {
                                   + jobId.jobId()
                                   + " not found for org "
                                   + jobId.orgId()));
-              if (job.getJobStatus() == JOB_STATUS.COMPLETED) {
+              if (job.getJobStatus() == JobStatus.COMPLETED) {
                 var jobResult = jobsDao.getRawResult(jobId.orgId(), jobId.jobId());
                 return new PollingTask.PollStatus<>(PollingTask.POLL_STATUS.DONE, jobResult.get());
-              } else if (job.getJobStatus() == JOB_STATUS.FAILED) {
+              } else if (job.getJobStatus() == JobStatus.FAILED) {
                 var jobError = jobsDao.getRawResult(jobId.orgId(), jobId.jobId());
                 return new PollingTask.PollStatus<>(PollingTask.POLL_STATUS.DONE, jobError.get());
               } else return new PollingTask.PollStatus<>(PollingTask.POLL_STATUS.PENDING, null);

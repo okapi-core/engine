@@ -19,6 +19,8 @@ import org.okapi.data.dto.*;
 import org.okapi.data.exceptions.IllegalJobStateTransition;
 import org.okapi.data.exceptions.JobNotFoundException;
 import org.okapi.data.exceptions.TooManyRetriesException;
+import org.okapi.data.model.JobStatus;
+import org.okapi.data.model.PendingJob;
 import software.amazon.awssdk.enhanced.dynamodb.*;
 import software.amazon.awssdk.enhanced.dynamodb.model.QueryConditional;
 import software.amazon.awssdk.enhanced.dynamodb.model.QueryEnhancedRequest;
@@ -40,14 +42,14 @@ public class PendingJobsDaoDdbImpl implements PendingJobsDao {
   }
 
   @Override
-  public Optional<PendingJobDdb> getPendingJob(String orgId, String jobId) {
+  public Optional<PendingJob> getPendingJob(String orgId, String jobId) {
     // No direct index for jobId, scan and filter the first match
     var item = table.getItem(Key.builder().partitionValue(orgId).sortValue(jobId).build());
-    return Optional.ofNullable(item);
+    return Optional.ofNullable(DdbMapper.toApi(item));
   }
 
   @Override
-  public List<PendingJobDdb> getPendingJobsByTenantAndStatus(String orgId, JOB_STATUS status) {
+  public List<PendingJob> getPendingJobsByTenantAndStatus(String orgId, JobStatus status) {
     var query =
         table.query(
             QueryEnhancedRequest.builder()
@@ -55,16 +57,19 @@ public class PendingJobsDaoDdbImpl implements PendingJobsDao {
                     QueryConditional.keyEqualTo(Key.builder().partitionValue(orgId).build()))
                 .build());
     var jobs = Lists.newArrayList(new FlatteningIterator<>(query.iterator()));
-    return jobs.stream().filter(j -> status.equals(j.getJobStatus())).toList();
+    return jobs.stream()
+        .filter(j -> status.name().equals(j.getJobStatus().name()))
+        .map(DdbMapper::toApi)
+        .toList();
   }
 
   @Override
-  public void createPendingJob(PendingJobDdb job) {
-    table.putItem(job);
+  public void createPendingJob(PendingJob job) {
+    table.putItem(DdbMapper.toDdb(job));
   }
 
   @Override
-  public void updatePendingJob(PendingJobDdb job) throws IllegalJobStateTransition {
+  public void updatePendingJob(PendingJob job) throws IllegalJobStateTransition {
     var existing = getPendingJob(job.getOrgId(), job.getJobId());
     if (existing.isEmpty()) {
       throw new JobNotFoundException(
@@ -83,16 +88,18 @@ public class PendingJobsDaoDdbImpl implements PendingJobsDao {
 
     table.updateItem(
         UpdateItemEnhancedRequest.builder(PendingJobDdb.class)
-            .item(job)
+            .item(DdbMapper.toDdb(job))
             .conditionExpression(expr)
             .build());
   }
 
-  protected void checkStateTransition(PendingJobDdb job, PendingJobDdb existingJob)
+  protected void checkStateTransition(PendingJob job, PendingJob existingJob)
       throws IllegalJobStateTransition {
     var from = existingJob.getJobStatus();
     var to = job.getJobStatus();
-    if (!from.equals(to) && !PendingJobsStateMachine.canTransition(from, to)) {
+    if (!from.equals(to)
+        && !PendingJobsStateMachine.canTransition(
+            JOB_STATUS.valueOf(from.name()), JOB_STATUS.valueOf(to.name()))) {
       throw new IllegalJobStateTransition(
           "Invalid state transition from " + from + " to " + to + " for job " + job.getJobId());
     }
@@ -110,7 +117,7 @@ public class PendingJobsDaoDdbImpl implements PendingJobsDao {
   @Override
   public void retryJob(String orgId, String jobId)
       throws TooManyRetriesException, IllegalJobStateTransition {
-    Optional<PendingJobDdb> optionalPendingJobDto = getPendingJob(orgId, jobId);
+    Optional<PendingJob> optionalPendingJobDto = getPendingJob(orgId, jobId);
     if (optionalPendingJobDto.isEmpty())
       throw new JobNotFoundException("Job not found for retry: " + orgId + "/" + jobId);
     // Update fields using DTO setters
@@ -119,7 +126,7 @@ public class PendingJobsDaoDdbImpl implements PendingJobsDao {
       throw new TooManyRetriesException(
           "Max retry attempts reached for job: " + orgId + "/" + jobId);
     }
-    item.setJobStatus(JOB_STATUS.PENDING);
+    item.setJobStatus(JobStatus.PENDING);
     item.setSourceId(null);
     item.setAssignedAt(null);
     item.setAttemptCount(item.getAttemptCount() + 1);
@@ -127,9 +134,9 @@ public class PendingJobsDaoDdbImpl implements PendingJobsDao {
   }
 
   @Override
-  public PendingJobDdb updateJobStatus(String orgId, String jobId, JOB_STATUS status)
+  public PendingJob updateJobStatus(String orgId, String jobId, JobStatus status)
       throws IllegalJobStateTransition {
-    var item = table.getItem(Key.builder().partitionValue(orgId).sortValue(jobId).build());
+    var item = getPendingJob(orgId, jobId).orElse(null);
     if (item == null) return null;
     item.setJobStatus(status);
     updatePendingJob(item);
@@ -137,8 +144,8 @@ public class PendingJobsDaoDdbImpl implements PendingJobsDao {
   }
 
   @Override
-  public List<PendingJobDdb> getJobsBySourceAndStatus(
-      String orgId, String source, JOB_STATUS status, int limit) {
+  public List<PendingJob> getJobsBySourceAndStatus(
+      String orgId, String source, JobStatus status, int limit) {
     var index = table.index(TablesAndIndexes.PENDING_JOBS_BY_SOURCE_STATUS_GSI);
     var query =
         index.query(
@@ -150,11 +157,13 @@ public class PendingJobsDaoDdbImpl implements PendingJobsDao {
                             .partitionValue(orgId + "#" + source + "#" + status.name())
                             .build()))
                 .build());
-    return Lists.newArrayList(new FlatteningIterator<>(query.iterator()));
+    return Lists.newArrayList(new FlatteningIterator<>(query.iterator())).stream()
+        .map(DdbMapper::toApi)
+        .toList();
   }
 
   @Override
-  public PendingJobDdb updateJobResult(String orgId, String jobId, String resultData)
+  public PendingJob updateJobResult(String orgId, String jobId, String resultData)
       throws IllegalJobStateTransition {
     var item = getPendingJob(orgId, jobId);
     if (item.isEmpty()) {
@@ -162,14 +171,14 @@ public class PendingJobsDaoDdbImpl implements PendingJobsDao {
     }
     var location = this.resultUploader.uploadResult(orgId, jobId, resultData);
     var job = item.get();
-    job.setResultS3(location);
-    job.setJobStatus(JOB_STATUS.COMPLETED);
+    job.setResultLocation(location);
+    job.setJobStatus(JobStatus.COMPLETED);
     updatePendingJob(job);
     return job;
   }
 
   @Override
-  public PendingJobDdb updateJobError(String orgId, String jobId, String errorData)
+  public PendingJob updateJobError(String orgId, String jobId, String errorData)
       throws IllegalJobStateTransition {
     var job =
         getPendingJob(orgId, jobId)
@@ -178,8 +187,8 @@ public class PendingJobsDaoDdbImpl implements PendingJobsDao {
                     new JobNotFoundException(
                         "Job not found for result update: " + orgId + "/" + jobId));
     var location = this.resultUploader.uploadResult(orgId, jobId, errorData);
-    job.setErrorS3(location);
-    job.setJobStatus(JOB_STATUS.FAILED);
+    job.setErrorLocation(location);
+    job.setJobStatus(JobStatus.FAILED);
     updatePendingJob(job);
     return job;
   }
@@ -192,7 +201,7 @@ public class PendingJobsDaoDdbImpl implements PendingJobsDao {
                 () ->
                     new JobNotFoundException(
                         "Job not found for raw result: " + orgId + "/" + jobId));
-    if (job.getJobStatus() != JOB_STATUS.COMPLETED && job.getJobStatus() != JOB_STATUS.FAILED) {
+    if (job.getJobStatus() != JobStatus.COMPLETED && job.getJobStatus() != JobStatus.FAILED) {
       return Optional.empty();
     }
     var rawResult = this.resultUploader.getRawResult(orgId, jobId);

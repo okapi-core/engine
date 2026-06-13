@@ -10,6 +10,7 @@ import com.google.inject.Inject;
 import java.util.Optional;
 import org.okapi.data.dao.OrgDao;
 import org.okapi.data.dto.OrgDtoDdb;
+import org.okapi.data.model.Organization;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
 import software.amazon.awssdk.enhanced.dynamodb.Key;
@@ -27,26 +28,18 @@ public class OrgDaoDdbImpl implements OrgDao {
   }
 
   @Override
-  public Optional<OrgDtoDdb> findById(String orgId) {
+  public Optional<Organization> findById(String orgId) {
     var obj =
         dynamoDbTable.getItem(
             GetItemEnhancedRequest.builder()
                 .key(Key.builder().partitionValue(orgId).build())
                 .build());
-    return Optional.ofNullable(toDto(obj));
+    return Optional.ofNullable(DdbMapper.toApi(obj));
   }
 
   @Override
-  public void save(OrgDtoDdb orgDto) {
-    var obj = fromDto(orgDto);
+  public void save(Organization organization) {
+    var obj = DdbMapper.toDdb(organization);
     dynamoDbTable.putItem(obj);
-  }
-
-  private final OrgDtoDdb toDto(OrgDtoDdb orgDtoDdb) {
-    return orgDtoDdb;
-  }
-
-  private final OrgDtoDdb fromDto(OrgDtoDdb orgDto) {
-    return orgDto;
   }
 }

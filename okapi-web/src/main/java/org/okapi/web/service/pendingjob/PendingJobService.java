@@ -9,7 +9,7 @@ import java.util.List;
 import org.okapi.agent.dto.PendingJob;
 import org.okapi.agent.dto.QueryResult;
 import org.okapi.data.dao.PendingJobsDao;
-import org.okapi.data.dto.JOB_STATUS;
+import org.okapi.data.model.JobStatus;
 import org.okapi.data.exceptions.IllegalJobStateTransition;
 import org.okapi.exceptions.BadRequestException;
 import org.okapi.web.dtos.pendingjob.GetPendingJobsRequest;
@@ -51,13 +51,13 @@ public class PendingJobService {
       String apiToken, UpdatePendingJobRequest updatePendingJobRequest) {
     var authorizedEntity = authorizationHeaderValidator.getAuthorizedEntity(apiToken);
     authorizedEntity.hasPermission(Permissions.AGENT_JOBS_UPDATE);
-    JOB_STATUS translatedStatus =
+    JobStatus translatedStatus =
         switch (updatePendingJobRequest.getStatus()) {
-          case COMPLETED -> JOB_STATUS.COMPLETED;
-          case FAILED -> JOB_STATUS.FAILED;
-          case PENDING -> JOB_STATUS.PENDING;
-          case IN_PROGRESS -> JOB_STATUS.IN_PROGRESS;
-          case CANCELED -> JOB_STATUS.CANCELLED;
+          case COMPLETED -> JobStatus.COMPLETED;
+          case FAILED -> JobStatus.FAILED;
+          case PENDING -> JobStatus.PENDING;
+          case IN_PROGRESS -> JobStatus.IN_PROGRESS;
+          case CANCELED -> JobStatus.CANCELLED;
         };
     try {
       var job =

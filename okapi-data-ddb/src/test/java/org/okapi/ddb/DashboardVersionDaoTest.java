@@ -17,7 +17,7 @@ import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.okapi.data.CreateDynamoDBTables;
 import org.okapi.data.DaoModule;
 import org.okapi.data.dao.DashboardVersionDao;
-import org.okapi.data.dto.DashboardVersion;
+import org.okapi.data.model.DashboardVersion;
 import org.okapi.testutils.OkapiTestUtils;
 
 @Execution(ExecutionMode.CONCURRENT)
@@ -47,7 +47,6 @@ public class DashboardVersionDaoTest {
             .orgId(orgId)
             .dashboardId(dashboardId)
             .versionId(version1)
-            .dashboardVersionId(DashboardVersion.dashboardVersionId(dashboardId, version1))
             .status("READY")
             .createdAt(System.currentTimeMillis())
             .createdBy("user-1")
@@ -59,7 +58,6 @@ public class DashboardVersionDaoTest {
             .orgId(orgId)
             .dashboardId(dashboardId)
             .versionId(version2)
-            .dashboardVersionId(DashboardVersion.dashboardVersionId(dashboardId, version2))
             .status("READY")
             .createdAt(System.currentTimeMillis())
             .createdBy("user-2")

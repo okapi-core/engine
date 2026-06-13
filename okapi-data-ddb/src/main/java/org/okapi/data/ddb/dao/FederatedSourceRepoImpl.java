@@ -32,23 +32,30 @@ public class FederatedSourceRepoImpl implements FederatedSourceRepo {
   }
 
   @Override
-  public Optional<FederatedSource> getSource(String tenantId, String sourceName) {
-    return commonQueryPatterns.getByCompositeKey(
-        enhanced,
-        dynamoDbTable,
-        AttributeValue.builder().s(tenantId).build(),
-        AttributeValue.builder().s(sourceName).build());
+  public Optional<org.okapi.data.model.FederatedSource> getSource(
+      String tenantId, String sourceName) {
+    return commonQueryPatterns
+        .getByCompositeKey(
+            enhanced,
+            dynamoDbTable,
+            AttributeValue.builder().s(tenantId).build(),
+            AttributeValue.builder().s(sourceName).build())
+        .map(DdbMapper::toApi);
   }
 
   @Override
-  public List<FederatedSource> getAllSources(String tenantId) {
-    return commonQueryPatterns.listByPartitionKey(
-        enhanced, dynamoDbTable, AttributeValue.builder().s(tenantId).build());
+  public List<org.okapi.data.model.FederatedSource> getAllSources(String tenantId) {
+    return commonQueryPatterns
+        .listByPartitionKey(
+            enhanced, dynamoDbTable, AttributeValue.builder().s(tenantId).build())
+        .stream()
+        .map(DdbMapper::toApi)
+        .toList();
   }
 
   @Override
-  public void createSource(FederatedSource source) {
-    dynamoDbTable.putItem(source);
+  public void createSource(org.okapi.data.model.FederatedSource source) {
+    dynamoDbTable.putItem(DdbMapper.toDdb(source));
   }
 
   @Override

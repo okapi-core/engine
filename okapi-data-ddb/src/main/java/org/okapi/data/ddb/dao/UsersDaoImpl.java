@@ -13,6 +13,7 @@ import org.okapi.data.ddb.iterators.FlatteningIterator;
 import org.okapi.data.ddb.iterators.MappingIterator;
 import org.okapi.data.dto.*;
 import org.okapi.data.exceptions.UserAlreadyExistsException;
+import org.okapi.data.model.User;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
 import software.amazon.awssdk.enhanced.dynamodb.Key;
@@ -34,13 +35,13 @@ public class UsersDaoImpl implements UsersDao {
   }
 
   @Override
-  public Optional<UserDtoDdb> get(String userId) {
+  public Optional<User> get(String userId) {
     var obj = usersTable.getItem(Key.builder().partitionValue(userId).build());
-    return Optional.ofNullable(toDto(obj));
+    return Optional.ofNullable(DdbMapper.toApi(obj));
   }
 
   @Override
-  public Optional<UserDtoDdb> getWithEmail(String email) {
+  public Optional<User> getWithEmail(String email) {
     var idx = usersTable.index(TablesAndIndexes.USERS_BY_EMAIL_GSI);
     var query =
         idx.query(
@@ -50,11 +51,11 @@ public class UsersDaoImpl implements UsersDao {
                 .build());
     var lists = Lists.newArrayList(new FlatteningIterator<>(query.iterator()));
     if (lists.isEmpty()) return Optional.empty();
-    else return Optional.of(toDto(lists.getFirst()));
+    else return Optional.of(DdbMapper.toApi(lists.getFirst()));
   }
 
   @Override
-  public UserDtoDdb createIfNotExists(
+  public User createIfNotExists(
       String firstName, String lastName, String email, String password)
       throws UserAlreadyExistsException {
     var userId = UUID.randomUUID().toString();
@@ -78,26 +79,18 @@ public class UsersDaoImpl implements UsersDao {
             .hashedPassword(hashed)
             .build();
     usersTable.putItem(user);
-    return toDto(user);
+    return DdbMapper.toApi(user);
   }
 
   @Override
-  public Iterator<UserDtoDdb> listAllUsers() {
+  public Iterator<User> listAllUsers() {
     var scan = usersTable.scan();
-    return new MappingIterator<>(new FlatteningIterator<>(scan.iterator()), this::toDto);
+    return new MappingIterator<>(new FlatteningIterator<>(scan.iterator()), DdbMapper::toApi);
   }
 
   @Override
-  public void update(UserDtoDdb userDtoDdb) {
-    var obj = fromDto(userDtoDdb);
+  public void update(User user) {
+    var obj = DdbMapper.toDdb(user);
     usersTable.updateItem(obj);
-  }
-
-  public UserDtoDdb fromDto(UserDtoDdb dto) {
-    return dto;
-  }
-
-  public UserDtoDdb toDto(UserDtoDdb obj) {
-    return obj;
   }
 }

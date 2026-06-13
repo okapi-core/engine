@@ -13,10 +13,10 @@ import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.okapi.data.CreateDynamoDBTables;
 import org.okapi.data.dao.DashboardDao;
-import org.okapi.data.ddb.attributes.ResourceOrder;
-import org.okapi.data.ddb.attributes.TagsList;
+import org.okapi.data.model.ResourceOrder;
+import org.okapi.data.model.Tags;
 import org.okapi.data.ddb.dao.DashboardDaoImpl;
-import org.okapi.data.dto.DashboardDdb;
+import org.okapi.data.model.Dashboard;
 import org.okapi.testutils.OkapiTestUtils;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
 
@@ -41,12 +41,12 @@ public class DashboardDaoImplTest {
     var dashId = OkapiTestUtils.getTestId(getClass());
 
     var dto =
-        DashboardDdb.builder()
+        Dashboard.builder()
             .orgId(orgId)
             .dashboardId(dashId)
             .title("Title")
             .desc("Desc")
-            .tags(TagsList.of("a", "b"))
+            .tags(Tags.of("a", "b"))
             .rowOrder(new ResourceOrder(List.of("a", "b", "c")))
             .build();
     dao.save(dto);

@@ -32,10 +32,15 @@ public class DashboardPanelDaoDdbImpl implements DashboardPanelDao {
 
   @Override
   public void save(
-      String orgId, String dashboardId, String rowId, String versionId, DashboardPanel panel) {
+      String orgId,
+      String dashboardId,
+      String rowId,
+      String versionId,
+      org.okapi.data.model.DashboardPanel panel) {
     var orgRowId = ResourceIdCreator.createResourceId(orgId, dashboardId, versionId, rowId);
-    panel.setOrgPanelHashKey(orgRowId);
-    table.putItem(panel);
+    var stored = DdbMapper.toDdb(panel);
+    stored.setOrgPanelHashKey(orgRowId);
+    table.putItem(stored);
   }
 
   @Override
@@ -46,15 +51,15 @@ public class DashboardPanelDaoDdbImpl implements DashboardPanelDao {
   }
 
   @Override
-  public Optional<DashboardPanel> get(
+  public Optional<org.okapi.data.model.DashboardPanel> get(
       String orgId, String dashboardId, String rowId, String versionId, String panelId) {
     var orgRowId = ResourceIdCreator.createResourceId(orgId, dashboardId, versionId, rowId);
     var item = table.getItem(Key.builder().partitionValue(orgRowId).sortValue(panelId).build());
-    return Optional.ofNullable(item);
+    return Optional.ofNullable(DdbMapper.toApi(item));
   }
 
   @Override
-  public List<DashboardPanel> getAll(
+  public List<org.okapi.data.model.DashboardPanel> getAll(
       String orgId, String dashboardId, String rowId, String versionId) {
     var orgRowId = ResourceIdCreator.createResourceId(orgId, dashboardId, versionId, rowId);
     var query =
@@ -63,6 +68,8 @@ public class DashboardPanelDaoDdbImpl implements DashboardPanelDao {
                 .queryConditional(
                     QueryConditional.keyEqualTo(Key.builder().partitionValue(orgRowId).build()))
                 .build());
-    return Lists.newArrayList(new FlatteningIterator<>(query.iterator()));
+    return Lists.newArrayList(new FlatteningIterator<>(query.iterator())).stream()
+        .map(DdbMapper::toApi)
+        .toList();
   }
 }

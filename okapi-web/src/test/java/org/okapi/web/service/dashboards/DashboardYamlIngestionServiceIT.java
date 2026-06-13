@@ -15,7 +15,7 @@ import org.okapi.data.dao.DashboardPanelDao;
 import org.okapi.data.dao.DashboardRowDao;
 import org.okapi.data.dao.DashboardVarDao;
 import org.okapi.data.dao.DashboardVersionDao;
-import org.okapi.data.dto.DashboardVersion;
+import org.okapi.data.model.DashboardVersion;
 import org.okapi.web.auth.AbstractIT;
 import org.okapi.web.auth.OrgManager;
 import org.okapi.web.auth.TokenManager;

@@ -9,8 +9,8 @@ import org.okapi.data.bcrypt.BCrypt;
 import org.okapi.data.dao.OrgDao;
 import org.okapi.data.dao.RelationGraphDao;
 import org.okapi.data.dao.UsersDao;
-import org.okapi.data.dto.OrgDtoDdb;
-import org.okapi.data.dto.UserDtoDdb;
+import org.okapi.data.model.Organization;
+import org.okapi.data.model.User;
 import org.okapi.data.exceptions.UserAlreadyExistsException;
 import org.okapi.exceptions.BadRequestException;
 import org.okapi.exceptions.UnAuthorizedException;
@@ -71,14 +71,14 @@ public class UserManager {
       throw new UnAuthorizedException(UserFacingMessages.WRONG_CREDS);
     }
 
-    var userIsActive = user.get().getStatus() == UserDtoDdb.UserStatus.ACTIVE;
+    var userIsActive = user.get().getStatus() == User.Status.ACTIVE;
     if (!userIsActive) {
       throw new UnAuthorizedException(UserFacingMessages.WRONG_CREDS);
     }
     return tokenManager.issueLoginToken(user.get().getUserId());
   }
 
-  private OrgDtoDdb createUniqueOrgForUser(String userId) throws IdCreationFailedException {
+  private Organization createUniqueOrgForUser(String userId) throws IdCreationFailedException {
     var user = usersDao.get(userId).get();
     var orgName = "Default Org";
 
@@ -91,7 +91,7 @@ public class UserManager {
     if (existing.isPresent()) {
       return existing.get();
     }
-    var orgDto = OrgDtoDdb.builder().orgId(orgId).orgCreator(userId).orgName(orgName).build();
+    var orgDto = Organization.builder().orgId(orgId).orgCreator(userId).orgName(orgName).build();
     orgDao.save(orgDto);
     return orgDto;
   }

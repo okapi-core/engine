@@ -31,19 +31,20 @@ public class DashboardVersionDaoImpl implements DashboardVersionDao {
   }
 
   @Override
-  public void save(DashboardVersion version) {
-    table.putItem(version);
+  public void save(org.okapi.data.model.DashboardVersion version) {
+    table.putItem(DdbMapper.toDdb(version));
   }
 
   @Override
-  public Optional<DashboardVersion> get(String orgId, String dashboardId, String versionId) {
+  public Optional<org.okapi.data.model.DashboardVersion> get(
+      String orgId, String dashboardId, String versionId) {
     var key = DashboardVersion.dashboardVersionId(dashboardId, versionId);
     var item = table.getItem(Key.builder().partitionValue(orgId).sortValue(key).build());
-    return Optional.ofNullable(item);
+    return Optional.ofNullable(DdbMapper.toApi(item));
   }
 
   @Override
-  public List<DashboardVersion> list(String orgId, String dashboardId) {
+  public List<org.okapi.data.model.DashboardVersion> list(String orgId, String dashboardId) {
     var prefix = dashboardId + "#";
     var query =
         table.query(
@@ -52,6 +53,8 @@ public class DashboardVersionDaoImpl implements DashboardVersionDao {
                     QueryConditional.sortBeginsWith(
                         Key.builder().partitionValue(orgId).sortValue(prefix).build()))
                 .build());
-    return Lists.newArrayList(new FlatteningIterator<>(query.iterator()));
+    return Lists.newArrayList(new FlatteningIterator<>(query.iterator())).stream()
+        .map(DdbMapper::toApi)
+        .toList();
   }
 }

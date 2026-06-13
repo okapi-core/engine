@@ -14,6 +14,7 @@ import org.okapi.data.ddb.iterators.FlatteningIterator;
 import org.okapi.data.dto.DashboardDdb;
 import org.okapi.data.dto.TablesAndIndexes;
 import org.okapi.data.exceptions.ResourceNotFoundException;
+import org.okapi.data.model.Dashboard;
 import software.amazon.awssdk.enhanced.dynamodb.*;
 import software.amazon.awssdk.enhanced.dynamodb.model.QueryConditional;
 import software.amazon.awssdk.enhanced.dynamodb.model.QueryEnhancedRequest;
@@ -31,9 +32,9 @@ public class DashboardDaoImpl implements DashboardDao {
   }
 
   @Override
-  public DashboardDdb save(DashboardDdb dto) {
+  public Dashboard save(Dashboard dto) {
     Preconditions.checkNotNull(dto);
-    table.putItem(dto);
+    table.putItem(DdbMapper.toDdb(dto));
     return dto;
   }
 
@@ -56,20 +57,22 @@ public class DashboardDaoImpl implements DashboardDao {
   }
 
   @Override
-  public List<DashboardDdb> getAll(String orgId) {
+  public List<Dashboard> getAll(String orgId) {
     var query =
         table.query(
             QueryEnhancedRequest.builder()
                 .queryConditional(
                     QueryConditional.keyEqualTo(Key.builder().partitionValue(orgId).build()))
                 .build());
-    return Lists.newArrayList(new FlatteningIterator<>(query.iterator()));
+    return Lists.newArrayList(new FlatteningIterator<>(query.iterator())).stream()
+        .map(DdbMapper::toApi)
+        .toList();
   }
 
   @Override
-  public Optional<DashboardDdb> get(String orgId, String dashboardId) {
+  public Optional<Dashboard> get(String orgId, String dashboardId) {
     DashboardDdb found =
         table.getItem(Key.builder().partitionValue(orgId).sortValue(dashboardId).build());
-    return Optional.ofNullable(found);
+    return Optional.ofNullable(DdbMapper.toApi(found));
   }
 }

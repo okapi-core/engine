@@ -9,8 +9,7 @@ import java.util.concurrent.CompletableFuture;
 import org.okapi.agent.dto.PendingJob;
 import org.okapi.agent.dto.QueryResult;
 import org.okapi.data.dao.PendingJobsDao;
-import org.okapi.data.dto.JOB_STATUS;
-import org.okapi.data.dto.PendingJobDdb;
+import org.okapi.data.model.JobStatus;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -25,21 +24,19 @@ public class HttpDispatcherImpl implements JobDispatcher {
 
   @Override
   public CompletableFuture<QueryResult> dispatchJob(String orgId, PendingJob job) {
-    var jobDdb =
-        PendingJobDdb.builder()
+    var pendingJob =
+        org.okapi.data.model.PendingJob.builder()
             .orgId(orgId)
             .jobId(job.getJobId())
             .sourceId(job.getSourceId())
             .query(
-                new org.okapi.data.dto.DataSourceQuery(
+                new org.okapi.data.model.DataSourceQuery(
                     job.getSpec().serializedQuery(), job.getSourceId()))
-            .jobStatus(JOB_STATUS.PENDING)
+            .jobStatus(JobStatus.PENDING)
             .attemptCount(0)
-            .orgSourceStatusKey(
-                PendingJobDdb.buildOrgSourceStatusKey(orgId, job.getSourceId(), JOB_STATUS.PENDING))
             .createdAt(Instant.now().toEpochMilli())
             .build();
-    jobsDao.createPendingJob(jobDdb);
+    jobsDao.createPendingJob(pendingJob);
     UniversalJobId universalJobId = new UniversalJobId(orgId, job.getJobId());
     return pendingJobPoller.poll(universalJobId);
   }

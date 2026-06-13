@@ -11,10 +11,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.okapi.data.CreateDynamoDBTables;
 import org.okapi.data.dao.UserEntityRelationsDao;
-import org.okapi.data.ddb.attributes.ENTITY_TYPE;
-import org.okapi.data.ddb.attributes.EdgeAttributes;
-import org.okapi.data.ddb.attributes.EntityRelationId;
-import org.okapi.data.ddb.attributes.USER_RELATION_TYPE;
+import org.okapi.data.model.EntityType;
+import org.okapi.data.model.EdgeAttributes;
+import org.okapi.data.model.EntityRelationId;
+import org.okapi.data.model.UserRelationType;
 import org.okapi.data.ddb.dao.UserEntityRelationsDaoImpl;
 import org.okapi.testutils.OkapiTestUtils;
 
@@ -34,7 +34,7 @@ public class UserEntityRelationsDaoImplTest {
     userId = OkapiTestUtils.getTestId(getClass());
     var entityId = OkapiTestUtils.getTestId(getClass());
     relationId =
-        new EntityRelationId(ENTITY_TYPE.DASHBOARD, entityId, USER_RELATION_TYPE.DASHBOARD_FAVE);
+        new EntityRelationId(EntityType.DASHBOARD, entityId, UserRelationType.DASHBOARD_FAVE);
   }
 
   @Test
@@ -42,7 +42,7 @@ public class UserEntityRelationsDaoImplTest {
     // 1) Create
     var attrs = new EdgeAttributes(System.currentTimeMillis(), "fav", true);
     var rel =
-        org.okapi.data.dto.UserEntityRelations.builder()
+        org.okapi.data.model.UserEntityRelation.builder()
             .userId(userId)
             .edgeId(relationId)
             .edgeAttributes(attrs)

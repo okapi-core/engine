@@ -8,8 +8,8 @@ import lombok.AllArgsConstructor;
 import org.okapi.data.dao.DashboardDao;
 import org.okapi.data.dao.DashboardRowDao;
 import org.okapi.data.dao.DashboardVersionDao;
-import org.okapi.data.dto.DashboardDdb;
-import org.okapi.data.dto.DashboardRow;
+import org.okapi.data.model.Dashboard;
+import org.okapi.data.model.DashboardRow;
 import org.okapi.data.exceptions.ResourceNotFoundException;
 import org.okapi.exceptions.BadRequestException;
 import org.okapi.exceptions.UnAuthorizedException;
@@ -88,11 +88,11 @@ public class DashboardRowValidator
     return new DashboardRowAccessContext(orgCtx, parsedId, dashboard, versionId);
   }
 
-  public DashboardDdb getDashboardOrThrow(DashboardRowId rowId) throws ResourceNotFoundException {
+  public Dashboard getDashboardOrThrow(DashboardRowId rowId) throws ResourceNotFoundException {
     return getDashboardOrThrow(rowId.getOrgId(), rowId.getDashboardId());
   }
 
-  public DashboardDdb getDashboardOrThrow(String orgId, String dashboardId)
+  public Dashboard getDashboardOrThrow(String orgId, String dashboardId)
       throws ResourceNotFoundException {
     var dashboardDdb = dashboardDao.get(orgId, dashboardId);
     if (dashboardDdb.isEmpty()) {

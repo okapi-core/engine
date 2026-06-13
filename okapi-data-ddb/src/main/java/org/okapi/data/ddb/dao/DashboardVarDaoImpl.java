@@ -32,19 +32,23 @@ public class DashboardVarDaoImpl implements DashboardVarDao {
   }
 
   @Override
-  public Optional<DashboardVariable> get(
+  public Optional<org.okapi.data.model.DashboardVariable> get(
       String orgId, String dashboardId, String versionId, String name) {
     var orgDashKey = DashboardVariable.orgDashKey(orgId, dashboardId, versionId);
     var found = table.getItem(Key.builder().partitionValue(orgDashKey).sortValue(name).build());
-    return Optional.ofNullable(found);
+    return Optional.ofNullable(DdbMapper.toApi(found));
   }
 
   @Override
-  public DashboardVariable save(
-      String orgId, String dashboardId, String versionId, DashboardVariable variable) {
+  public org.okapi.data.model.DashboardVariable save(
+      String orgId,
+      String dashboardId,
+      String versionId,
+      org.okapi.data.model.DashboardVariable variable) {
     Preconditions.checkNotNull(variable);
-    variable.setOrgDashKey(DashboardVariable.orgDashKey(orgId, dashboardId, versionId));
-    table.putItem(variable);
+    var stored = DdbMapper.toDdb(variable);
+    stored.setOrgDashKey(DashboardVariable.orgDashKey(orgId, dashboardId, versionId));
+    table.putItem(stored);
     return variable;
   }
 
@@ -56,7 +60,8 @@ public class DashboardVarDaoImpl implements DashboardVarDao {
   }
 
   @Override
-  public List<DashboardVariable> list(String orgId, String dashboardId, String versionId) {
+  public List<org.okapi.data.model.DashboardVariable> list(
+      String orgId, String dashboardId, String versionId) {
     var orgDashKey = DashboardVariable.orgDashKey(orgId, dashboardId, versionId);
     var q =
         table.query(
@@ -64,6 +69,8 @@ public class DashboardVarDaoImpl implements DashboardVarDao {
                 .queryConditional(
                     QueryConditional.keyEqualTo(Key.builder().partitionValue(orgDashKey).build()))
                 .build());
-    return Lists.newArrayList(new FlatteningIterator<>(q.iterator()));
+    return Lists.newArrayList(new FlatteningIterator<>(q.iterator())).stream()
+        .map(DdbMapper::toApi)
+        .toList();
   }
 }

@@ -8,8 +8,8 @@ import java.util.List;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
 import org.okapi.data.dao.TokenMetaDao;
-import org.okapi.data.dto.TOKEN_STATUS;
-import org.okapi.data.dto.TokenMetaDdb;
+import org.okapi.data.model.TokenStatus;
+import org.okapi.data.model.TokenMetadata;
 import org.okapi.exceptions.NotFoundException;
 import org.okapi.web.auth.AccessManager;
 import org.okapi.web.auth.ApiTokenManager;
@@ -32,7 +32,7 @@ public class ApiTokenService {
 
   public ListTokensResponse listTokens(String tempToken) {
     var context = accessManager.checkUserIsOrgMember(tokenManager.getAuthContext(tempToken));
-    var orgTokens = tokenMetaDao.listTokensByOrgAndStatus(context.orgId(), TOKEN_STATUS.ACTIVE);
+    var orgTokens = tokenMetaDao.listTokensByOrgAndStatus(context.orgId(), TokenStatus.ACTIVE);
     var filterByCreator =
         orgTokens.stream()
             .filter(t -> t.getCreatorId().equals(context.userId()))
@@ -52,7 +52,7 @@ public class ApiTokenService {
     }
 
     tokenMetaDao.updateTokenStatus(
-        context.orgId(), tokenId, TOKEN_STATUS.valueOf(updateTokenRequest.getStatus()));
+        context.orgId(), tokenId, TokenStatus.valueOf(updateTokenRequest.getStatus()));
     var updatedTokenMeta = tokenMetaDao.getTokenMetadata(context.orgId(), tokenId);
     return Mappers.mapTokenMetaToResponse(updatedTokenMeta);
   }
@@ -63,12 +63,12 @@ public class ApiTokenService {
         apiTokenManager.createApiToken(
             context.orgId(), List.of(Permissions.AGENT_JOBS_UPDATE, Permissions.AGENT_JOBS_READ));
 
-    var metadata = new TokenMetaDdb();
+    var metadata = new TokenMetadata();
     metadata.setOrgId(context.orgId());
     metadata.setCreatorId(context.userId());
     metadata.setTokenId(UUID.randomUUID().toString());
     metadata.setCreatedAt(System.currentTimeMillis());
-    metadata.setTokenStatus(TOKEN_STATUS.ACTIVE);
+    metadata.setTokenStatus(TokenStatus.ACTIVE);
     tokenMetaDao.createTokenMetadata(metadata);
 
     return new ApiToken(newToken);

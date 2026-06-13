@@ -6,8 +6,8 @@ package org.okapi.web.service.dashboards.panels;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import org.okapi.data.ddb.dao.ResourceIdCreator;
 import org.okapi.exceptions.BadRequestException;
+import org.okapi.web.service.ResourceIdCreator;
 
 @AllArgsConstructor
 @Getter

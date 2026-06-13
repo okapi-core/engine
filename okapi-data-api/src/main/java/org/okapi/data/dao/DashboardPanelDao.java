@@ -6,7 +6,7 @@ package org.okapi.data.dao;
 
 import java.util.List;
 import java.util.Optional;
-import org.okapi.data.dto.DashboardPanel;
+import org.okapi.data.model.DashboardPanel;
 
 public interface DashboardPanelDao {
   void save(String orgId, String dashboardId, String rowId, String versionId, DashboardPanel panel);

@@ -12,9 +12,9 @@ import org.okapi.agent.dto.QueryResult;
 import org.okapi.data.dao.PendingJobsDao;
 import org.okapi.data.dao.RelationGraphDao;
 import org.okapi.data.dao.UsersDao;
-import org.okapi.data.dto.DataSourceQuery;
-import org.okapi.data.dto.JOB_STATUS;
-import org.okapi.data.dto.PendingJobDdb;
+import org.okapi.data.model.DataSourceQuery;
+import org.okapi.data.model.JobStatus;
+import org.okapi.data.model.PendingJob;
 import org.okapi.web.auth.AbstractIT;
 import org.okapi.web.auth.OrgManager;
 import org.okapi.web.auth.TokenManager;
@@ -76,7 +76,7 @@ public class PendingJobPollerIT extends AbstractIT {
     var future = pendingJobPoller.poll(new UniversalJobId(orgId, jobId));
     assertFalse(future.isDone(), "Future should not be completed immediately");
 
-    pendingJobsDao.updateJobStatus(orgId, jobId, JOB_STATUS.IN_PROGRESS);
+    pendingJobsDao.updateJobStatus(orgId, jobId, JobStatus.IN_PROGRESS);
     var resultPayload = QueryResult.ofData("ok!");
     pendingJobsDao.updateJobResult(orgId, jobId, gson.toJson(resultPayload));
 
@@ -94,7 +94,7 @@ public class PendingJobPollerIT extends AbstractIT {
     var future = pendingJobPoller.poll(new UniversalJobId(orgId, jobId));
     assertFalse(future.isDone(), "Future should not be completed immediately");
 
-    pendingJobsDao.updateJobStatus(orgId, jobId, JOB_STATUS.IN_PROGRESS);
+    pendingJobsDao.updateJobStatus(orgId, jobId, JobStatus.IN_PROGRESS);
     var errorPayload = QueryResult.ofError("boom");
     pendingJobsDao.updateJobError(orgId, jobId, gson.toJson(errorPayload));
 
@@ -107,16 +107,14 @@ public class PendingJobPollerIT extends AbstractIT {
 
   private void createPendingJob(String jobId) {
     var pendingJob =
-        PendingJobDdb.builder()
+        PendingJob.builder()
             .orgId(orgId)
             .jobId(jobId)
-            .jobStatus(JOB_STATUS.PENDING)
+            .jobStatus(JobStatus.PENDING)
             .sourceId(sourceId)
             .query(new DataSourceQuery("dummy-query", sourceId))
             .attemptCount(0)
             .createdAt(System.currentTimeMillis())
-            .orgSourceStatusKey(
-                PendingJobDdb.buildOrgSourceStatusKey(orgId, sourceId, JOB_STATUS.PENDING))
             .build();
     pendingJobsDao.createPendingJob(pendingJob);
   }

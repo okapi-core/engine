@@ -5,10 +5,10 @@
 package org.okapi.data.dao;
 
 import java.util.Optional;
-import org.okapi.data.dto.OrgDtoDdb;
+import org.okapi.data.model.Organization;
 
 public interface OrgDao {
-  Optional<OrgDtoDdb> findById(String orgId);
+  Optional<Organization> findById(String orgId);
 
-  void save(OrgDtoDdb orgDto);
+  void save(Organization organization);
 }

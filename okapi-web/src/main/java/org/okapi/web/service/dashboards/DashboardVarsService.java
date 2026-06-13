@@ -7,7 +7,7 @@ package org.okapi.web.service.dashboards;
 import lombok.AllArgsConstructor;
 import org.okapi.data.dao.DashboardDao;
 import org.okapi.data.dao.DashboardVarDao;
-import org.okapi.data.dto.DashboardVariable;
+import org.okapi.data.model.DashboardVariable;
 import org.okapi.data.exceptions.ResourceNotFoundException;
 import org.okapi.validation.OkapiChecks;
 import org.okapi.web.dtos.dashboards.vars.CreateDashboardVarRequest;
@@ -62,11 +62,11 @@ public class DashboardVarsService {
     return ListVarsResponse.builder().vars(vars).build();
   }
 
-  private static DashboardVariable.DASHBOARD_VAR_TYPE toDashboardVarType(DASH_VAR_TYPE type) {
+  private static DashboardVariable.Type toDashboardVarType(DASH_VAR_TYPE type) {
     if (type == null) return null;
     return switch (type) {
-      case METRIC -> DashboardVariable.DASHBOARD_VAR_TYPE.METRIC;
-      case TAG_VALUE -> DashboardVariable.DASHBOARD_VAR_TYPE.TAG;
+      case METRIC -> DashboardVariable.Type.METRIC;
+      case TAG_VALUE -> DashboardVariable.Type.TAG;
     };
   }
 }

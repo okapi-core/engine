@@ -6,9 +6,9 @@ package org.okapi.ddb;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.okapi.data.dao.RelationGraphDao.makeRelation;
-import static org.okapi.data.ddb.attributes.ENTITY_TYPE.*;
-import static org.okapi.data.ddb.attributes.RELATION_TYPE.*;
-import static org.okapi.data.dto.RelationGraphNodeDdb.makeEntityId;
+import static org.okapi.data.model.EntityType.*;
+import static org.okapi.data.model.RelationType.*;
+import static org.okapi.data.model.EntityId.of;
 import static org.okapi.fixtures.Deduplicator.dedup;
 
 import java.util.Arrays;
@@ -16,10 +16,10 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.okapi.data.dao.RelationGraphDao;
-import org.okapi.data.ddb.attributes.EdgeSeq;
-import org.okapi.data.ddb.attributes.EntityId;
+import org.okapi.data.model.EdgeSequence;
+import org.okapi.data.model.EntityId;
 import org.okapi.data.ddb.dao.RelationGraphDaoImpl;
-import org.okapi.data.ddb.dao.RelationGraphNode;
+import org.okapi.data.model.RelationGraphNode;
 import org.okapi.data.migrations.RelationGraphDdbSpec;
 import org.okapi.testutils.OkapiTestUtils;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
@@ -44,19 +44,19 @@ public class RelationGraphDaoImplTests {
   String globalUser = dedup(testId, "globalUser");
 
   // list of accepted paths for dash edit and read
-  List<EdgeSeq> dashEditRoute =
+  List<EdgeSequence> dashEditRoute =
       List.of(
-          new EdgeSeq(
+          new EdgeSequence(
               Arrays.asList(
                   makeRelation(ORG, ORG_MEMBER), makeRelation(DASHBOARD, DASHBOARD_EDIT))));
 
-  List<EdgeSeq> dashReadRoute =
+  List<EdgeSequence> dashReadRoute =
       List.of(
-          new EdgeSeq(
+          new EdgeSequence(
               Arrays.asList(
                   makeRelation(ORG, ORG_MEMBER), makeRelation(DASHBOARD, DASHBOARD_READ))));
 
-  List<EdgeSeq> orgMemberRoute = List.of(new EdgeSeq(Arrays.asList(makeRelation(ORG, ORG_MEMBER))));
+  List<EdgeSequence> orgMemberRoute = List.of(new EdgeSequence(Arrays.asList(makeRelation(ORG, ORG_MEMBER))));
 
   @BeforeEach
   public void setup() {
@@ -64,51 +64,51 @@ public class RelationGraphDaoImplTests {
     spec.create(ddbClient);
     dao = new RelationGraphDaoImpl(enhancedClient);
     // A is realted to orgA
-    dao.addRelationship(new EntityId(USER, userA), makeEntityId(ORG, orgA), ORG_MEMBER);
+    dao.addRelationship(new EntityId(USER, userA), of(ORG, orgA), ORG_MEMBER);
 
     // B is related to orgB
-    dao.addRelationship(makeEntityId(USER, userB), makeEntityId(ORG, orgB), ORG_MEMBER);
+    dao.addRelationship(of(USER, userB), of(ORG, orgB), ORG_MEMBER);
 
     // anyone in orgA has read access to dashA and edit access to dashB
-    dao.addRelationship(makeEntityId(ORG, orgA), makeEntityId(DASHBOARD, dashRead), DASHBOARD_READ);
-    dao.addRelationship(makeEntityId(ORG, orgA), makeEntityId(DASHBOARD, dashEdit), DASHBOARD_EDIT);
+    dao.addRelationship(of(ORG, orgA), of(DASHBOARD, dashRead), DASHBOARD_READ);
+    dao.addRelationship(of(ORG, orgA), of(DASHBOARD, dashEdit), DASHBOARD_EDIT);
 
     // dashB is only accessible by orgB members with read access
-    dao.addRelationship(makeEntityId(ORG, orgB), makeEntityId(DASHBOARD, dashB), DASHBOARD_READ);
+    dao.addRelationship(of(ORG, orgB), of(DASHBOARD, dashB), DASHBOARD_READ);
 
     // globalUser is member of orgA and orgB
-    dao.addRelationship(new EntityId(USER, globalUser), makeEntityId(ORG, orgA), ORG_MEMBER);
-    dao.addRelationship(new EntityId(USER, globalUser), makeEntityId(ORG, orgB), ORG_MEMBER);
+    dao.addRelationship(new EntityId(USER, globalUser), of(ORG, orgA), ORG_MEMBER);
+    dao.addRelationship(new EntityId(USER, globalUser), of(ORG, orgB), ORG_MEMBER);
   }
 
   @Test
   public void testRelations() {
     // single paths
     assertTrue(
-        dao.isAnyPathBetween(makeEntityId(USER, userA), makeEntityId(ORG, orgA), orgMemberRoute));
+        dao.isAnyPathBetween(of(USER, userA), of(ORG, orgA), orgMemberRoute));
 
     // any path
     assertTrue(
         dao.isAnyPathBetween(
-            makeEntityId(USER, globalUser), makeEntityId(DASHBOARD, dashRead), dashReadRoute));
+            of(USER, globalUser), of(DASHBOARD, dashRead), dashReadRoute));
 
     assertTrue(
         dao.isAnyPathBetween(
-            makeEntityId(USER, globalUser), makeEntityId(DASHBOARD, dashEdit), dashEditRoute));
+            of(USER, globalUser), of(DASHBOARD, dashEdit), dashEditRoute));
 
     // global user can also access dashB with read access
     assertTrue(
         dao.isAnyPathBetween(
-            makeEntityId(USER, globalUser), makeEntityId(DASHBOARD, dashB), dashReadRoute));
+            of(USER, globalUser), of(DASHBOARD, dashB), dashReadRoute));
 
     // negative tests
     assertFalse(
         dao.isAnyPathBetween(
-            makeEntityId(USER, userB), makeEntityId(DASHBOARD, dashRead), dashReadRoute));
+            of(USER, userB), of(DASHBOARD, dashRead), dashReadRoute));
     assertTrue(
-        dao.hasRelationBetween(makeEntityId(USER, userA), makeEntityId(ORG, orgA), ORG_MEMBER));
+        dao.hasRelationBetween(of(USER, userA), of(ORG, orgA), ORG_MEMBER));
     assertFalse(
-        dao.hasRelationBetween(makeEntityId(USER, userA), makeEntityId(ORG, orgB), ORG_MEMBER));
+        dao.hasRelationBetween(of(USER, userA), of(ORG, orgB), ORG_MEMBER));
 
     // get all relations of type
     var relations = dao.getAllRelationsOfNodeType(EntityId.of(USER, globalUser), ORG);
@@ -122,10 +122,10 @@ public class RelationGraphDaoImplTests {
     dao.deleteEntity(EntityId.of(USER, userA));
     assertFalse(
         dao.isAnyPathBetween(
-            makeEntityId(USER, userA), makeEntityId(DASHBOARD, dashRead), dashReadRoute));
+            of(USER, userA), of(DASHBOARD, dashRead), dashReadRoute));
     dao.deleteEntity(EntityId.of(ORG, orgB));
     assertFalse(
         dao.isAnyPathBetween(
-            makeEntityId(USER, globalUser), makeEntityId(DASHBOARD, dashB), dashReadRoute));
+            of(USER, globalUser), of(DASHBOARD, dashB), dashReadRoute));
   }
 }
