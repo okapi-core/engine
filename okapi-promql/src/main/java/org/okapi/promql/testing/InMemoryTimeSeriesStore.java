@@ -68,10 +68,10 @@ final class InMemoryTimeSeriesStore {
     }
 
     private GaugeScan buildGaugeScan(List<IngestedSeries> fragments, long startMs, long endMs) {
-      Map<Long, Double> points = new TreeMap<>();
+      Map<Long, Float> points = new TreeMap<>();
       for (IngestedSeries series : fragments) {
         long ts = series.startMs();
-        for (Double value : expandPoints(series.points())) {
+        for (Float value : expandPoints(series.points())) {
           if (ts >= startMs && ts <= endMs && value != null) {
             points.put(ts, value);
           }
@@ -100,25 +100,25 @@ final class InMemoryTimeSeriesStore {
       return new HistogramSeries(fragments.get(0).metric(), new ArrayList<>(points.values()));
     }
 
-    // Expands PointExpr list to Double values for gauge ingestion.
+    // Expands PointExpr list to Float values for gauge ingestion.
     // MissingPoint → null (position skipped), StalePoint → stale sentinel.
-    private List<Double> expandPoints(List<PointExpr> points) {
-      List<Double> out = new ArrayList<>();
+    private List<Float> expandPoints(List<PointExpr> points) {
+      List<Float> out = new ArrayList<>();
       for (PointExpr p : points) expandIngestedPoint(p, out);
       return out;
     }
 
-    private void expandIngestedPoint(PointExpr point, List<Double> out) {
+    private void expandIngestedPoint(PointExpr point, List<Float> out) {
       switch (point) {
-        case NumberPoint np -> out.add((double) np.value());
-        case NaNPoint ignored -> out.add(Double.NaN);
-        case InfPoint ip -> out.add(ip.negative() ? Double.NEGATIVE_INFINITY : Double.POSITIVE_INFINITY);
+        case NumberPoint np -> out.add((float) np.value());
+        case NaNPoint ignored -> out.add(Float.NaN);
+        case InfPoint ip -> out.add(ip.negative() ? Float.NEGATIVE_INFINITY : Float.POSITIVE_INFINITY);
         case MissingPoint ignored -> out.add(null);
-        case StalePoint ignored -> out.add(Staleness.staleDouble());
+        case StalePoint ignored -> out.add(Staleness.staleFloat());
         case RepeatPoint rp -> { for (int i = 0; i <= rp.count(); i++) expandIngestedPoint(rp.value(), out); }
         case StepSequencePoint sp -> {
           double start = extractNumber(sp.start()), delta = extractNumber(sp.step());
-          for (int i = 0; i <= sp.count(); i++) out.add((double) (start + delta * i));
+          for (int i = 0; i <= sp.count(); i++) out.add((float) (start + delta * i));
         }
         case HistogramPoint ignored -> throw new IllegalStateException("histogram point in gauge expansion");
       }
@@ -142,10 +142,10 @@ final class InMemoryTimeSeriesStore {
         case StepSequencePoint sp -> {
           if (sp.start() instanceof HistogramPoint start && sp.step() instanceof HistogramPoint delta) {
             if (!hasHistogramStructure(start.value()) && !hasHistogramStructure(delta.value())) {
-              double startSum = histogramField(start.value(), "sum");
-              double startCount = histogramField(start.value(), "count");
-              double dSum = histogramField(delta.value(), "sum");
-              double dCount = histogramField(delta.value(), "count");
+              float startSum = histogramField(start.value(), "sum");
+              float startCount = histogramField(start.value(), "count");
+              float dSum = histogramField(delta.value(), "sum");
+              float dCount = histogramField(delta.value(), "count");
               for (int i = 0; i <= sp.count(); i++) {
                 out.add(new HistogramPoint(buildHistogramLiteral(startSum + dSum * i, startCount + dCount * i)));
               }
@@ -170,11 +170,11 @@ final class InMemoryTimeSeriesStore {
     private SeriesSample toSeriesSample(long ts, PointExpr point) {
       return switch (point) {
         case HistogramPoint hp -> toNativeHistogramSample(ts, hp.value());
-        case NumberPoint np -> new FloatSample(ts, ts, (double) np.value());
-        case NaNPoint ignored -> new FloatSample(ts, ts, Double.NaN);
+        case NumberPoint np -> new FloatSample(ts, ts, (float) np.value());
+        case NaNPoint ignored -> new FloatSample(ts, ts, Float.NaN);
         case InfPoint ip ->
-            new FloatSample(ts, ts, ip.negative() ? Double.NEGATIVE_INFINITY : Double.POSITIVE_INFINITY);
-        case StalePoint ignored -> new FloatSample(ts, ts, Staleness.staleDouble());
+            new FloatSample(ts, ts, ip.negative() ? Float.NEGATIVE_INFINITY : Float.POSITIVE_INFINITY);
+        case StalePoint ignored -> new FloatSample(ts, ts, Staleness.staleFloat());
         default -> throw new IllegalStateException("unexpected expanded series point: " + point);
       };
     }
@@ -230,10 +230,10 @@ final class InMemoryTimeSeriesStore {
     return new SeriesId(metric, new Labels(labels));
   }
 
-  static double histogramField(HistogramLiteral literal, String key) {
+  static float histogramField(HistogramLiteral literal, String key) {
     HistogramValue v = literal.fields().get(key);
-    if (v instanceof HistogramNumber n) return (double) n.value();
-    return Double.NaN;
+    if (v instanceof HistogramNumber n) return (float) n.value();
+    return Float.NaN;
   }
 
   private static NativeHistogramSample toNativeHistogramSample(long ts, HistogramLiteral literal) {
@@ -271,7 +271,7 @@ final class InMemoryTimeSeriesStore {
     return value instanceof HistogramIdentifier identifier ? identifier.value() : null;
   }
 
-  static HistogramLiteral buildHistogramLiteral(double sum, double count) {
+  static HistogramLiteral buildHistogramLiteral(float sum, float count) {
     Map<String, HistogramValue> fields = new HashMap<>();
     fields.put("sum", new HistogramNumber(sum));
     fields.put("count", new HistogramNumber(count));

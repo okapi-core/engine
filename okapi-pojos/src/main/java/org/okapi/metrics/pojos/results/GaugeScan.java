@@ -17,5 +17,5 @@ public class GaugeScan extends Scan {
 
   @Getter public final List<Long> timestamps;
 
-  @Getter public final List<Double> values;
+  @Getter public final List<Float> values;
 }

@@ -680,7 +680,7 @@ public final class HistogramFunctions {
     for (var p : hs.getPoints()) {
       if (!overlaps(p.startMs(), p.endMs(), winStart, winEnd)) continue;
       if (!(p instanceof HistogramSeries.ExplicitHistogramSample explicit)) continue;
-      double[] bounds = explicit.upperBounds();
+      float[] bounds = explicit.upperBounds();
       int[] counts = explicit.counts();
       List<Float> ubs = new ArrayList<>(bounds == null ? 0 : bounds.length);
       if (bounds != null) for (double b : bounds) ubs.add((float) b);

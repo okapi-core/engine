@@ -35,39 +35,39 @@ public final class RangeStats {
         if (ts.get(i) <= winStart || ts.get(i) > t) continue;
         sum += vals.get(i); count++;
       }
-      return count > 0 ? (double) (sum / count) : Double.NaN;
+      return count > 0 ? (float) (sum / count) : Float.NaN;
     });
   }
 
   public static InstantVectorResult min(RangeVectorResult rv, long rangeMs, EvalContext ctx, long anchorMs) {
     return mapWindows(rv, rangeMs, ctx, anchorMs, (ts, vals, winStart, t) -> {
-      double min = Double.POSITIVE_INFINITY; boolean found = false;
+      float min = Float.POSITIVE_INFINITY; boolean found = false;
       for (int i = 0; i < ts.size(); i++) {
         if (ts.get(i) <= winStart || ts.get(i) > t) continue;
-        if (Double.isNaN(vals.get(i))) continue;
+        if (Float.isNaN(vals.get(i))) continue;
         if (vals.get(i) < min) min = vals.get(i);
         found = true;
       }
-      return found ? min : Double.NaN;
+      return found ? min : Float.NaN;
     });
   }
 
   public static InstantVectorResult max(RangeVectorResult rv, long rangeMs, EvalContext ctx, long anchorMs) {
     return mapWindows(rv, rangeMs, ctx, anchorMs, (ts, vals, winStart, t) -> {
-      double max = Double.NEGATIVE_INFINITY; boolean found = false;
+      float max = Float.NEGATIVE_INFINITY; boolean found = false;
       for (int i = 0; i < ts.size(); i++) {
         if (ts.get(i) <= winStart || ts.get(i) > t) continue;
-        if (Double.isNaN(vals.get(i))) continue;
+        if (Float.isNaN(vals.get(i))) continue;
         if (vals.get(i) > max) max = vals.get(i);
         found = true;
       }
-      return found ? max : Double.NaN;
+      return found ? max : Float.NaN;
     });
   }
 
   public static InstantVectorResult sum(RangeVectorResult rv, long rangeMs, EvalContext ctx, long anchorMs) {
     return mapNumericOrHistogramWindows(rv, rangeMs, ctx, anchorMs, false, (ts, vals, winStart, t) -> {
-      double s = 0;
+      float s = 0;
       for (int i = 0; i < ts.size(); i++) {
         if (ts.get(i) <= winStart || ts.get(i) > t) continue;
         s += vals.get(i);
@@ -163,14 +163,14 @@ public final class RangeStats {
         if (ts.get(i) <= winStart || ts.get(i) > t) continue;
         sum += vals.get(i); count++;
       }
-      if (count == 0) return Double.NaN;
+      if (count == 0) return Float.NaN;
       double mean = sum / count;
       double var = 0;
       for (int i = 0; i < ts.size(); i++) {
         if (ts.get(i) <= winStart || ts.get(i) > t) continue;
         double d = vals.get(i) - mean; var += d * d;
       }
-      return (double) Math.sqrt(var / count);
+      return (float) Math.sqrt(var / count);
     });
   }
 
@@ -181,32 +181,32 @@ public final class RangeStats {
         if (ts.get(i) <= winStart || ts.get(i) > t) continue;
         sum += vals.get(i); count++;
       }
-      if (count == 0) return Double.NaN;
+      if (count == 0) return Float.NaN;
       double mean = sum / count;
       double var = 0;
       for (int i = 0; i < ts.size(); i++) {
         if (ts.get(i) <= winStart || ts.get(i) > t) continue;
         double d = vals.get(i) - mean; var += d * d;
       }
-      return (double) (var / count);
+      return (float) (var / count);
     });
   }
 
   public static InstantVectorResult mad(RangeVectorResult rv, long rangeMs, EvalContext ctx, long anchorMs) {
     return mapWindows(rv, rangeMs, ctx, anchorMs, (ts, vals, winStart, t) -> {
-      List<Double> window = new ArrayList<>();
+      List<Float> window = new ArrayList<>();
       for (int i = 0; i < ts.size(); i++) {
         if (ts.get(i) <= winStart || ts.get(i) > t) continue;
         window.add(vals.get(i));
       }
-      if (window.isEmpty()) return Double.NaN;
-      window.sort(Double::compare);
-      double median = window.size() % 2 == 1
+      if (window.isEmpty()) return Float.NaN;
+      window.sort(Float::compare);
+      float median = window.size() % 2 == 1
           ? window.get(window.size() / 2)
           : (window.get(window.size() / 2 - 1) + window.get(window.size() / 2)) / 2f;
-      List<Double> diffs = new ArrayList<>(window.size());
-      for (double v : window) diffs.add(Math.abs(v - median));
-      diffs.sort(Double::compare);
+      List<Float> diffs = new ArrayList<>(window.size());
+      for (float v : window) diffs.add(Math.abs(v - median));
+      diffs.sort(Float::compare);
       return diffs.size() % 2 == 1
           ? diffs.get(diffs.size() / 2)
           : (diffs.get(diffs.size() / 2 - 1) + diffs.get(diffs.size() / 2)) / 2f;
@@ -215,7 +215,7 @@ public final class RangeStats {
 
   public static InstantVectorResult changes(RangeVectorResult rv, RangeEvalContext rangeCtx, long anchorMs) {
     return mapSeriesWindows(rv, rangeCtx, anchorMs, points -> {
-      double count = 0;
+      float count = 0;
       SeriesPoint prev = null;
       for (SeriesPoint point : points) {
         if (prev != null && !sameValue(prev.value(), point.value())) count++;
@@ -227,7 +227,7 @@ public final class RangeStats {
 
   public static InstantVectorResult resets(RangeVectorResult rv, RangeEvalContext rangeCtx, long anchorMs) {
     return mapSeriesWindows(rv, rangeCtx, anchorMs, points -> {
-      double count = 0;
+      float count = 0;
       SeriesPoint prev = null;
       for (SeriesPoint point : points) {
         if (prev != null && isReset(prev.value(), point.value())) count++;
@@ -239,7 +239,7 @@ public final class RangeStats {
 
   @FunctionalInterface
   private interface SeriesWindowFn {
-    double apply(List<SeriesPoint> points);
+    float apply(List<SeriesPoint> points);
   }
 
   private static InstantVectorResult mapSeriesWindows(
@@ -280,7 +280,7 @@ public final class RangeStats {
   }
 
   private static boolean sameValue(Object left, Object right) {
-    if (left instanceof Double a && right instanceof Double b) return Double.compare(a, b) == 0;
+    if (left instanceof Float a && right instanceof Float b) return Float.compare(a, b) == 0;
     if (left instanceof HistogramSeries.HistogramSample a
         && right instanceof HistogramSeries.HistogramSample b)
       return HistogramSeries.sameValue(a, b);
@@ -288,7 +288,7 @@ public final class RangeStats {
   }
 
   private static boolean isReset(Object previous, Object current) {
-    if (previous instanceof Double a && current instanceof Double b) return b < a;
+    if (previous instanceof Float a && current instanceof Float b) return b < a;
     if (previous instanceof HistogramSeries.HistogramSample a
         && current instanceof HistogramSeries.HistogramSample b)
       return HistogramSeries.isReset(a, b);
@@ -298,7 +298,7 @@ public final class RangeStats {
   private record SeriesPoint(long ts, Object value) {}
 
   private static List<Point> pointsInWindow(
-      List<Long> ts, List<Double> vals, RangeEvalContext rangeCtx, long anchor) {
+      List<Long> ts, List<Float> vals, RangeEvalContext rangeCtx, long anchor) {
     if (rangeCtx.mode() != org.okapi.promql.eval.nodes.ExtendedVectorMode.ANCHORED) {
       List<Point> points = new ArrayList<>();
       for (int i = 0; i < ts.size(); i++) {
@@ -320,31 +320,31 @@ public final class RangeStats {
     return points;
   }
 
-  private record Point(long ts, double value) {}
+  private record Point(long ts, float value) {}
 
   public static InstantVectorResult quantile(
-      double q, RangeVectorResult rv, long rangeMs, EvalContext ctx, long anchorMs) {
+      float q, RangeVectorResult rv, long rangeMs, EvalContext ctx, long anchorMs) {
     return mapWindows(rv, rangeMs, ctx, anchorMs, (ts, vals, winStart, t) -> {
-      if (Double.isNaN(q)) return Double.NaN;
-      if (q < 0) return Double.NEGATIVE_INFINITY;
-      if (q > 1) return Double.POSITIVE_INFINITY;
-      List<Double> window = new ArrayList<>();
+      if (Float.isNaN(q)) return Float.NaN;
+      if (q < 0) return Float.NEGATIVE_INFINITY;
+      if (q > 1) return Float.POSITIVE_INFINITY;
+      List<Float> window = new ArrayList<>();
       for (int i = 0; i < ts.size(); i++) {
         if (ts.get(i) <= winStart || ts.get(i) > t) continue;
         window.add(vals.get(i));
       }
-      if (window.isEmpty()) return Double.NaN;
-      window.sort(Double::compare);
+      if (window.isEmpty()) return Float.NaN;
+      window.sort(Float::compare);
       double rank = q * (window.size() - 1);
       int lo = (int) Math.floor(rank), hi = (int) Math.ceil(rank);
       if (lo == hi) return window.get(lo);
-      return window.get(lo) + (double) (rank - lo) * (window.get(hi) - window.get(lo));
+      return window.get(lo) + (float) (rank - lo) * (window.get(hi) - window.get(lo));
     });
   }
 
   @FunctionalInterface
   private interface WindowFn {
-    double apply(List<Long> ts, List<Double> vals, long winStart, long t);
+    float apply(List<Long> ts, List<Float> vals, long winStart, long t);
   }
 
   // anchorMs >= 0 pins the window anchor to a fixed time (for @ modifier); -1 uses the step time.
@@ -391,7 +391,7 @@ public final class RangeStats {
         GaugeScan scan = floatScan(window);
         if (scan == null || scan.getTimestamps().isEmpty()) continue;
         var normalized = Staleness.withoutStaleSamples(scan);
-        double value =
+        float value =
             floatFn.apply(
                 normalized.getTimestamps(),
                 normalized.getValues(),
@@ -414,7 +414,7 @@ public final class RangeStats {
       var vals = normalized.getValues();
       for (long t = ctx.startMs; t <= ctx.endMs; t += ctx.stepMs) {
         long anchor = anchorMs >= 0 ? anchorMs : t;
-        double v = fn.apply(ts, vals, anchor - rangeMs, anchor);
+        float v = fn.apply(ts, vals, anchor - rangeMs, anchor);
         out.add(new SeriesSample(derived ? SeriesIds.derived(w.id()) : w.id(), new Sample(t, v)));
       }
     }
@@ -475,7 +475,7 @@ public final class RangeStats {
 
     TimelineSample selected = null;
     for (TimelineSample sample : samples) {
-      if (sample.value() == null || Double.isNaN(sample.value())) continue;
+      if (sample.value() == null || Float.isNaN(sample.value())) continue;
       if (selected == null
           || selector == TimestampSelector.MIN && sample.value() <= selected.value()
           || selector == TimestampSelector.MAX && sample.value() >= selected.value()) {
@@ -486,7 +486,7 @@ public final class RangeStats {
   }
 
   private record TimelineSample(
-      long sourceTs, Double value, HistogramSeries.HistogramSample histogram) {
+      long sourceTs, Float value, HistogramSeries.HistogramSample histogram) {
     private Sample at(long timestamp) {
       return histogram == null
           ? new Sample(timestamp, sourceTs, value)

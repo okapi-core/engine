@@ -46,10 +46,10 @@ public final class RangeFunctions {
       if (!(w.scan() instanceof SumScan) && floatScan == null) continue;
       for (long t = ctx.startMs; t <= ctx.endMs; t += ctx.stepMs) {
         long anchor = anchorMs >= 0 ? anchorMs : t;
-        double inc = w.scan() instanceof SumScan ss
+        float inc = w.scan() instanceof SumScan ss
             ? sumInWindow(ss, anchor - rangeMs, anchor)
             : counterIncrease(floatScan, rangeCtx, anchor);
-        double v = (rangeMs > 0) ? inc / (rangeMs / 1000f) : Double.NaN;
+        float v = (rangeMs > 0) ? inc / (rangeMs / 1000f) : Float.NaN;
         out.add(new SeriesSample(SeriesIds.derived(w.id()), new Sample(t, v)));
       }
     }
@@ -73,7 +73,7 @@ public final class RangeFunctions {
       if (!(w.scan() instanceof SumScan) && !(w.scan() instanceof GaugeScan)) continue;
       for (long t = ctx.startMs; t <= ctx.endMs; t += ctx.stepMs) {
         long anchor = anchorMs >= 0 ? anchorMs : t;
-        double v = w.scan() instanceof SumScan ss
+        float v = w.scan() instanceof SumScan ss
             ? irateInWindow(ss, anchor - rangeMs, anchor)
             : sampledCounterIrate((GaugeScan) w.scan(), anchor - rangeMs, anchor);
         out.add(new SeriesSample(SeriesIds.derived(w.id()), new Sample(t, v)));
@@ -102,7 +102,7 @@ public final class RangeFunctions {
       if (!(w.scan() instanceof SumScan) && floatScan == null) continue;
       for (long t = ctx.startMs; t <= ctx.endMs; t += ctx.stepMs) {
         long anchor = anchorMs >= 0 ? anchorMs : t;
-        double v = w.scan() instanceof SumScan ss
+        float v = w.scan() instanceof SumScan ss
             ? sumInWindow(ss, anchor - rangeMs, anchor)
             : counterIncrease(floatScan, rangeCtx, anchor);
         out.add(new SeriesSample(SeriesIds.derived(w.id()), new Sample(t, v)));
@@ -172,7 +172,7 @@ public final class RangeFunctions {
         }
         double v;
         if (n < 2) {
-          v = Double.NaN;
+          v = Float.NaN;
         } else {
           double denom = n * sumXX - sumX * sumX;
           double slope = denom == 0 ? 0 : (n * sumXY - sumX * sumY) / denom;
@@ -190,8 +190,8 @@ public final class RangeFunctions {
       long rangeMs,
       EvalContext ctx,
       long anchorMs,
-      double smoothingFactor,
-      double trendFactor) {
+      float smoothingFactor,
+      float trendFactor) {
     List<SeriesSample> out = new ArrayList<>();
     for (SeriesWindow window : rv.data()) {
       GaugeScan scan = floatScan(window.scan());
@@ -199,7 +199,7 @@ public final class RangeFunctions {
       scan = Staleness.withoutStaleSamples(scan);
       for (long t = ctx.startMs; t <= ctx.endMs; t += ctx.stepMs) {
         long anchor = anchorMs >= 0 ? anchorMs : t;
-        Double value =
+        Float value =
             smoothInWindow(scan, anchor - rangeMs, anchor, smoothingFactor, trendFactor);
         if (value != null)
           out.add(new SeriesSample(SeriesIds.derived(window.id()), new Sample(t, value)));
@@ -210,8 +210,8 @@ public final class RangeFunctions {
 
   // --- window computations ---
 
-  private static double sumInWindow(SumScan ss, long start, long end) {
-    double total = 0f;
+  private static float sumInWindow(SumScan ss, long start, long end) {
+    float total = 0f;
     var ts = ss.getTs();
     var cnt = ss.getCounts();
     for (int i = 0; i < ts.size(); i++) {
@@ -222,7 +222,7 @@ public final class RangeFunctions {
     return total;
   }
 
-  private static double irateInWindow(SumScan ss, long start, long end) {
+  private static float irateInWindow(SumScan ss, long start, long end) {
     var ts = ss.getTs();
     var cnt = ss.getCounts();
     Integer lastIdx = null, prevIdx = null;
@@ -235,13 +235,13 @@ public final class RangeFunctions {
         break;
       }
     }
-    if (lastIdx == null || prevIdx == null) return Double.NaN;
-    double delta = cnt.get(lastIdx).floatValue();
-    double seconds = Math.max((ts.get(lastIdx) - ts.get(prevIdx)) / 1000f, 1f);
+    if (lastIdx == null || prevIdx == null) return Float.NaN;
+    float delta = cnt.get(lastIdx).floatValue();
+    float seconds = Math.max((ts.get(lastIdx) - ts.get(prevIdx)) / 1000f, 1f);
     return delta / seconds;
   }
 
-  private static double sampledCounterIncrease(GaugeScan gs, long start, long end) {
+  private static float sampledCounterIncrease(GaugeScan gs, long start, long end) {
     gs = Staleness.withoutStaleSamples(gs);
     var ts = gs.getTimestamps();
     var vals = gs.getValues();
@@ -252,9 +252,9 @@ public final class RangeFunctions {
       if (firstIdx == -1) firstIdx = i;
       lastIdx = i;
     }
-    if (firstIdx == -1 || firstIdx == lastIdx) return Double.NaN;
+    if (firstIdx == -1 || firstIdx == lastIdx) return Float.NaN;
 
-    double result = vals.get(lastIdx) - vals.get(firstIdx);
+    float result = vals.get(lastIdx) - vals.get(firstIdx);
     for (int i = firstIdx + 1; i <= lastIdx; i++) {
       if (vals.get(i) < vals.get(i - 1)) result += vals.get(i - 1);
     }
@@ -270,29 +270,29 @@ public final class RangeFunctions {
       if (durationToZero < durationToStart) durationToStart = durationToZero;
     }
     if (durationToEnd >= extrapolationThreshold) durationToEnd = averageInterval / 2;
-    return (double) (result * (sampledInterval + durationToStart + durationToEnd) / sampledInterval);
+    return (float) (result * (sampledInterval + durationToStart + durationToEnd) / sampledInterval);
   }
 
-  private static double counterIncrease(GaugeScan gs, RangeEvalContext rangeCtx, long anchor) {
+  private static float counterIncrease(GaugeScan gs, RangeEvalContext rangeCtx, long anchor) {
     return switch (rangeCtx.mode()) {
       case NONE -> sampledCounterIncrease(gs, rangeCtx.windowStart(anchor), anchor);
       case ANCHORED, SMOOTHED -> extendedRate(gs, rangeCtx, anchor, true);
     };
   }
 
-  private static double delta(GaugeScan gs, RangeEvalContext rangeCtx, long anchor) {
+  private static float delta(GaugeScan gs, RangeEvalContext rangeCtx, long anchor) {
     return switch (rangeCtx.mode()) {
       case NONE -> deltaInWindow(gs, rangeCtx.windowStart(anchor), anchor);
       case ANCHORED, SMOOTHED -> extendedRate(gs, rangeCtx, anchor, false);
     };
   }
 
-  private static double extendedRate(
+  private static float extendedRate(
       GaugeScan gs, RangeEvalContext rangeCtx, long anchor, boolean counter) {
     gs = Staleness.withoutStaleSamples(gs);
     var ts = gs.getTimestamps();
     var vals = gs.getValues();
-    if (ts.isEmpty()) return Double.NaN;
+    if (ts.isEmpty()) return Float.NaN;
     if (ts.size() == 1) return 0f;
 
     long start = rangeCtx.windowStart(anchor);
@@ -313,14 +313,14 @@ public final class RangeFunctions {
         ? pickOrInterpolateRight(ts, vals, last, anchor, counter)
         : pickAnchoredRight(ts, vals, last, anchor);
 
-    double result = right.value() - left.value();
+    float result = right.value() - left.value();
     if (!counter) return result;
 
-    double previous = left.value();
+    float previous = left.value();
     if (ts.get(first) <= start) first++;
     if (ts.get(last) >= anchor) last--;
     for (int i = first; i <= last; i++) {
-      double current = vals.get(i);
+      float current = vals.get(i);
       if (current < previous) result += previous;
       previous = current;
     }
@@ -329,31 +329,31 @@ public final class RangeFunctions {
   }
 
   private static Point pickOrInterpolateLeft(
-      List<Long> ts, List<Double> vals, int first, long start, boolean counter) {
+      List<Long> ts, List<Float> vals, int first, long start, boolean counter) {
     if (first == ts.size() - 1 || ts.get(first) >= start) return point(ts, vals, first);
     return new Point(start, interpolate(point(ts, vals, first + 1), point(ts, vals, first), start, counter));
   }
 
   private static Point pickOrInterpolateRight(
-      List<Long> ts, List<Double> vals, int last, long end, boolean counter) {
+      List<Long> ts, List<Float> vals, int last, long end, boolean counter) {
     if (last == 0 || ts.get(last) <= end) return point(ts, vals, last);
     return new Point(end, interpolate(point(ts, vals, last), point(ts, vals, last - 1), end, counter));
   }
 
-  private static Point pickAnchoredLeft(List<Long> ts, List<Double> vals, int first, long start) {
+  private static Point pickAnchoredLeft(List<Long> ts, List<Float> vals, int first, long start) {
     Point point = point(ts, vals, first);
     return point.ts() >= start ? point : new Point(start, point.value());
   }
 
-  private static Point pickAnchoredRight(List<Long> ts, List<Double> vals, int last, long end) {
+  private static Point pickAnchoredRight(List<Long> ts, List<Float> vals, int last, long end) {
     Point point = point(ts, vals, last);
     return point.ts() <= end ? point : new Point(end, point.value());
   }
 
-  private static double interpolate(Point later, Point earlier, long target, boolean counter) {
-    double earlierValue = earlier.value();
+  private static float interpolate(Point later, Point earlier, long target, boolean counter) {
+    float earlierValue = earlier.value();
     if (counter && later.value() < earlierValue) earlierValue = 0f;
-    return (double) (earlierValue
+    return (float) (earlierValue
         + (later.value() - earlierValue) * (target - earlier.ts()) / (double) (later.ts() - earlier.ts()));
   }
 
@@ -369,13 +369,13 @@ public final class RangeFunctions {
     return i;
   }
 
-  private static Point point(List<Long> ts, List<Double> vals, int index) {
+  private static Point point(List<Long> ts, List<Float> vals, int index) {
     return new Point(ts.get(index), vals.get(index));
   }
 
-  private record Point(long ts, double value) {}
+  private record Point(long ts, float value) {}
 
-  private static double sampledCounterIrate(GaugeScan gs, long start, long end) {
+  private static float sampledCounterIrate(GaugeScan gs, long start, long end) {
     gs = Staleness.withoutStaleSamples(gs);
     var ts = gs.getTimestamps();
     var vals = gs.getValues();
@@ -389,10 +389,10 @@ public final class RangeFunctions {
         break;
       }
     }
-    if (lastIdx == null || prevIdx == null) return Double.NaN;
-    double delta = vals.get(lastIdx) - vals.get(prevIdx);
+    if (lastIdx == null || prevIdx == null) return Float.NaN;
+    float delta = vals.get(lastIdx) - vals.get(prevIdx);
     if (delta < 0) delta = vals.get(lastIdx);
-    double seconds = Math.max((ts.get(lastIdx) - ts.get(prevIdx)) / 1000f, 1f);
+    float seconds = Math.max((ts.get(lastIdx) - ts.get(prevIdx)) / 1000f, 1f);
     return delta / seconds;
   }
 
@@ -459,7 +459,7 @@ public final class RangeFunctions {
     return series.getPoints().stream().anyMatch(HistogramSeries.HistogramSample.class::isInstance);
   }
 
-  private static double deltaInWindow(GaugeScan gs, long start, long end) {
+  private static float deltaInWindow(GaugeScan gs, long start, long end) {
     gs = Staleness.withoutStaleSamples(gs);
     var ts = gs.getTimestamps();
     var vals = gs.getValues();
@@ -470,11 +470,11 @@ public final class RangeFunctions {
       if (firstIdx == -1) firstIdx = i;
       lastIdx = i;
     }
-    if (firstIdx == -1) return Double.NaN;
+    if (firstIdx == -1) return Float.NaN;
     return vals.get(lastIdx) - vals.get(firstIdx);
   }
 
-  private static double ideltaInWindow(GaugeScan gs, long start, long end) {
+  private static float ideltaInWindow(GaugeScan gs, long start, long end) {
     gs = Staleness.withoutStaleSamples(gs);
     var ts = gs.getTimestamps();
     var vals = gs.getValues();
@@ -488,7 +488,7 @@ public final class RangeFunctions {
         break;
       }
     }
-    if (lastIdx == null || prevIdx == null) return Double.NaN;
+    if (lastIdx == null || prevIdx == null) return Float.NaN;
     return vals.get(lastIdx) - vals.get(prevIdx);
   }
 
@@ -508,23 +508,23 @@ public final class RangeFunctions {
       sumXX += x * x;
       sumXY += x * y;
     }
-    if (n < 2) return Double.NaN;
+    if (n < 2) return Float.NaN;
     double covariance = n * sumXY - sumX * sumY;
     double variance = n * sumXX - sumX * sumX;
     return covariance / variance;
   }
 
-  private static Double smoothInWindow(
-      GaugeScan scan, long start, long end, double smoothingFactor, double trendFactor) {
+  private static Float smoothInWindow(
+      GaugeScan scan, long start, long end, float smoothingFactor, float trendFactor) {
     var timestamps = scan.getTimestamps();
     var values = scan.getValues();
-    Double level = null;
-    double trend = 0;
+    Float level = null;
+    float trend = 0;
     boolean initializedTrend = false;
     for (int i = 0; i < timestamps.size(); i++) {
       long timestamp = timestamps.get(i);
       if (timestamp <= start || timestamp > end) continue;
-      double value = values.get(i);
+      float value = values.get(i);
       if (level == null) {
         level = value;
         continue;
@@ -533,7 +533,7 @@ public final class RangeFunctions {
         trend = value - level;
         initializedTrend = true;
       }
-      double previousLevel = level;
+      float previousLevel = level;
       level = smoothingFactor * value + (1 - smoothingFactor) * (level + trend);
       trend = trendFactor * (level - previousLevel) + (1 - trendFactor) * trend;
     }

@@ -39,7 +39,7 @@ public final class HistogramSeries extends Scan {
 
   public GaugeScan floatScan() {
     var timestamps = new java.util.ArrayList<Long>();
-    var values = new java.util.ArrayList<Double>();
+    var values = new java.util.ArrayList<Float>();
     for (var point : points) {
       if (point instanceof FloatSample sample) {
         timestamps.add(sample.endMs());
@@ -59,7 +59,7 @@ public final class HistogramSeries extends Scan {
     long endMs();
   }
 
-  public record FloatSample(long startMs, long endMs, double value) implements SeriesSample {}
+  public record FloatSample(long startMs, long endMs, float value) implements SeriesSample {}
 
   public sealed interface HistogramSample extends SeriesSample
       permits ExplicitHistogramSample, NativeHistogramSample {
@@ -73,7 +73,7 @@ public final class HistogramSeries extends Scan {
       long startMs,
       long endMs,
       Temporality temporality,
-      double[] upperBounds,
+      float[] upperBounds,
       int[] counts,
       double sum,
       double count)

@@ -94,10 +94,10 @@ public class ChPromQlTsClient implements TsClient {
     var query = output.toString();
     List<GenericRecord> records = client.queryAll(query);
     var times = new ArrayList<Long>(records.size());
-    var values = new ArrayList<Double>(records.size());
+    var values = new ArrayList<Float>(records.size());
     for (var record : records) {
       times.add(record.getLong("ts_ms"));
-      values.add(record.getDouble("value"));
+      values.add((float) record.getDouble("value"));
     }
     return GaugeScan.builder().universalPath(metric).timestamps(times).values(values).build();
   }

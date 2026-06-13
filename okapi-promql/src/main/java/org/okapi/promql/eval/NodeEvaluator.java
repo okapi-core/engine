@@ -225,9 +225,9 @@ public final class NodeEvaluator {
     if (ts.isEmpty()) return null;
     int after = 0;
     while (after < ts.size() && ts.get(after) < target) after++;
-    if (after < ts.size() && ts.get(after) == target) return vals.get(after);
-    if (after == 0) return vals.get(0);
-    if (after == ts.size()) return vals.get(vals.size() - 1);
+    if (after < ts.size() && ts.get(after) == target) return vals.get(after).doubleValue();
+    if (after == 0) return vals.get(0).doubleValue();
+    if (after == ts.size()) return vals.get(vals.size() - 1).doubleValue();
     int before = after - 1;
     double ratio = (double) (target - ts.get(before)) / (ts.get(after) - ts.get(before));
     return (double) (vals.get(before) + ratio * (vals.get(after) - vals.get(before)));
@@ -292,16 +292,16 @@ public final class NodeEvaluator {
             points.add(
                 sample.isHistogram()
                     ? retime(sample.histogram(), ts)
-                    : new HistogramSeries.FloatSample(ts, ts, (double) sample.value()));
+                    : new HistogramSeries.FloatSample(ts, ts, (float) sample.value()));
           }
           out.add(new SeriesWindow(entry.getKey(), new HistogramSeries("", points)));
           continue;
         }
         List<Long> ts = new ArrayList<>(samples.size());
-        List<Double> vals = new ArrayList<>(samples.size());
+        List<Float> vals = new ArrayList<>(samples.size());
         for (var smp : samples) {
           ts.add(smp.ts() + offset);
-          vals.add((double) smp.value());
+          vals.add((float) smp.value());
         }
         GaugeScan gs =
             GaugeScan.builder()
@@ -647,12 +647,12 @@ public final class NodeEvaluator {
         case "sum" -> {
           if (gauges.isEmpty()) addHistogramAggregate(out, histograms, id, ts, false);
           else if (histograms.isEmpty())
-            addIfNotEmpty(out, gauges, id, ts, gauges.stream().mapToDouble(s -> s.sample().value()).sum());
+            addIfNotEmpty(out, gauges, id, ts, aggregateSum(gauges));
         }
         case "avg" -> {
           if (gauges.isEmpty()) addHistogramAggregate(out, histograms, id, ts, true);
           else if (histograms.isEmpty())
-            addIfNotEmpty(out, gauges, id, ts, gauges.stream().mapToDouble(s -> s.sample().value()).average().orElse(Double.NaN));
+            addIfNotEmpty(out, gauges, id, ts, aggregateAvg(gauges));
         }
         case "min" -> addIfNotEmpty(out, gauges, id, ts, aggregateExtrema(gauges, false));
         case "max" -> addIfNotEmpty(out, gauges, id, ts, aggregateExtrema(gauges, true));
@@ -840,7 +840,7 @@ public final class NodeEvaluator {
       case "last_over_time"    -> RangeStats.last   (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
       case "present_over_time" -> RangeStats.present(TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
       case "quantile_over_time" -> RangeStats.quantile(
-          (double) TypeChecks.requireScalar(eval(e.args.get(0), ctx), e.name).value,
+          (float) TypeChecks.requireScalar(eval(e.args.get(0), ctx), e.name).value,
           TypeChecks.requireRangeVector(eval(e.args.get(1), ctx), e.name),
           rangeOf(e, 1, ctx), ctx, anchorMsOf(e.args.get(1), ctx));
       case "first_over_time"   -> RangeStats.first  (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
@@ -860,8 +860,8 @@ public final class NodeEvaluator {
       case "double_exponential_smoothing" -> RangeFunctions.doubleExponentialSmoothing(
           TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name),
           rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx),
-          (double) TypeChecks.requireScalar(eval(e.args.get(1), ctx), e.name).value,
-          (double) TypeChecks.requireScalar(eval(e.args.get(2), ctx), e.name).value);
+          (float) TypeChecks.requireScalar(eval(e.args.get(1), ctx), e.name).value,
+          (float) TypeChecks.requireScalar(eval(e.args.get(2), ctx), e.name).value);
       // instant-vector functions
       case "abs"   -> InstantFunctions.mapDerivedSamples(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), Math::abs);
       case "ceil"  -> InstantFunctions.mapDerivedSamples(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), Math::ceil);
@@ -1487,8 +1487,63 @@ public final class NodeEvaluator {
 
   private static double stdvar(List<SeriesSample> list) {
     if (list.isEmpty()) return Double.NaN;
-    double mean = list.stream().mapToDouble(s -> s.sample().value()).average().orElse(Double.NaN);
-    return (double) list.stream().mapToDouble(s -> { double d = s.sample().value() - mean; return d * d; }).average().orElse(Double.NaN);
+    double mean = 0d;
+    double squaredDeviationSum = 0d;
+    int count = 0;
+    for (SeriesSample sample : list) {
+      double value = sample.sample().value();
+      count++;
+      double delta = value - mean;
+      mean += delta / count;
+      squaredDeviationSum += delta * (value - mean);
+    }
+    return squaredDeviationSum / count;
+  }
+
+  private static double aggregateSum(List<SeriesSample> list) {
+    var sum = new CompensatedSum();
+    for (SeriesSample sample : list) sum.add(sample.sample().value());
+    return sum.value();
+  }
+
+  private static double aggregateAvg(List<SeriesSample> list) {
+    if (list.isEmpty()) return Double.NaN;
+    var sum = new CompensatedSum();
+    double incrementalMean = 0d;
+    boolean hasNonFiniteValue = false;
+    int count = 0;
+    for (SeriesSample sample : list) {
+      double value = sample.sample().value();
+      count++;
+      sum.add(value);
+      hasNonFiniteValue |= !Double.isFinite(value);
+      if (!hasNonFiniteValue) {
+        incrementalMean += value / count - incrementalMean / count;
+      }
+    }
+    double total = sum.value();
+    return hasNonFiniteValue || Double.isFinite(total) ? total / count : incrementalMean;
+  }
+
+  private static final class CompensatedSum {
+    private double sum;
+    private double compensation;
+
+    void add(double value) {
+      double next = sum + value;
+      if (!Double.isFinite(sum) || !Double.isFinite(value) || !Double.isFinite(next)) {
+        sum = next;
+        compensation = 0d;
+        return;
+      }
+      compensation +=
+          Math.abs(sum) >= Math.abs(value) ? (sum - next) + value : (value - next) + sum;
+      sum = next;
+    }
+
+    double value() {
+      return sum + compensation;
+    }
   }
 
   private record JoinKey(Map<String, String> labels, long ts) {

@@ -30,6 +30,16 @@ class PromQlEngineIT {
     }
   }
 
+  @Test
+  void testRun_SingleSuite() throws Exception {
+    URL url =
+        PromQlEngineIT.class
+            .getClassLoader()
+            .getResource("promqltest/testdata/aggregators.test");
+    assertTrue(url != null, "test script not found");
+    testScript(Files.readString(Paths.get(url.toURI()), StandardCharsets.UTF_8));
+  }
+
   private void testScript(String script) {
     TestEvaluator evaluator = new TestEvaluator();
     List<TestExpectationDifference> diffs = evaluator.run(script);
