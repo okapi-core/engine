@@ -12,6 +12,7 @@ import gg.jte.output.StringOutput;
 import java.util.*;
 import lombok.AllArgsConstructor;
 import org.okapi.ch.ChTemplateFiles;
+import org.okapi.ch.ChSqlEscaper;
 import org.okapi.metrics.ch.ChConstants;
 import org.okapi.metrics.ch.template.ChMetricTemplateEngine;
 import org.okapi.promql.eval.VectorData;

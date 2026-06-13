@@ -11,6 +11,7 @@ import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.okapi.ch.ChTemplateFiles;
+import org.okapi.ch.ChSqlEscaper;
 import org.okapi.exceptions.BadRequestException;
 import org.okapi.metrics.ch.ChConstants;
 import org.okapi.rest.logs.ChLogFilter;
@@ -111,7 +112,7 @@ public class ChLogsQueryService {
     return ChLogFilterClause.builder()
         .column(stringColumn(filter.getField()))
         .operator("=")
-        .value(escapeLiteral(filter.getValue()))
+        .value(ChSqlEscaper.escapeLiteral(filter.getValue()))
         .regex(matchType == ChLogStringMatchType.REGEX)
         .build();
   }
@@ -143,13 +144,4 @@ public class ChLogsQueryService {
         .build();
   }
 
-  private static String escapeLiteral(String value) {
-    return value
-        .replace("\\", "\\\\")
-        .replace("'", "\\'")
-        .replace("\n", "\\n")
-        .replace("\r", "\\r")
-        .replace("\t", "\\t")
-        .replace("\0", "\\0");
-  }
 }

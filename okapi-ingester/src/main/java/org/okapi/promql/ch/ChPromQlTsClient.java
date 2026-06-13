@@ -10,6 +10,7 @@ import gg.jte.TemplateOutput;
 import gg.jte.output.StringOutput;
 import java.util.*;
 import org.okapi.ch.ChTemplateFiles;
+import org.okapi.ch.ChSqlEscaper;
 import org.okapi.metrics.ch.ChConstants;
 import org.okapi.metrics.ch.template.ChGetHistoQueryTemplate;
 import org.okapi.metrics.ch.template.ChGetSumQueryTemplate;

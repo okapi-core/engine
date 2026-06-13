@@ -2,15 +2,15 @@
  * Copyright The OkapiCore Authors
  * SPDX-License-Identifier: Apache-2.0
  */
-package org.okapi.promql.ch;
+package org.okapi.ch;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-final class ChSqlEscaper {
+public final class ChSqlEscaper {
   private ChSqlEscaper() {}
 
-  static String escapeLiteral(String value) {
+  public static String escapeLiteral(String value) {
     if (value == null) return null;
     return value
         .replace("\\", "\\\\")
@@ -21,7 +21,7 @@ final class ChSqlEscaper {
         .replace("\0", "\\0");
   }
 
-  static Map<String, String> escapeTags(Map<String, String> tags) {
+  public static Map<String, String> escapeTags(Map<String, String> tags) {
     if (tags == null) return null;
     Map<String, String> escaped = new LinkedHashMap<>();
     for (var entry : tags.entrySet()) {
