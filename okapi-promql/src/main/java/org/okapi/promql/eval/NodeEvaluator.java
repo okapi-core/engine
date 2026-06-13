@@ -989,7 +989,7 @@ public final class NodeEvaluator {
   }
 
   private InstantVectorResult evalRound(FunctionExpr e, EvalContext ctx) {
-    if (e.args.size() < 1 || e.args.size() > 2)
+    if (e.args.isEmpty() || e.args.size() > 2)
       throw new EvaluationException("round: expected one or two arguments");
     double nearest =
         e.args.size() == 2 ? TypeChecks.requireScalar(eval(e.args.get(1), ctx), e.name).value : 1f;

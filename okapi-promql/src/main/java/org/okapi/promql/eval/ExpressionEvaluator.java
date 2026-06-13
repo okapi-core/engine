@@ -4,19 +4,22 @@
  */
 package org.okapi.promql.eval;
 
-import java.util.List;
-import java.util.concurrent.*;
 import org.okapi.promql.eval.exceptions.EvaluationException;
 import org.okapi.promql.eval.labelmatch.LabelMatchVisitor;
 import org.okapi.promql.eval.labelmatch.MetricMatchCondition;
+import org.okapi.promql.eval.nodes.LogicalExpr;
+import org.okapi.promql.eval.ops.SeriesIds;
 import org.okapi.promql.eval.ts.RESOLUTION;
 import org.okapi.promql.eval.ts.SeriesDiscovery;
 import org.okapi.promql.eval.ts.StatisticsMerger;
 import org.okapi.promql.eval.ts.TsClient;
 import org.okapi.promql.eval.visitor.ExpressionVisitor;
-import org.okapi.promql.eval.nodes.LogicalExpr;
-import org.okapi.promql.eval.ops.SeriesIds;
 import org.okapi.promql.parser.PromQLParser;
+
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
 
 public final class ExpressionEvaluator {
   private static final long DEFAULT_INSTANT_STEP_MS = 1_000L;
@@ -82,8 +85,8 @@ public final class ExpressionEvaluator {
 
   private ExpressionResult finalizeResult(ExpressionResult result) {
     if (result instanceof InstantVectorResult iv) {
-      List<VectorData.SeriesSample> out = new java.util.ArrayList<>(iv.data().size());
-      java.util.Set<SeriesTimestamp> seen = new java.util.HashSet<>();
+      List<VectorData.SeriesSample> out = new ArrayList<>(iv.data().size());
+      java.util.Set<SeriesTimestamp> seen = new HashSet<>();
       for (var sample : iv.data()) {
         var id = SeriesIds.materialize(sample.series());
         if (!seen.add(new SeriesTimestamp(id, sample.sample().ts()))) {
@@ -94,8 +97,8 @@ public final class ExpressionEvaluator {
       return new InstantVectorResult(out);
     }
     if (result instanceof RangeVectorResult rv) {
-      List<VectorData.SeriesWindow> out = new java.util.ArrayList<>(rv.data().size());
-      java.util.Set<VectorData.SeriesId> seen = new java.util.HashSet<>();
+      List<VectorData.SeriesWindow> out = new ArrayList<>(rv.data().size());
+      java.util.Set<VectorData.SeriesId> seen = new HashSet<>();
       for (var window : rv.data()) {
         var id = SeriesIds.materialize(window.id());
         if (!seen.add(id)) {

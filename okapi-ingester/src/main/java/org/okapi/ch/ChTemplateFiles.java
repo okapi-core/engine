@@ -43,7 +43,6 @@ public final class ChTemplateFiles {
   public static final String GET_SERVICE_RED_OPS_COUNT = "get_service_red_ops_count.jte";
   public static final String GET_SERVICE_RED_OP_METRICS = "get_service_red_op_metrics.jte";
   public static final String GET_METRIC_PATHS_IN_RANGE = "get_metric_paths_in_range.jte";
-  public static final String SEARCH_METRICS_TEMPLATES = "search_metrics_templates.jte";
 
   private ChTemplateFiles() {}
 }
