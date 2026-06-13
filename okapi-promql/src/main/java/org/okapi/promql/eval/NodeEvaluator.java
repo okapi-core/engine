@@ -888,6 +888,14 @@ public final class NodeEvaluator {
       case "histogram_quantile" -> HistogramFunctions.quantile(
           TypeChecks.requireScalar(eval(e.args.get(0), ctx), e.name).value,
           TypeChecks.requireInstantVector(eval(e.args.get(1), ctx), e.name));
+      case "histogram_quantiles" -> {
+        var vector = TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name);
+        String label = ((StringLiteralExpr) e.args.get(1)).value;
+        List<Double> quantiles = new ArrayList<>();
+        for (int i = 2; i < e.args.size(); i++)
+          quantiles.add(TypeChecks.requireScalar(eval(e.args.get(i), ctx), e.name).value);
+        yield HistogramFunctions.quantiles(vector, label, quantiles);
+      }
       // vector → scalar
       case "scalar" -> InstantFunctions.toScalar(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name));
       // scalar → vector

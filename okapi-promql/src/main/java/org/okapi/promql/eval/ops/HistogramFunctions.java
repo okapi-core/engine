@@ -116,6 +116,22 @@ public final class HistogramFunctions {
     return new InstantVectorResult(out);
   }
 
+  public static InstantVectorResult quantiles(
+      InstantVectorResult vector, String label, List<Double> quantiles) {
+    List<SeriesSample> out = new ArrayList<>();
+    for (double quantile : quantiles) {
+      for (var seriesSample : quantile(quantile, vector).data()) {
+        Map<String, String> labels = new HashMap<>(seriesSample.series().labels().tags());
+        labels.put(label, Double.toString(quantile));
+        out.add(
+            new SeriesSample(
+                new SeriesId("", new Labels(labels)),
+                seriesSample.sample()));
+      }
+    }
+    return new InstantVectorResult(out);
+  }
+
   private static InstantVectorResult mapHistograms(
       InstantVectorResult vector,
       java.util.function.ToDoubleFunction<HistogramSeries.HistogramSample> function) {
