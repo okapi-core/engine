@@ -71,6 +71,8 @@ public class ChWriter {
                   map.put("ts_end", TS_FMT.format(Instant.ofEpochMilli(r.getTsEnd())));
                   map.put("buckets", r.getBuckets());
                   map.put("counts", r.getCounts());
+                  map.put("sum", r.getSum());
+                  map.put("count", r.getCount() != null ? r.getCount() : totalCount(r.getCounts()));
                   map.put("histo_type", r.getHistoType());
                   return gson.toJson(map);
                 })
@@ -78,5 +80,13 @@ public class ChWriter {
     var data = toJsonEachRow(jsonRows).getBytes();
     var bis = new ByteArrayInputStream(data);
     return client.insert(ChConstants.TBL_HISTOS, bis, ClickHouseFormat.JSONEachRow);
+  }
+
+  private static long totalCount(long[] counts) {
+    long total = 0L;
+    if (counts != null) {
+      for (long count : counts) total += count;
+    }
+    return total;
   }
 }

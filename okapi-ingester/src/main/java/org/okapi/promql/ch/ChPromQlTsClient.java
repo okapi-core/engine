@@ -193,8 +193,8 @@ public class ChPromQlTsClient implements TsClient {
               Temporality.valueOf(type),
               buckets,
               counts,
-              Float.NaN,
-              totalCount(counts)));
+              record.hasValue("sum") ? record.getDouble("sum") : Double.NaN,
+              record.getLong("count")));
     }
     points.sort(Comparator.comparingLong(ExplicitHistogramSample::endMs));
     return points;

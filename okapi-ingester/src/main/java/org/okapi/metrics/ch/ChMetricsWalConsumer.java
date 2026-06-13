@@ -100,6 +100,8 @@ public class ChMetricsWalConsumer {
                 .max(max)
                 .buckets(buckets)
                 .counts(counts)
+                .sum(pt.getSum())
+                .count(pt.getCount())
                 .build();
         histoSamples.add(gson.toJson(sample));
         var map = new java.util.HashMap<String, Object>();

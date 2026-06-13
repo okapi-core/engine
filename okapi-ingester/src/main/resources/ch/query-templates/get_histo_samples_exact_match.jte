@@ -3,7 +3,7 @@
 SELECT metric_name, tags, unit,
 toUnixTimestamp64Milli(ts_start) AS ts_start_ms,
 toUnixTimestamp64Milli(ts_end) AS ts_end_ms,
-buckets, counts, toString(histo_type) AS histo_type
+buckets, counts, sum, count, toString(histo_type) AS histo_type
 FROM ${data.getTable()}
 PREWHERE metric_name = '${data.getMetric()}'
 AND ts_start < toDateTime64(${data.getTe()}/1000.0, 3, 'UTC')

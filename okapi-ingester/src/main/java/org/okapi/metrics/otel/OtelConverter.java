@@ -265,11 +265,13 @@ public final class OtelConverter {
         buckets[i] = (float) p.getExplicitBounds(i);
       }
       pt.setBuckets(buckets);
+      pt.setSum(p.hasSum() ? p.getSum() : null);
+      pt.setCount(p.getCount());
 
-      // Counts: uint64[] -> int[] with clamping
+      // Counts: protobuf exposes uint64 as signed long; preserve the available range end to end.
       long[] counts = new long[p.getBucketCountsCount()];
       for (int i = 0; i < counts.length; i++) {
-        counts[i] = clampToInt(p.getBucketCounts(i));
+        counts[i] = p.getBucketCounts(i);
       }
       pt.setBucketCounts(counts);
       ptsByKey.computeIfAbsent(key, OkapiLists::keyToEmptyArrayList).add(pt);

@@ -28,7 +28,7 @@ public class ChHistoSample {
   @SerializedName("histo_type")
   HISTO_TYPE histoType;
 
-  float sum;
+  Double sum;
   Long count;
   String unit;
 

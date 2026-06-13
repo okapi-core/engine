@@ -25,6 +25,8 @@ public class OtelConverterHistogramTest {
         HistogramDataPoint.newBuilder()
             .setStartTimeUnixNano(1_000_000L)
             .setTimeUnixNano(4_000_000L)
+            .setSum(42.5)
+            .setCount(14L)
             .addAllExplicitBounds(List.of(10.0, 20.0))
             .addAllBucketCounts(List.of(5L, 7L, 2L))
             .build();
@@ -62,5 +64,7 @@ public class OtelConverterHistogramTest {
     assertEquals(4L, hp.getEnd());
     assertArrayEquals(new float[] {10.0f, 20.0f}, hp.getBuckets());
     assertArrayEquals(new long[] {5, 7, 2}, hp.getBucketCounts());
+    assertEquals(42.5, hp.getSum());
+    assertEquals(14L, hp.getCount());
   }
 }

@@ -90,7 +90,7 @@ public class HistogramQueryProcessor {
                   var distA = new HistogramMerger.Distribution(a.getBuckets(), a.getCounts());
                   var disB = new HistogramMerger.Distribution(b.getBuckets(), b.getCounts());
                   var resampled = HistogramMerger.merge(distA, disB);
-                  var sum = a.getSum() + b.getSum();
+                  var sum = addNullable(a.getSum(), b.getSum());
                   var count = a.getCount() + b.getCount();
                   var tsStart = Math.min(a.tsStart, b.tsStart);
                   var tsEnd = Math.max(a.tsEnd, b.tsEnd);
@@ -141,6 +141,10 @@ public class HistogramQueryProcessor {
         .build();
   }
 
+  private static Double addNullable(Double left, Double right) {
+    return left == null || right == null ? null : left + right;
+  }
+
   public List<ChHistoSample> scanSamples(
       long ts,
       long te,
@@ -183,13 +187,6 @@ public class HistogramQueryProcessor {
         counts =
             list == null ? null : list.stream().mapToLong(o -> ((Number) o).longValue()).toArray();
       }
-      long totalCount = 0L;
-      if (counts != null) {
-        for (long c : counts) {
-          totalCount += c;
-        }
-      }
-
       float min = 0f;
       float max = 0f;
       if (buckets != null && buckets.length > 0) {
@@ -212,7 +209,8 @@ public class HistogramQueryProcessor {
               .tsEnd(record.getLong("ts_end_ms"))
               .buckets(buckets)
               .counts(counts)
-              .count(totalCount)
+              .sum(record.hasValue("sum") ? record.getDouble("sum") : null)
+              .count(record.getLong("count"))
               .min(min)
               .max(max)
               .histoType(ChHistoSample.HISTO_TYPE.valueOf(histoTypeStr))

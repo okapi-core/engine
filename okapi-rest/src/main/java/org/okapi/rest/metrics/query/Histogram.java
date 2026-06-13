@@ -29,7 +29,7 @@ public class Histogram {
   Long count;
 
   @JsonPropertyDescription("Sum of all observed values.")
-  Float sum;
+  Double sum;
 
   @JsonPropertyDescription("Per-bucket observation counts, index-aligned with buckets.")
   List<Long> counts;

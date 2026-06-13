@@ -21,6 +21,19 @@ public final class HistoPoint {
   long end;
   TEMPORALITY temporality;
   float[] buckets;
+  Double sum;
+  long count;
   // bucketCounts.length = 1 + buckets.length
   long[] bucketCounts;
+
+  public HistoPoint(
+      long start, long end, TEMPORALITY temporality, float[] buckets, long[] bucketCounts) {
+    this(start, end, temporality, buckets, null, sum(bucketCounts), bucketCounts);
+  }
+
+  private static long sum(long[] values) {
+    long sum = 0L;
+    for (long value : values) sum += value;
+    return sum;
+  }
 }
