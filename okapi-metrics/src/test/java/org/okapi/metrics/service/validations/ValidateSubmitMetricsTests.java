@@ -4,21 +4,17 @@
  */
 package org.okapi.metrics.service.validations;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-
-import java.util.Arrays;
-import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.okapi.exceptions.BadRequestException;
 import org.okapi.rest.metrics.ExportMetricsRequest;
 import org.okapi.rest.metrics.MetricType;
-import org.okapi.rest.metrics.payloads.Gauge;
-import org.okapi.rest.metrics.payloads.Histo;
-import org.okapi.rest.metrics.payloads.HistoPoint;
-import org.okapi.rest.metrics.payloads.SUM_TEMPORALITY;
-import org.okapi.rest.metrics.payloads.Sum;
-import org.okapi.rest.metrics.payloads.SumPoint;
+import org.okapi.rest.metrics.payloads.*;
+
+import java.util.Arrays;
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class ValidateSubmitMetricsTests {
 
@@ -92,7 +88,7 @@ public class ValidateSubmitMetricsTests {
   public void histo_unequal_lengths_throws() {
     var pt =
         new HistoPoint(
-            0L, 1000L, HistoPoint.TEMPORALITY.DELTA, new float[] {0.1f, 0.2f}, new int[] {1});
+            0L, 1000L, HistoPoint.TEMPORALITY.DELTA, new float[] {0.1f, 0.2f}, new long[] {1});
     var histo = new Histo(java.util.List.of(pt));
     var req =
         ExportMetricsRequest.builder()
@@ -113,7 +109,7 @@ public class ValidateSubmitMetricsTests {
             1000L,
             HistoPoint.TEMPORALITY.DELTA,
             new float[] {0.1f, 0.2f},
-            new int[] {1, -1, 2});
+            new long[] {1, -1, 2});
     var histo = new Histo(java.util.List.of(pt));
     var req =
         ExportMetricsRequest.builder()
@@ -130,7 +126,11 @@ public class ValidateSubmitMetricsTests {
   public void histo_valid_passes() {
     var pt =
         new HistoPoint(
-            0L, 1000L, HistoPoint.TEMPORALITY.DELTA, new float[] {0.1f, 0.2f}, new int[] {1, 2, 3});
+            0L,
+            1000L,
+            HistoPoint.TEMPORALITY.DELTA,
+            new float[] {0.1f, 0.2f},
+            new long[] {1, 2, 3});
     var histo = new Histo(java.util.List.of(pt));
     var req =
         ExportMetricsRequest.builder()

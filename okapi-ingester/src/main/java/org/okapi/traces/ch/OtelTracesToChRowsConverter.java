@@ -9,11 +9,12 @@ import io.opentelemetry.proto.common.v1.AnyValue;
 import io.opentelemetry.proto.trace.v1.ScopeSpans;
 import io.opentelemetry.proto.trace.v1.Span;
 import io.opentelemetry.proto.trace.v1.Status;
-import java.util.*;
 import org.okapi.nullity.NullHandler;
 import org.okapi.otel.OtelAnyValueDecoder;
 import org.okapi.otel.OtelAttrDecoder;
 import org.okapi.otel.ResourceAttributesReader;
+
+import java.util.*;
 
 public class OtelTracesToChRowsConverter {
   public List<ChSpansTableRow> toRows(ExportTraceServiceRequest request) {
@@ -196,7 +197,9 @@ public class OtelTracesToChRowsConverter {
   }
 
   private static Optional<SpanStatus> readStatus(Span span) {
-    return NullHandler.safelyGet(span.getStatus(), Status::getCode)
+    return Optional.ofNullable(span)
+        .map(Span::getStatus)
+        .map(Status::getCode)
         .map(
             statusCode ->
                 switch (statusCode) {

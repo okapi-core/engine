@@ -4,8 +4,6 @@
  */
 package org.okapi.metrics.service.validations;
 
-import static org.okapi.validation.OkapiChecks.checkArgument;
-
 import org.okapi.exceptions.BadRequestException;
 import org.okapi.rest.metrics.ExportMetricsRequest;
 import org.okapi.rest.metrics.payloads.Gauge;
@@ -13,6 +11,8 @@ import org.okapi.rest.metrics.payloads.Histo;
 import org.okapi.rest.metrics.payloads.HistoPoint;
 import org.okapi.rest.metrics.payloads.Sum;
 import org.okapi.usermessages.UserFacingMessages;
+
+import static org.okapi.validation.OkapiChecks.checkArgument;
 
 public class ValidateSubmitMetrics {
 
@@ -66,7 +66,7 @@ public class ValidateSubmitMetrics {
       checkArgument(
           counts.length == buckets.length + 1,
           () -> new BadRequestException(UserFacingMessages.HISTO_ARRAYS_MUST_BE_EQUAL_LENGTH));
-      for (int c : counts) {
+      for (var c : counts) {
         checkArgument(
             c >= 0,
             () -> new BadRequestException(UserFacingMessages.HISTO_VALUES_MUST_BE_POSITIVE));
