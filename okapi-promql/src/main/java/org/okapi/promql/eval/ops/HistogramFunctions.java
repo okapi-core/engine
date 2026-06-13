@@ -16,6 +16,8 @@ import org.okapi.promql.eval.exceptions.EvaluationException;
 
 /** Pure functions over histogram range vectors. */
 public final class HistogramFunctions {
+  private static final int CUSTOM_BUCKET_SCHEMA = -53;
+
   private HistogramFunctions() {}
 
   public static InstantVectorResult count(InstantVectorResult vector) {
@@ -186,7 +188,7 @@ public final class HistogramFunctions {
     if (count == 0) return Double.NaN;
     double mean = nativeHistogram.sum() / count;
     double variance = nativeHistogram.zeroCount() * mean * mean;
-    if (nativeHistogram.customValues().length > 0) {
+    if (hasCustomBuckets(nativeHistogram)) {
       variance += customBucketVariance(
           nativeHistogram.customValues(), nativeHistogram.positiveBuckets(), mean);
     } else {
@@ -197,7 +199,7 @@ public final class HistogramFunctions {
 
   private static double fraction(
       double lower, double upper, HistogramSeries.NativeHistogramSample histogram) {
-    if (histogram.customValues().length == 0) {
+    if (!hasCustomBuckets(histogram)) {
       if (Double.isNaN(lower) || Double.isNaN(upper)) return Double.NaN;
       if (lower >= upper) return 0d;
       if (histogram.count() == 0d) return Double.NaN;
@@ -222,7 +224,7 @@ public final class HistogramFunctions {
 
   private static double quantile(
       double quantile, HistogramSeries.NativeHistogramSample histogram) {
-    if (histogram.customValues().length == 0) {
+    if (!hasCustomBuckets(histogram)) {
       if (Double.isNaN(quantile)) return Double.NaN;
       if (quantile < 0d) return Double.NEGATIVE_INFINITY;
       if (quantile > 1d) return Double.POSITIVE_INFINITY;
@@ -287,6 +289,10 @@ public final class HistogramFunctions {
       buckets.add(new NativeBucket(lower, upper, histogram.positiveBuckets()[i], true));
     }
     return buckets;
+  }
+
+  private static boolean hasCustomBuckets(HistogramSeries.NativeHistogramSample histogram) {
+    return histogram.schema() == CUSTOM_BUCKET_SCHEMA;
   }
 
   private static HistogramSeries.NativeHistogramSample trim(
