@@ -153,7 +153,7 @@ public final class NodeEvaluator {
             ctx.client,
             ctx.discovery,
             ctx.exec,
-            ctx.statisticsMerger);
+            ctx);
     var innerRes = eval(e.inner, subCtx);
 
     if (innerRes instanceof InstantVectorResult iv) {

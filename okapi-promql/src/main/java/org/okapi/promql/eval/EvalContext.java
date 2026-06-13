@@ -20,6 +20,7 @@ public final class EvalContext {
   public final SeriesDiscovery discovery;
   public final ExecutorService exec;
   public final MetricTypeResolver metricTypeResolver;
+  public final long nowMs;
 
   public EvalContext(
       long startMs,
