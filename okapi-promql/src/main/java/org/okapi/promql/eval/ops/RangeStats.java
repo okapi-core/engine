@@ -33,23 +33,27 @@ public final class RangeStats {
 
   public static InstantVectorResult min(RangeVectorResult rv, long rangeMs, EvalContext ctx, long anchorMs) {
     return mapWindows(rv, rangeMs, ctx, anchorMs, (ts, vals, winStart, t) -> {
-      float min = Float.POSITIVE_INFINITY; int count = 0;
+      float min = Float.POSITIVE_INFINITY; boolean found = false;
       for (int i = 0; i < ts.size(); i++) {
         if (ts.get(i) <= winStart || ts.get(i) > t) continue;
-        if (vals.get(i) < min) min = vals.get(i); count++;
+        if (Float.isNaN(vals.get(i))) continue;
+        if (vals.get(i) < min) min = vals.get(i);
+        found = true;
       }
-      return count > 0 ? min : Float.NaN;
+      return found ? min : Float.NaN;
     });
   }
 
   public static InstantVectorResult max(RangeVectorResult rv, long rangeMs, EvalContext ctx, long anchorMs) {
     return mapWindows(rv, rangeMs, ctx, anchorMs, (ts, vals, winStart, t) -> {
-      float max = Float.NEGATIVE_INFINITY; int count = 0;
+      float max = Float.NEGATIVE_INFINITY; boolean found = false;
       for (int i = 0; i < ts.size(); i++) {
         if (ts.get(i) <= winStart || ts.get(i) > t) continue;
-        if (vals.get(i) > max) max = vals.get(i); count++;
+        if (Float.isNaN(vals.get(i))) continue;
+        if (vals.get(i) > max) max = vals.get(i);
+        found = true;
       }
-      return count > 0 ? max : Float.NaN;
+      return found ? max : Float.NaN;
     });
   }
 
@@ -65,24 +69,21 @@ public final class RangeStats {
   }
 
   public static InstantVectorResult count(RangeVectorResult rv, long rangeMs, EvalContext ctx, long anchorMs) {
-    return mapWindows(rv, rangeMs, ctx, anchorMs, (ts, vals, winStart, t) -> {
-      int c = 0;
-      for (int i = 0; i < ts.size(); i++) {
-        if (ts.get(i) <= winStart || ts.get(i) > t) continue;
-        c++;
+    List<SeriesSample> out = new ArrayList<>();
+    for (SeriesWindow window : rv.data()) {
+      for (long t = ctx.startMs; t <= ctx.endMs; t += ctx.stepMs) {
+        long anchor = anchorMs >= 0 ? anchorMs : t;
+        var samples = samplesInWindow(window, anchor - rangeMs, anchor);
+        if (!samples.isEmpty()) {
+          out.add(new SeriesSample(SeriesIds.derived(window.id()), new Sample(t, samples.size())));
+        }
       }
-      return (float) c;
-    });
+    }
+    return new InstantVectorResult(out);
   }
 
   public static InstantVectorResult last(RangeVectorResult rv, long rangeMs, EvalContext ctx, long anchorMs) {
-    return mapWindowsPreserveName(rv, rangeMs, ctx, anchorMs, (ts, vals, winStart, t) -> {
-      for (int i = ts.size() - 1; i >= 0; --i) {
-        if (ts.get(i) <= winStart || ts.get(i) > t) continue;
-        return vals.get(i);
-      }
-      return Float.NaN;
-    });
+    return selectSample(rv, rangeMs, ctx, anchorMs, false);
   }
 
   public static InstantVectorResult present(RangeVectorResult rv, long rangeMs, EvalContext ctx, long anchorMs) {
@@ -95,13 +96,7 @@ public final class RangeStats {
   }
 
   public static InstantVectorResult first(RangeVectorResult rv, long rangeMs, EvalContext ctx, long anchorMs) {
-    return mapWindowsPreserveName(rv, rangeMs, ctx, anchorMs, (ts, vals, winStart, t) -> {
-      for (int i = 0; i < ts.size(); i++) {
-        if (ts.get(i) <= winStart || ts.get(i) > t) continue;
-        return vals.get(i);
-      }
-      return Float.NaN;
-    });
+    return selectSample(rv, rangeMs, ctx, anchorMs, true);
   }
 
   public static InstantVectorResult stddev(RangeVectorResult rv, long rangeMs, EvalContext ctx, long anchorMs) {
@@ -322,16 +317,12 @@ public final class RangeStats {
     return mapWindows(rv, rangeMs, ctx, anchorMs, fn, true);
   }
 
-  private static InstantVectorResult mapWindowsPreserveName(
-      RangeVectorResult rv, long rangeMs, EvalContext ctx, long anchorMs, WindowFn fn) {
-    return mapWindows(rv, rangeMs, ctx, anchorMs, fn, false);
-  }
-
   private static InstantVectorResult mapWindows(
       RangeVectorResult rv, long rangeMs, EvalContext ctx, long anchorMs, WindowFn fn, boolean derived) {
     List<SeriesSample> out = new ArrayList<>();
     for (SeriesWindow w : rv.data()) {
-      if (!(w.scan() instanceof GaugeScan gs)) continue;
+      GaugeScan gs = floatScan(w);
+      if (gs == null || gs.getTimestamps().isEmpty()) continue;
       var normalized = Staleness.withoutStaleSamples(gs);
       var ts = normalized.getTimestamps();
       var vals = normalized.getValues();
@@ -342,6 +333,61 @@ public final class RangeStats {
       }
     }
     return new InstantVectorResult(out);
+  }
+
+  private static GaugeScan floatScan(SeriesWindow window) {
+    if (window.scan() instanceof GaugeScan scan) return scan;
+    if (window.scan() instanceof HistogramSeries series) return series.floatScan();
+    return null;
+  }
+
+  private static InstantVectorResult selectSample(
+      RangeVectorResult rv, long rangeMs, EvalContext ctx, long anchorMs, boolean first) {
+    List<SeriesSample> out = new ArrayList<>();
+    for (SeriesWindow window : rv.data()) {
+      for (long t = ctx.startMs; t <= ctx.endMs; t += ctx.stepMs) {
+        long anchor = anchorMs >= 0 ? anchorMs : t;
+        var samples = samplesInWindow(window, anchor - rangeMs, anchor);
+        if (samples.isEmpty()) continue;
+        var selected = samples.get(first ? 0 : samples.size() - 1);
+        out.add(new SeriesSample(window.id(), selected.at(t)));
+      }
+    }
+    return new InstantVectorResult(out);
+  }
+
+  private static List<TimelineSample> samplesInWindow(SeriesWindow window, long start, long end) {
+    List<TimelineSample> samples = new ArrayList<>();
+    if (window.scan() instanceof GaugeScan scan) {
+      var normalized = Staleness.withoutStaleSamples(scan);
+      for (int i = 0; i < normalized.getTimestamps().size(); i++) {
+        long timestamp = normalized.getTimestamps().get(i);
+        if (timestamp > start && timestamp <= end) {
+          samples.add(new TimelineSample(timestamp, normalized.getValues().get(i), null));
+        }
+      }
+    } else if (window.scan() instanceof HistogramSeries series) {
+      for (var point : series.getPoints()) {
+        if (point.endMs() <= start || point.endMs() > end) continue;
+        if (point instanceof HistogramSeries.FloatSample sample) {
+          if (!Staleness.isStale(sample.value())) {
+            samples.add(new TimelineSample(point.endMs(), sample.value(), null));
+          }
+        } else if (point instanceof HistogramSeries.HistogramSample histogram) {
+          samples.add(new TimelineSample(point.endMs(), null, histogram));
+        }
+      }
+    }
+    return samples;
+  }
+
+  private record TimelineSample(
+      long sourceTs, Float value, HistogramSeries.HistogramSample histogram) {
+    private Sample at(long timestamp) {
+      return histogram == null
+          ? new Sample(timestamp, sourceTs, value)
+          : new Sample(timestamp, sourceTs, histogram);
+    }
   }
 
 }
