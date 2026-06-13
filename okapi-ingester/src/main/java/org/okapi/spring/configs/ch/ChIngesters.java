@@ -25,8 +25,9 @@ import org.springframework.context.annotation.Configuration;
 public class ChIngesters {
 
   @Bean
-  public ChLogsIngester logsIngester() {
-    return new ChLogsIngester();
+  public ChLogsIngester logsIngester(
+      @Autowired @Qualifier(Qualifiers.LOGS_CH_WAL_RESOURCES) ChWalResources walResources) {
+    return new ChLogsIngester(walResources);
   }
 
   @Bean
