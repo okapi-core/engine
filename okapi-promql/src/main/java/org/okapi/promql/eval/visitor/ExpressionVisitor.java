@@ -22,7 +22,13 @@ public class ExpressionVisitor extends PromQLParserBaseVisitor<LogicalExpr> {
 
   @Override
   public LogicalExpr visitVecOpPow(PromQLParser.VecOpPowContext ctx) {
-    return binop("^", ctx.vectorOperation(0), ctx.vectorOperation(1), null, false);
+    return binop(
+        "^",
+        ctx.vectorOperation(0),
+        ctx.vectorOperation(1),
+        null,
+        false,
+        buildFillSpec(ctx.powOp().fillModifier()));
   }
 
   @Override
@@ -54,14 +60,26 @@ public class ExpressionVisitor extends PromQLParserBaseVisitor<LogicalExpr> {
   public LogicalExpr visitVecOpMult(PromQLParser.VecOpMultContext ctx) {
     String op = ctx.multOp().getChild(0).getText();
     MatchSpec ms = buildMatchSpec(ctx.multOp().grouping());
-    return binop(op, ctx.vectorOperation(0), ctx.vectorOperation(1), ms, false);
+    return binop(
+        op,
+        ctx.vectorOperation(0),
+        ctx.vectorOperation(1),
+        ms,
+        false,
+        buildFillSpec(ctx.multOp().fillModifier()));
   }
 
   @Override
   public LogicalExpr visitVecOpAdd(PromQLParser.VecOpAddContext ctx) {
     String op = ctx.addOp().getChild(0).getText();
     MatchSpec ms = buildMatchSpec(ctx.addOp().grouping());
-    return binop(op, ctx.vectorOperation(0), ctx.vectorOperation(1), ms, false);
+    return binop(
+        op,
+        ctx.vectorOperation(0),
+        ctx.vectorOperation(1),
+        ms,
+        false,
+        buildFillSpec(ctx.addOp().fillModifier()));
   }
 
   @Override
@@ -69,7 +87,13 @@ public class ExpressionVisitor extends PromQLParserBaseVisitor<LogicalExpr> {
     String op = ctx.compareOp().getChild(0).getText();
     boolean bool = ctx.compareOp().BOOL() != null;
     MatchSpec ms = buildMatchSpec(ctx.compareOp().grouping());
-    return binop(op, ctx.vectorOperation(0), ctx.vectorOperation(1), ms, bool);
+    return binop(
+        op,
+        ctx.vectorOperation(0),
+        ctx.vectorOperation(1),
+        ms,
+        bool,
+        buildFillSpec(ctx.compareOp().fillModifier()));
   }
 
   @Override
@@ -305,7 +329,17 @@ public class ExpressionVisitor extends PromQLParserBaseVisitor<LogicalExpr> {
       PromQLParser.VectorOperationContext right,
       MatchSpec ms,
       boolean boolModifier) {
-    return new BinaryOpExpr(op, visit(left), visit(right), ms, boolModifier);
+    return binop(op, left, right, ms, boolModifier, FillSpec.none());
+  }
+
+  private LogicalExpr binop(
+      String op,
+      PromQLParser.VectorOperationContext left,
+      PromQLParser.VectorOperationContext right,
+      MatchSpec ms,
+      boolean boolModifier,
+      FillSpec fillSpec) {
+    return new BinaryOpExpr(op, visit(left), visit(right), ms, boolModifier, fillSpec);
   }
 
   private LogicalExpr literalParam(PromQLParser.LiteralContext lit) {
@@ -373,5 +407,33 @@ public class ExpressionVisitor extends PromQLParserBaseVisitor<LogicalExpr> {
     if (groupRight && g.groupRight().labelNameList() != null)
       include = labelList(g.groupRight().labelNameList());
     return new MatchSpec(mode, labels, groupLeft, groupRight, include);
+  }
+
+  private FillSpec buildFillSpec(List<PromQLParser.FillModifierContext> modifiers) {
+    Float left = null;
+    Float right = null;
+    for (var modifier : modifiers) {
+      String name = modifier.METRIC_NAME().getText().toLowerCase(Locale.ROOT);
+      float value = parseSignedFillLiteral(modifier.signedFillLiteral());
+      switch (name) {
+        case "fill" -> {
+          left = value;
+          right = value;
+        }
+        case "fill_left" -> left = value;
+        case "fill_right" -> right = value;
+        default -> throw new IllegalArgumentException("unknown binary fill modifier: " + name);
+      }
+    }
+    return new FillSpec(left, right);
+  }
+
+  private float parseSignedFillLiteral(PromQLParser.SignedFillLiteralContext ctx) {
+    String value = ctx.getText();
+    if ("nan".equalsIgnoreCase(value)) return Float.NaN;
+    if ("inf".equalsIgnoreCase(value) || "+inf".equalsIgnoreCase(value))
+      return Float.POSITIVE_INFINITY;
+    if ("-inf".equalsIgnoreCase(value)) return Float.NEGATIVE_INFINITY;
+    return Float.parseFloat(value);
   }
 }

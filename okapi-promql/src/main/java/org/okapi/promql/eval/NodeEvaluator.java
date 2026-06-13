@@ -425,7 +425,15 @@ public final class NodeEvaluator {
         for (var key : leftIdx.keySet()) {
           var lList = leftIdx.get(key);
           var rList = rightIdx.get(key);
-          if (rList == null || rList.isEmpty()) continue;
+          if (rList == null || rList.isEmpty()) {
+            Float fill = fillForMissingRight(e, groupRight);
+            if (fill != null) {
+              for (var l : lList)
+                combine(e, l, filledSample(l, fill, groupRight ? ms : null), isCmp)
+                    .ifPresent(out::add);
+            }
+            continue;
+          }
 
           if (!groupLeft && !groupRight && (lList.size() != 1 || rList.size() != 1))
             throw new EvaluationException(
@@ -445,6 +453,15 @@ public final class NodeEvaluator {
             combine(e, lList.get(0), rList.get(0), isCmp).ifPresent(out::add);
           }
         }
+        Float fill = fillForMissingLeft(e, groupRight);
+        if (fill != null) {
+          for (var key : rightIdx.keySet()) {
+            if (leftIdx.containsKey(key)) continue;
+            for (var r : rightIdx.get(key))
+              combine(e, filledSample(r, fill, groupLeft ? ms : null), r, isCmp)
+                  .ifPresent(out::add);
+          }
+        }
         return new InstantVectorResult(out);
       }
     }
@@ -461,6 +478,28 @@ public final class NodeEvaluator {
     }
     float v = applyArith(a, b, e.op);
     return Optional.of(new SeriesSample(mergeLabels(l.series(), r.series(), e.matchSpec), new Sample(ts, v)));
+  }
+
+  private Float fillForMissingLeft(BinaryOpExpr e, boolean groupRight) {
+    return groupRight ? e.fillSpec.right() : e.fillSpec.left();
+  }
+
+  private Float fillForMissingRight(BinaryOpExpr e, boolean groupRight) {
+    return groupRight ? e.fillSpec.left() : e.fillSpec.right();
+  }
+
+  private SeriesSample filledSample(SeriesSample source, float value, MatchSpec projection) {
+    var sample = source.sample();
+    return new SeriesSample(
+        projection == null ? SeriesIds.derived(source.series()) : projectToMatchLabels(source.series(), projection),
+        new Sample(sample.ts(), sample.sourceTs(), value));
+  }
+
+  private SeriesId projectToMatchLabels(SeriesId source, MatchSpec matchSpec) {
+    Map<String, String> out = new HashMap<>(source.labels().tags());
+    if (matchSpec.mode == MatchSpec.Mode.ON) out.keySet().retainAll(matchSpec.labels);
+    else out.keySet().removeAll(matchSpec.labels);
+    return SeriesIds.derived(source, out);
   }
 
   // ---------- Aggregate ----------
@@ -1116,19 +1155,21 @@ public final class NodeEvaluator {
   }
 
   private SeriesId mergeLabels(SeriesId left, SeriesId right, MatchSpec ms) {
-    Map<String, String> out = new HashMap<>(left.labels().tags());
-    if (ms != null && ms.mode == MatchSpec.Mode.ON) {
-      out.keySet().retainAll(ms.labels);
-    } else if (ms != null) {
-      out.keySet().removeAll(ms.labels);
+    boolean groupRight = ms != null && ms.groupRight;
+    SeriesId many = groupRight ? right : left;
+    SeriesId one = groupRight ? left : right;
+    Map<String, String> out = new HashMap<>(many.labels().tags());
+    if (ms != null && !ms.groupLeft && !ms.groupRight) {
+      if (ms.mode == MatchSpec.Mode.ON) out.keySet().retainAll(ms.labels);
+      else out.keySet().removeAll(ms.labels);
     }
     if (ms != null && ms.include != null) {
       for (String k : ms.include) {
-        String v = right.labels().tags().get(k);
+        String v = one.labels().tags().get(k);
         if (v != null) out.put(k, v);
       }
     }
-    return SeriesIds.derived(left, out);
+    return SeriesIds.derived(many, out);
   }
 
   private static GroupKey groupKey(boolean isBy, List<String> groupLabels, SeriesId id) {
