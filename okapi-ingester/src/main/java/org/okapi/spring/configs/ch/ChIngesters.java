@@ -9,11 +9,13 @@ import org.okapi.metrics.ch.ChMetricsIngester;
 import org.okapi.metrics.ch.ChWalResources;
 import org.okapi.metrics.otel.OtelConverter;
 import org.okapi.spring.configs.Qualifiers;
+import org.okapi.spring.configs.properties.MetricsConsumptionCfg;
 import org.okapi.traces.ch.ChTracesIngester;
 import org.okapi.traces.ch.NoopSpanFilterStrategy;
 import org.okapi.traces.ch.NoopTraceFilterStrategy;
 import org.okapi.traces.ch.SpanFilterStrategy;
 import org.okapi.traces.ch.TraceFilterStrategy;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
@@ -46,7 +48,12 @@ public class ChIngesters {
   @Bean
   public ChMetricsIngester metricsIngester(
       @Autowired OtelConverter converter,
-      @Autowired @Qualifier(Qualifiers.METRICS_CH_WAL_RESOURCES) ChWalResources chWalResources) {
-    return new ChMetricsIngester(converter, chWalResources);
+      @Autowired @Qualifier(Qualifiers.METRICS_CH_WAL_RESOURCES)
+          ObjectProvider<ChWalResources> chWalResources,
+      @Autowired MetricsConsumptionCfg cfg) {
+    var directIngestionEnabled =
+        cfg.getConsumptionType() == MetricsConsumptionCfg.ConsumptionType.WAL;
+    return new ChMetricsIngester(
+        converter, chWalResources.getIfAvailable(), directIngestionEnabled);
   }
 }
