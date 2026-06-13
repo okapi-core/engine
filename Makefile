@@ -181,7 +181,7 @@ test-infra-up:
 	$(TEST_INFRA_ENV) OPENAI_API_KEY="$(OPENAI_API_KEY)" \
 		$(DOCKER_COMPOSE) -f $(TEST_INFRA_COMPOSE) --profile init run --rm vault-init
 
-test-infra: package-ops
+test-infra:
 	$(MAKE) test-infra-up
 	$(MAKE) migrate-test-datastores
 	$(MAKE) test-secret
