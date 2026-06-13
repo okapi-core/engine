@@ -95,9 +95,6 @@ public final class TestEvaluator {
           case FAIL -> { /* handled above */ }
           case NO_INFO, NO_WARN, INFO, WARN, ORDERED -> { /* not yet implemented, skip */ }
         }
-      } else if (exp instanceof ExpectString) {
-        diffs.add(TestExpectationDifference.of(
-            cmd.expression(), "string results not supported yet", null, null));
       }
     }
 

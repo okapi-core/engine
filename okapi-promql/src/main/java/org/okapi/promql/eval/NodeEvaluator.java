@@ -40,7 +40,7 @@ public final class NodeEvaluator {
       case AtExpr e -> evalAt(e, ctx);
       case OffsetExpr e -> evalOffset(e, ctx);
       case SubqueryExpr e -> evalSubquery(e, ctx);
-      case StringLiteralExpr e -> throw new EvaluationException("string literal is not directly evaluable");
+      case StringLiteralExpr e -> new StringResult(e.value);
     };
   }
 

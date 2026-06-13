@@ -124,7 +124,7 @@ public class ExpressionVisitor extends PromQLParserBaseVisitor<LogicalExpr> {
     if (lit.startsWith("\"")) return new StringLiteralExpr(stripQuotes(lit));
     if ("nan".equalsIgnoreCase(lit)) return new LiteralExpr(Float.NaN);
     if ("inf".equalsIgnoreCase(lit)) return new LiteralExpr(Float.POSITIVE_INFINITY);
-    if (isDurationLiteral(lit)) {
+    if (ctx.literal().DURATION() != null) {
       long ms = DurationUtil.parseToMillis(lit);
       return new LiteralExpr((float) (ms / 1000.0d));
     }
@@ -295,16 +295,6 @@ public class ExpressionVisitor extends PromQLParserBaseVisitor<LogicalExpr> {
     return ctx.extendedVectorModifier().ANCHORED() != null
         ? ExtendedVectorMode.ANCHORED
         : ExtendedVectorMode.SMOOTHED;
-  }
-
-  private boolean isDurationLiteral(String lit) {
-    for (int i = 0; i < lit.length(); i++) {
-      char c = lit.charAt(i);
-      if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
-        return true;
-      }
-    }
-    return false;
   }
 
   // -------------------- helpers --------------------

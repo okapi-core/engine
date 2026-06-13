@@ -32,12 +32,27 @@ final class TestResultComparator {
     }
     return switch (result) {
       case ScalarResult s          -> compareScalar(cmd, s);
+      case StringResult s          -> compareString(cmd, s);
       case InstantVectorResult iv  -> compareInstantVector(cmd, iv);
       case RangeVectorResult rv    -> compareRangeVector(cmd, rv);
       case HistogramVectorResult h -> compareHistogramVector(cmd, h);
       default -> List.of(TestExpectationDifference.of(
           cmd.expression(), "unsupported result type", null, result.toString()));
     };
+  }
+
+  private List<TestExpectationDifference> compareString(EvalCmd cmd, StringResult actual) {
+    for (Expectation expectation : cmd.expectations()) {
+      if (expectation instanceof ExpectString expected) {
+        if (expected.value().equals(actual.getValue())) return List.of();
+        return List.of(
+            TestExpectationDifference.of(
+                cmd.expression(), "string value mismatch", expected.value(), actual.getValue()));
+      }
+    }
+    return List.of(
+        TestExpectationDifference.of(
+            cmd.expression(), "expected no string result but got value", "none", actual.getValue()));
   }
 
   // ---------- Scalar ----------
