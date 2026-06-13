@@ -26,7 +26,10 @@ public final class TrigFunctions {
       out.add(
           new SeriesSample(
               dropName(sample.series()),
-              new Sample(sample.sample().ts(), apply(name, sample.sample().value()))));
+              new Sample(
+                  sample.sample().ts(),
+                  sample.sample().sourceTs(),
+                  apply(name, sample.sample().value()))));
     }
     return new InstantVectorResult(out);
   }

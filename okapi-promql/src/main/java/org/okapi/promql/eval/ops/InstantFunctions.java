@@ -19,7 +19,10 @@ public final class InstantFunctions {
   public static InstantVectorResult mapSamples(InstantVectorResult iv, Function<Float, Float> fn) {
     List<SeriesSample> out = new ArrayList<>(iv.data().size());
     for (var s : iv.data())
-      out.add(new SeriesSample(s.series(), new Sample(s.sample().ts(), fn.apply(s.sample().value()))));
+      out.add(
+          new SeriesSample(
+              s.series(),
+              new Sample(s.sample().ts(), s.sample().sourceTs(), fn.apply(s.sample().value()))));
     return new InstantVectorResult(out);
   }
 
@@ -47,13 +50,17 @@ public final class InstantFunctions {
     return new InstantVectorResult(List.of());
   }
 
-  public static InstantVectorResult timestamp(
-      InstantVectorResult iv, EvalContext ctx, boolean pinnedArgument) {
-    return mapSamplesAtEvalSteps(iv, ctx, pinnedArgument, s -> s.sample().ts() / 1000f);
+  public static InstantVectorResult timestamp(InstantVectorResult iv) {
+    List<SeriesSample> out = new ArrayList<>(iv.data().size());
+    for (var s : iv.data())
+      out.add(
+          new SeriesSample(
+              dropName(s.series()),
+              new Sample(s.sample().ts(), s.sample().sourceTs() / 1000f)));
+    return new InstantVectorResult(out);
   }
 
-  public static InstantVectorResult calendar(
-      String name, InstantVectorResult iv, EvalContext ctx, boolean pinnedArgument) {
+  public static InstantVectorResult calendar(String name, InstantVectorResult iv, EvalContext ctx) {
     List<SeriesSample> out = new ArrayList<>();
     if (iv == null) {
       for (long t = ctx.startMs; t <= ctx.endMs; t += ctx.stepMs) {
@@ -65,26 +72,11 @@ public final class InstantFunctions {
       return new InstantVectorResult(out);
     }
 
-    return mapSamplesAtEvalSteps(
-        iv, ctx, pinnedArgument, s -> calendarValue(name, s.sample().value()));
-  }
-
-  private static InstantVectorResult mapSamplesAtEvalSteps(
-      InstantVectorResult iv,
-      EvalContext ctx,
-      boolean pinnedArgument,
-      Function<SeriesSample, Float> valueFn) {
-    List<SeriesSample> out = new ArrayList<>();
     for (var s : iv.data()) {
-      if (pinnedArgument && ctx.startMs != ctx.endMs) {
-        for (long t = ctx.startMs; t <= ctx.endMs; t += ctx.stepMs)
-          out.add(new SeriesSample(dropName(s.series()), new Sample(t, valueFn.apply(s))));
-        continue;
-      }
-      // For instant evals, the outer evaluation time is the output timestamp. This lets
-      // nested functions observe the eval time instead of an inner @-pinned timestamp.
-      long outputTs = (ctx.startMs == ctx.endMs) ? ctx.startMs : s.sample().ts();
-      out.add(new SeriesSample(dropName(s.series()), new Sample(outputTs, valueFn.apply(s))));
+      out.add(
+          new SeriesSample(
+              dropName(s.series()),
+              new Sample(s.sample().ts(), calendarValue(name, s.sample().value()))));
     }
     return new InstantVectorResult(out);
   }

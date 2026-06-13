@@ -88,7 +88,7 @@ public final class NodeEvaluator {
         if (n == 0) continue;
         long ptsTs = tsList.get(idx);
         if (ptsTs <= effT && ptsTs > winStart)
-          out.add(new SeriesSample(w.id(), new Sample(t, valList.get(idx))));
+          out.add(new SeriesSample(w.id(), new Sample(t, ptsTs, valList.get(idx))));
       }
     }
     return new InstantVectorResult(out);
@@ -152,7 +152,16 @@ public final class NodeEvaluator {
   private ExpressionResult evalAt(AtExpr e, EvalContext ctx) throws EvaluationException {
     var s = TypeChecks.requireScalar(eval(e.atScalar, ctx), "@");
     long tsMs = (long) (s.value * 1000L);
-    return eval(e.inner, ctx.withWindow(tsMs, tsMs));
+    var result = eval(e.inner, ctx.withWindow(tsMs, tsMs));
+    if (!(result instanceof InstantVectorResult iv)) return result;
+    List<SeriesSample> out = new ArrayList<>();
+    for (var sample : iv.data())
+      for (long t = ctx.startMs; t <= ctx.endMs; t += ctx.stepMs)
+        out.add(
+            new SeriesSample(
+                sample.series(),
+                new Sample(t, sample.sample().sourceTs(), sample.sample().value())));
+    return new InstantVectorResult(out);
   }
 
   private ExpressionResult evalOffset(OffsetExpr e, EvalContext ctx) throws EvaluationException {
@@ -467,9 +476,7 @@ public final class NodeEvaluator {
       case "sort_desc" -> InstantFunctions.sort(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), true);
       case "absent"    -> InstantFunctions.absent(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), ctx);
       case "timestamp" -> InstantFunctions.timestamp(
-          TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name),
-          ctx,
-          e.args.get(0) instanceof AtExpr);
+          TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name));
       case "sin", "cos", "tan", "asin", "acos", "atan", "sinh", "cosh", "tanh",
           "asinh", "acosh", "atanh", "rad", "deg" -> evalTrig(e, ctx);
       case "pi" -> {
@@ -498,8 +505,7 @@ public final class NodeEvaluator {
           "hour", "minute" -> InstantFunctions.calendar(
               e.name,
               e.args.isEmpty() ? null : TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name),
-              ctx,
-              !e.args.isEmpty() && e.args.get(0) instanceof AtExpr);
+              ctx);
       // label manipulation
       case "label_replace" -> {
         var lriv = TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name);
@@ -532,7 +538,6 @@ public final class NodeEvaluator {
       throw new EvaluationException("info: expected one or two arguments");
 
     var base = TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name);
-    if (e.args.get(0) instanceof AtExpr) base = rematerializePinnedInfoBase(base, ctx);
     InstantizeExpr infoArg =
         e.args.size() == 1
             ? new InstantizeExpr(new SelectorExpr("target_info", List.of(), null, null))
@@ -585,15 +590,6 @@ public final class NodeEvaluator {
           new SeriesSample(
               new SeriesId(sample.series().metric(), new Labels(labels)), sample.sample()));
     }
-    return new InstantVectorResult(out);
-  }
-
-  private InstantVectorResult rematerializePinnedInfoBase(InstantVectorResult base, EvalContext ctx) {
-    if (ctx.startMs == ctx.endMs) return base;
-    List<SeriesSample> out = new ArrayList<>();
-    for (var sample : base.data())
-      for (long t = ctx.startMs; t <= ctx.endMs; t += ctx.stepMs)
-        out.add(new SeriesSample(sample.series(), new Sample(t, sample.sample().value())));
     return new InstantVectorResult(out);
   }
 
@@ -722,14 +718,20 @@ public final class NodeEvaluator {
   private InstantVectorResult mapVector(InstantVectorResult iv, java.util.function.Function<Float, Float> fn) {
     List<SeriesSample> out = new ArrayList<>(iv.data().size());
     for (var s : iv.data())
-      out.add(new SeriesSample(s.series(), new Sample(s.sample().ts(), fn.apply(s.sample().value()))));
+      out.add(
+          new SeriesSample(
+              s.series(),
+              new Sample(s.sample().ts(), s.sample().sourceTs(), fn.apply(s.sample().value()))));
     return new InstantVectorResult(out);
   }
 
   private InstantVectorResult mapVectorDropName(InstantVectorResult iv, java.util.function.Function<Float, Float> fn) {
     List<SeriesSample> out = new ArrayList<>(iv.data().size());
     for (var s : iv.data())
-      out.add(new SeriesSample(dropName(s.series()), new Sample(s.sample().ts(), fn.apply(s.sample().value()))));
+      out.add(
+          new SeriesSample(
+              dropName(s.series()),
+              new Sample(s.sample().ts(), s.sample().sourceTs(), fn.apply(s.sample().value()))));
     return new InstantVectorResult(out);
   }
 

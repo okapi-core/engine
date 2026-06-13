@@ -12,7 +12,11 @@ public class VectorData {
 
   public record SeriesId(String metric, Labels labels) {}
 
-  public record Sample(long ts, float value) {}
+  public record Sample(long ts, long sourceTs, float value) {
+    public Sample(long ts, float value) {
+      this(ts, ts, value);
+    }
+  }
 
   public record SeriesSample(SeriesId id, Sample sample) {
     public SeriesId series() {
