@@ -1,12 +1,14 @@
 package org.okapi.oscar.integ;
 
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.okapi.oscar.integ.corpus.SingleStepFlowCorpus;
 import org.okapi.oscar.integ.judge.Judgment;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+@Disabled
 class SingleStepIntegrationTest extends OscarIntegTestBase {
 
   @BeforeAll

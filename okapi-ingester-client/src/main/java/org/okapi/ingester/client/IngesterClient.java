@@ -154,7 +154,7 @@ public class IngesterClient {
     ingestOtelTraces(request.toByteArray());
   }
 
-  public void ingestOtelTraces(byte[] payload) {
+  private void ingestOtelTraces(byte[] payload) {
     RequestBody body = RequestBody.create(payload);
     Request request =
         new Request.Builder()
@@ -164,8 +164,7 @@ public class IngesterClient {
             .build();
     try (var response = client.newCall(request).execute()) {
       if (!response.isSuccessful()) {
-        String msg = response.body() == null ? "" : response.body().string();
-        throw new RuntimeException("Ingester OTEL ingest failed: " + response.code() + " " + msg);
+        throw new RuntimeException("Ingester OTEL ingest failed: " + response.code());
       }
     } catch (IOException e) {
       throw new RuntimeException(e);

@@ -1,18 +1,15 @@
 package org.okapi.oscar.integ.corpus;
 
-import static org.okapi.oscar.integ.OtelHelpers.*;
-
 import io.opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceRequest;
-import io.opentelemetry.proto.metrics.v1.Gauge;
-import io.opentelemetry.proto.metrics.v1.Metric;
-import io.opentelemetry.proto.metrics.v1.NumberDataPoint;
-import io.opentelemetry.proto.metrics.v1.ResourceMetrics;
-import io.opentelemetry.proto.metrics.v1.ScopeMetrics;
+import io.opentelemetry.proto.metrics.v1.*;
 import io.opentelemetry.proto.resource.v1.Resource;
 import io.opentelemetry.proto.trace.v1.Span;
 import io.opentelemetry.proto.trace.v1.Status;
-import java.util.List;
 import org.okapi.ingester.client.IngesterClient;
+
+import java.util.List;
+
+import static org.okapi.oscar.integ.OtelHelpers.*;
 
 public class HighLatencyCpuSpikeCorpus implements Corpus {
 
@@ -69,7 +66,8 @@ public class HighLatencyCpuSpikeCorpus implements Corpus {
             .build();
     var resourceMetrics =
         ResourceMetrics.newBuilder()
-            .setResource(Resource.newBuilder().addAttributes(kv("host.name", POSTGRES_HOST)).build())
+            .setResource(
+                Resource.newBuilder().addAttributes(kv("host.name", POSTGRES_HOST)).build())
             .addScopeMetrics(ScopeMetrics.newBuilder().addMetrics(metric).build())
             .build();
     ingesterClient.ingestOtelMetrics(

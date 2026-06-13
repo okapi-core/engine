@@ -2,6 +2,7 @@ CREATE TABLE IF NOT EXISTS okapi_metrics.metric_events_stream_meta (
     event_type Enum('GAUGE' = 1, 'HISTO' = 2, 'SUM' = 3),
     metric LowCardinality(String),
     tags Map(String, String),
+    unit LowCardinality(String),
     temporality Nullable(String),
     ts_start DateTime64(3, 'UTC'),
     ts_end DateTime64(3, 'UTC'),

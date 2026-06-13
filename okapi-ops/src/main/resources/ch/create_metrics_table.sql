@@ -2,7 +2,7 @@ CREATE TABLE IF NOT EXISTS okapi_metrics.gauge_raw_samples (
     timestamp DateTime64(3, 'UTC'),
     metric LowCardinality(String),
     tags Map(String, String),
-    value Float32,
+    value Float64,
     unit LowCardinality(String),
     minute UInt8 DEFAULT toStartOfMinute(timestamp),
     hour UInt8 DEFAULT toStartOfHour(timestamp),

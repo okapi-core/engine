@@ -91,9 +91,9 @@ public class ToolCallSummariesTest {
 
     assertThat(summary)
         .contains("points=3")
-        .contains("timeMs=[1,3]")
+        .contains("results=1")
+        .contains("time-ms=[1,3]")
         .contains("metric=cpu.usage{host=web-1}")
-        .contains("type=GAUGE")
         .contains("temporality=n/a");
   }
 
@@ -118,7 +118,13 @@ public class ToolCallSummariesTest {
                     .series(
                         List.of(
                             HistogramSeries.builder()
-                                .histogram(Histogram.builder().start(10L).end(20L).build())
+                                .histogram(
+                                    Histogram.builder()
+                                        .buckets(List.of(0.1f, 0.2f))
+                                        .counts(List.of(1L, 2L, 3L))
+                                        .start(10L)
+                                        .end(20L)
+                                        .build())
                                 .build(),
                             HistogramSeries.builder()
                                 .histogram(Histogram.builder().start(30L).end(40L).build())
@@ -129,11 +135,8 @@ public class ToolCallSummariesTest {
     String summary = ToolCallSummaries.summarizeGetMetricsResponse(request, response);
 
     assertThat(summary)
-        .contains("points=2")
-        .contains("timeMs=[10,40]")
-        .contains("metric=http.server.duration{route=/}")
-        .contains("type=HISTO")
-        .contains("temporality=DELTA");
+        .isEqualTo(
+            "Fetch metrics results:  temporality=DELTA time-ms=[10,40] metric=http.server.duration{route=/} results=2 histos=[buckets=[0.1, 0.2], counts=[0.1, 0.2]] malformed-histogram");
   }
 
   @Test

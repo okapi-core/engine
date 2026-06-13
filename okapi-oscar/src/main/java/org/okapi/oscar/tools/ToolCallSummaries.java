@@ -8,7 +8,6 @@ import org.okapi.rest.traces.SpanQueryV2Response;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.TreeMap;
 
 public final class ToolCallSummaries {
@@ -162,20 +161,61 @@ public final class ToolCallSummaries {
       return "Fetch metrics results: points=0";
     }
     METRIC_TYPE type = metricTypeFromRequestOrResponse(request, response);
-    long points = countPoints(type, response);
     String timeWindow = summarizeTimeWindow(type, response, request);
     String metricPath = formatMetricPath(response.getMetric(), response.getTags());
     String temporality = summarizeTemporality(type, request);
-    return "Fetch metrics results: points="
-        + points
-        + " timeMs="
+    return "Fetch metrics results: "
+        + (temporality != null ? " temporality=" + temporality : "")
+        + " time-ms="
         + timeWindow
         + " metric="
-        + metricPath
-        + " type="
-        + (type == null ? "UNKNOWN" : type)
-        + " temporality="
-        + temporality;
+        + metricPath + " "
+        + summarizeResponse(type, response);
+  }
+
+  public static String summarizeGaugeResponse(GetGaugeResponse gaugeResponse) {
+    if (gaugeResponse == null) {
+      return null;
+    }
+    StringBuilder sb = new StringBuilder();
+    sb.append("results=").append(gaugeResponse.getSeries().size());
+    sb.append(" num-points=");
+    for (var s : gaugeResponse.getSeries()) {
+      sb.append(s.getTimes().size()).append(",");
+    }
+    return sb.toString();
+  }
+
+  public static String summarizeHistoResponse(GetHistogramResponse histogramResponse) {
+    if (histogramResponse == null) {
+      return null;
+    }
+    StringBuilder sb = new StringBuilder();
+    sb.append("results=").append(histogramResponse.getSeries().size());
+    sb.append(" histos=");
+    for (var s : histogramResponse.getSeries()) {
+      if(s.getHistogram().getBuckets() == null){
+        sb.append(" malformed-histogram");
+        continue;
+      }
+      var buckets = (s.getHistogram().getBuckets()).toString();
+      var counts = (s.getHistogram().getBuckets()).toString();
+      sb.append("[buckets=").append(buckets).append(", counts=").append(counts).append("]");
+    }
+    return sb.toString();
+  }
+
+  public static String summarizeSumResponse(GetSumsResponse res) {
+    if (res == null) {
+      return null;
+    }
+    StringBuilder sb = new StringBuilder();
+    sb.append("results=").append(res.getSums().size());
+    sb.append(" sums=");
+    for (var sum : res.getSums()) {
+      sb.append("[").append("sum = ").append(sum.getCount()).append(sum.getUnit()).append("],");
+    }
+    return sb.toString();
   }
 
   private static METRIC_TYPE metricTypeFromRequestOrResponse(
@@ -195,25 +235,16 @@ public final class ToolCallSummaries {
     return null;
   }
 
-  private static long countPoints(METRIC_TYPE type, GetMetricsResponse response) {
+  private static String summarizeResponse(METRIC_TYPE type, GetMetricsResponse response) {
+    if (type == null) {
+      return "";
+    }
     return switch (type) {
-      case METRIC_TYPE.GAUGE ->
-          Optional.ofNullable(response.getGaugeResponse())
-              .map(GetGaugeResponse::getSeries)
-              .map(List::size)
-              .stream()
-              .reduce(Integer::sum)
-              .orElse(0);
+      case METRIC_TYPE.GAUGE -> summarizeGaugeResponse(response.getGaugeResponse());
 
-      case METRIC_TYPE.HISTO -> response.getHistogramResponse().getSeries().size();
+      case METRIC_TYPE.HISTO -> summarizeHistoResponse(response.getHistogramResponse());
 
-      case METRIC_TYPE.SUM ->
-          Optional.ofNullable(response.getSumsResponse())
-              .map(GetSumsResponse::getSums)
-              .map(List::size)
-              .stream()
-              .reduce(Integer::sum)
-              .orElse(0);
+      case METRIC_TYPE.SUM -> summarizeSumResponse(response.getSumsResponse());
     };
   }
 
