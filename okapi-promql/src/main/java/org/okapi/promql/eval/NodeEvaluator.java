@@ -863,9 +863,8 @@ public final class NodeEvaluator {
           TypeChecks.requireScalar(eval(e.args.get(1), ctx), e.name).value,
           TypeChecks.requireInstantVector(eval(e.args.get(2), ctx), e.name));
       case "histogram_quantile" -> HistogramFunctions.quantile(
-          (float) TypeChecks.requireScalar(eval(e.args.get(0), ctx), e.name).value,
-          TypeChecks.requireRangeVector(eval(e.args.get(1), ctx), e.name),
-          rangeOf(e, 1, ctx), ctx);
+          TypeChecks.requireScalar(eval(e.args.get(0), ctx), e.name).value,
+          TypeChecks.requireInstantVector(eval(e.args.get(1), ctx), e.name));
       // vector → scalar
       case "scalar" -> InstantFunctions.toScalar(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name));
       // scalar → vector

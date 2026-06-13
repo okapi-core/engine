@@ -75,6 +75,47 @@ public final class HistogramFunctions {
     return new InstantVectorResult(out);
   }
 
+  public static InstantVectorResult quantile(double quantile, InstantVectorResult vector) {
+    List<SeriesSample> out = new ArrayList<>();
+    Map<ClassicBucketKey, List<ClassicBucket>> classicBuckets = new LinkedHashMap<>();
+    for (var seriesSample : vector.data()) {
+      if (seriesSample.sample().isHistogram()) {
+        var histogram = seriesSample.sample().histogram();
+        if (!(histogram instanceof HistogramSeries.NativeHistogramSample nativeHistogram)) continue;
+        out.add(
+            new SeriesSample(
+                SeriesIds.derived(seriesSample.series()),
+                new Sample(
+                    seriesSample.sample().ts(),
+                    seriesSample.sample().sourceTs(),
+                    quantile(quantile, nativeHistogram))));
+        continue;
+      }
+      String bound = seriesSample.series().labels().tags().get("le");
+      if (bound == null) continue;
+      Map<String, String> labels = new HashMap<>(seriesSample.series().labels().tags());
+      labels.remove("le");
+      var key = new ClassicBucketKey(labels, seriesSample.sample().ts());
+      classicBuckets
+          .computeIfAbsent(key, ignored -> new ArrayList<>())
+          .add(new ClassicBucket(parseBound(bound), seriesSample.sample().value()));
+    }
+    for (var entry : classicBuckets.entrySet()) {
+      var buckets = entry.getValue();
+      buckets.sort(Comparator.comparingDouble(ClassicBucket::upperBound));
+      out.add(
+          new SeriesSample(
+              new SeriesId("", new Labels(entry.getKey().labels())),
+              new Sample(
+                  entry.getKey().timestamp(),
+                  quantile(
+                      quantile,
+                      buckets.stream().mapToDouble(ClassicBucket::upperBound).toArray(),
+                      buckets.stream().mapToDouble(ClassicBucket::cumulativeCount).toArray()))));
+    }
+    return new InstantVectorResult(out);
+  }
+
   private static InstantVectorResult mapHistograms(
       InstantVectorResult vector,
       java.util.function.ToDoubleFunction<HistogramSeries.HistogramSample> function) {
@@ -122,6 +163,45 @@ public final class HistogramFunctions {
       cumulative[i] = count;
     }
     return fraction(lower, upper, bounds, cumulative);
+  }
+
+  private static double quantile(
+      double quantile, HistogramSeries.NativeHistogramSample histogram) {
+    double[] customValues = histogram.customValues();
+    double[] bucketCounts = histogram.positiveBuckets();
+    if (customValues.length == 0) return Double.NaN;
+    double[] bounds = Arrays.copyOf(customValues, customValues.length + 1);
+    bounds[bounds.length - 1] = Double.POSITIVE_INFINITY;
+    double[] cumulative = new double[bucketCounts.length];
+    double count = 0d;
+    for (int i = 0; i < bucketCounts.length; i++) {
+      count += bucketCounts[i];
+      cumulative[i] = count;
+    }
+    return quantile(quantile, bounds, cumulative);
+  }
+
+  private static double quantile(double quantile, double[] bounds, double[] cumulative) {
+    if (Double.isNaN(quantile)) return Double.NaN;
+    if (quantile < 0d) return Double.NEGATIVE_INFINITY;
+    if (quantile > 1d) return Double.POSITIVE_INFINITY;
+    if (cumulative.length == 0 || cumulative[cumulative.length - 1] == 0d) return Double.NaN;
+    double rank = quantile * cumulative[cumulative.length - 1];
+    double previousCount = 0d;
+    double lowerBound = bounds.length > 0 && bounds[0] > 0d ? 0d : Double.NEGATIVE_INFINITY;
+    for (int i = 0; i < cumulative.length; i++) {
+      double upperBound = i < bounds.length ? bounds[i] : Double.POSITIVE_INFINITY;
+      if (rank <= cumulative[i]) {
+        if (Double.isInfinite(lowerBound)) return upperBound;
+        if (Double.isInfinite(upperBound)) return lowerBound;
+        double bucketCount = cumulative[i] - previousCount;
+        if (bucketCount == 0d) return upperBound;
+        return lowerBound + (upperBound - lowerBound) * (rank - previousCount) / bucketCount;
+      }
+      previousCount = cumulative[i];
+      lowerBound = upperBound;
+    }
+    return bounds[bounds.length - 1];
   }
 
   private static double fraction(double lower, double upper, double[] bounds, double[] cumulative) {
