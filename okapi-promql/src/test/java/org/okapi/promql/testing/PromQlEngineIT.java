@@ -30,19 +30,6 @@ class PromQlEngineIT {
     }
   }
 
-  @Test
-  void testRun_SingleSuite() throws Exception {
-    var suite = "literals.test";
-    List<Path> scripts = discoverTestScripts();
-    assertTrue(!scripts.isEmpty(), "no promql test scripts discovered");
-    for (Path script : scripts) {
-      String content = Files.readString(script, StandardCharsets.UTF_8);
-      if (script.endsWith(suite)) {
-        testScript(content);
-      }
-    }
-  }
-
   private void testScript(String script) {
     TestEvaluator evaluator = new TestEvaluator();
     List<TestExpectationDifference> diffs = evaluator.run(script);
