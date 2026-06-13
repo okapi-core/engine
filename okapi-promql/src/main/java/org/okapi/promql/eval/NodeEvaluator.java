@@ -117,8 +117,14 @@ public final class NodeEvaluator {
       while (idx + 1 < n && points.get(idx + 1).endMs() <= effT) idx++;
       if (n == 0) continue;
       var point = points.get(idx);
-      if (point.endMs() <= effT && point.endMs() > winStart)
-        out.add(new SeriesSample(id, new Sample(t, point.endMs(), point)));
+      if (point.endMs() <= effT && point.endMs() > winStart) {
+        if (point instanceof HistogramSeries.HistogramSample histogram) {
+          out.add(new SeriesSample(id, new Sample(t, point.endMs(), histogram)));
+        } else if (point instanceof HistogramSeries.FloatSample sample
+            && !Staleness.isStale(sample.value())) {
+          out.add(new SeriesSample(id, new Sample(t, point.endMs(), sample.value())));
+        }
+      }
     }
   }
 
@@ -928,7 +934,12 @@ public final class NodeEvaluator {
 
   private InstantVectorResult labelReplace(
       InstantVectorResult iv, String dstLabel, String replacement, String srcLabel, String regex) {
-    Pattern p = Pattern.compile(regex);
+    Pattern p;
+    try {
+      p = Pattern.compile(regex);
+    } catch (java.util.regex.PatternSyntaxException e) {
+      throw new EvaluationException("label_replace: invalid regex: " + e.getDescription());
+    }
     List<SeriesSample> out = new ArrayList<>();
     for (var s : iv.data()) {
       Map<String, String> tags = new HashMap<>(s.series().labels().tags());

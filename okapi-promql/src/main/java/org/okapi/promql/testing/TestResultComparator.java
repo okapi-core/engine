@@ -411,11 +411,15 @@ final class TestResultComparator {
   private List<HistogramCounts> alignHistogramValues(HistogramSeries hs, RangeSpec range, int steps) {
     List<HistogramCounts> out = new ArrayList<>();
     if (range.stepMs <= 0 || range.steps <= 0) {
-      for (var p : hs.getPoints()) out.add(new HistogramCounts((float) p.sum(), (float) p.count()));
+      for (var p : hs.getPoints())
+        if (p instanceof HistogramSeries.HistogramSample histogram)
+          out.add(new HistogramCounts((float) histogram.sum(), (float) histogram.count()));
       return out;
     }
     Map<Long, HistogramCounts> byTs = new HashMap<>();
-    for (var p : hs.getPoints()) byTs.put(p.endMs(), new HistogramCounts((float) p.sum(), (float) p.count()));
+    for (var p : hs.getPoints())
+      if (p instanceof HistogramSeries.HistogramSample histogram)
+        byTs.put(p.endMs(), new HistogramCounts((float) histogram.sum(), (float) histogram.count()));
     long t = range.startMs;
     for (int i = 0; i < steps; i++) {
       out.add(byTs.get(t));

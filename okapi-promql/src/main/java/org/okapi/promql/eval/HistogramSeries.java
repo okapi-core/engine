@@ -6,9 +6,10 @@ package org.okapi.promql.eval;
 
 import java.util.List;
 import java.util.Objects;
+import org.okapi.metrics.pojos.results.GaugeScan;
 import org.okapi.metrics.pojos.results.Scan;
 
-/** Time-indexed histogram samples for a single series. */
+/** Time-indexed Prometheus samples for a series that may contain histograms. */
 public final class HistogramSeries extends Scan {
 
   public enum Temporality {
@@ -17,9 +18,9 @@ public final class HistogramSeries extends Scan {
   }
 
   private final String universalPath;
-  private final List<HistogramSample> points;
+  private final List<SeriesSample> points;
 
-  public HistogramSeries(String universalPath, List<? extends HistogramSample> points) {
+  public HistogramSeries(String universalPath, List<? extends SeriesSample> points) {
     this.universalPath = universalPath;
     this.points = List.copyOf(Objects.requireNonNull(points, "points"));
   }
@@ -28,14 +29,36 @@ public final class HistogramSeries extends Scan {
     return universalPath;
   }
 
-  public List<HistogramSample> getPoints() {
+  public List<SeriesSample> getPoints() {
     return points;
   }
 
-  public sealed interface HistogramSample permits ExplicitHistogramSample, NativeHistogramSample {
+  public GaugeScan floatScan() {
+    var timestamps = new java.util.ArrayList<Long>();
+    var values = new java.util.ArrayList<Float>();
+    for (var point : points) {
+      if (point instanceof FloatSample sample) {
+        timestamps.add(sample.endMs());
+        values.add(sample.value());
+      }
+    }
+    return GaugeScan.builder()
+        .universalPath(universalPath)
+        .timestamps(List.copyOf(timestamps))
+        .values(List.copyOf(values))
+        .build();
+  }
+
+  public sealed interface SeriesSample permits FloatSample, HistogramSample {
     long startMs();
 
     long endMs();
+  }
+
+  public record FloatSample(long startMs, long endMs, float value) implements SeriesSample {}
+
+  public sealed interface HistogramSample extends SeriesSample
+      permits ExplicitHistogramSample, NativeHistogramSample {
 
     double sum();
 

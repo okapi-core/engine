@@ -7,7 +7,9 @@ package org.okapi.promql.testing;
 import org.okapi.metrics.pojos.results.GaugeScan;
 import org.okapi.metrics.pojos.results.Scan;
 import org.okapi.promql.eval.HistogramSeries;
+import org.okapi.promql.eval.HistogramSeries.FloatSample;
 import org.okapi.promql.eval.HistogramSeries.NativeHistogramSample;
+import org.okapi.promql.eval.HistogramSeries.SeriesSample;
 import org.okapi.promql.eval.Staleness;
 import org.okapi.promql.eval.VectorData.Labels;
 import org.okapi.promql.eval.VectorData.SeriesId;
@@ -80,11 +82,11 @@ final class InMemoryTimeSeriesStore {
     }
 
     private HistogramSeries buildHistogramSeries(IngestedSeries series, long startMs, long endMs) {
-      List<NativeHistogramSample> points = new ArrayList<>();
+      List<SeriesSample> points = new ArrayList<>();
       long ts = series.startMs();
-      for (HistogramLiteral literal : expandHistogramPoints(series.points())) {
-        if (ts >= startMs && ts <= endMs && literal != null) {
-          points.add(toNativeHistogramSample(ts, literal));
+      for (PointExpr point : expandSeriesPoints(series.points())) {
+        if (ts >= startMs && ts <= endMs && point != null) {
+          points.add(toSeriesSample(ts, point));
         }
         ts += series.stepMs();
       }
@@ -115,31 +117,48 @@ final class InMemoryTimeSeriesStore {
       }
     }
 
-    private List<HistogramLiteral> expandHistogramPoints(List<PointExpr> points) {
-      List<HistogramLiteral> out = new ArrayList<>();
-      for (PointExpr p : points) expandHistogramPoint(p, out);
+    private List<PointExpr> expandSeriesPoints(List<PointExpr> points) {
+      List<PointExpr> out = new ArrayList<>();
+      for (PointExpr p : points) expandSeriesPoint(p, out);
       return out;
     }
 
-    private void expandHistogramPoint(PointExpr point, List<HistogramLiteral> out) {
+    private void expandSeriesPoint(PointExpr point, List<PointExpr> out) {
       switch (point) {
-        case HistogramPoint hp -> out.add(hp.value());
+        case HistogramPoint hp -> out.add(hp);
+        case NumberPoint np -> out.add(np);
+        case NaNPoint np -> out.add(np);
+        case InfPoint ip -> out.add(ip);
         case MissingPoint mp -> out.add(null);
-        case StalePoint st -> out.add(null);
-        case RepeatPoint rp -> { for (int i = 0; i <= rp.count(); i++) expandHistogramPoint(rp.value(), out); }
+        case StalePoint st -> out.add(st);
+        case RepeatPoint rp -> { for (int i = 0; i <= rp.count(); i++) expandSeriesPoint(rp.value(), out); }
         case StepSequencePoint sp -> {
           if (sp.start() instanceof HistogramPoint start && sp.step() instanceof HistogramPoint delta) {
             float startSum = histogramField(start.value(), "sum"), startCount = histogramField(start.value(), "count");
             float dSum = histogramField(delta.value(), "sum"), dCount = histogramField(delta.value(), "count");
             for (int i = 0; i <= sp.count(); i++) {
-              out.add(buildHistogramLiteral(startSum + dSum * i, startCount + dCount * i));
+              out.add(new HistogramPoint(buildHistogramLiteral(startSum + dSum * i, startCount + dCount * i)));
             }
+          } else if (sp.start() instanceof NumberPoint start && sp.step() instanceof NumberPoint delta) {
+            for (int i = 0; i <= sp.count(); i++)
+              out.add(new NumberPoint(start.value() + delta.value() * i));
           } else {
-            throw new IllegalStateException("histogram step sequence: start and step must both be histogram points");
+            throw new IllegalStateException("step sequence: start and step must have the same sample type");
           }
         }
-        default -> throw new IllegalStateException("expected histogram point, got " + point.getClass().getSimpleName());
       }
+    }
+
+    private SeriesSample toSeriesSample(long ts, PointExpr point) {
+      return switch (point) {
+        case HistogramPoint hp -> toNativeHistogramSample(ts, hp.value());
+        case NumberPoint np -> new FloatSample(ts, ts, (float) np.value());
+        case NaNPoint ignored -> new FloatSample(ts, ts, Float.NaN);
+        case InfPoint ip ->
+            new FloatSample(ts, ts, ip.negative() ? Float.NEGATIVE_INFINITY : Float.POSITIVE_INFINITY);
+        case StalePoint ignored -> new FloatSample(ts, ts, Staleness.staleFloat());
+        default -> throw new IllegalStateException("unexpected expanded series point: " + point);
+      };
     }
   }
 

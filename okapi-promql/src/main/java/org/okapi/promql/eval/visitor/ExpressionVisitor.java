@@ -37,10 +37,10 @@ public class ExpressionVisitor extends PromQLParserBaseVisitor<LogicalExpr> {
     var sq = ctx.subqueryOp();
     var range = sq.subqueryRange();
     DurationExpr rangeExpr = parseDurationExpr(range.durationExpr(0));
-    if (range.durationExpr(1) == null) {
-      throw new IllegalArgumentException("subquery requires [range:step]");
-    }
-    DurationExpr stepExpr = parseDurationExpr(range.durationExpr(1));
+    DurationExpr stepExpr =
+        range.durationExpr(1) == null
+            ? new DurationExpr.Function("step", List.of())
+            : parseDurationExpr(range.durationExpr(1));
     DurationExpr offsetExpr = null;
     if (sq.offsetOp() != null) {
       offsetExpr = parseOffsetDurationExpr(sq.offsetOp().offsetDurationExpr());
@@ -144,15 +144,7 @@ public class ExpressionVisitor extends PromQLParserBaseVisitor<LogicalExpr> {
 
   @Override
   public LogicalExpr visitVecLiteral(PromQLParser.VecLiteralContext ctx) {
-    String lit = ctx.literal().getText();
-    if (lit.startsWith("\"")) return new StringLiteralExpr(stripQuotes(lit));
-    if ("nan".equalsIgnoreCase(lit)) return new LiteralExpr(Float.NaN);
-    if ("inf".equalsIgnoreCase(lit)) return new LiteralExpr(Float.POSITIVE_INFINITY);
-    if (ctx.literal().DURATION() != null) {
-      long ms = DurationUtil.parseToMillis(lit);
-      return new LiteralExpr((float) (ms / 1000.0d));
-    }
-    return new LiteralExpr(Float.parseFloat(lit));
+    return literalParam(ctx.literal());
   }
 
   @Override
@@ -347,6 +339,8 @@ public class ExpressionVisitor extends PromQLParserBaseVisitor<LogicalExpr> {
     if (s.startsWith("\"")) return new StringLiteralExpr(stripQuotes(s));
     if ("nan".equalsIgnoreCase(s)) return new LiteralExpr(Float.NaN);
     if ("inf".equalsIgnoreCase(s)) return new LiteralExpr(Float.POSITIVE_INFINITY);
+    if (lit.DURATION() != null)
+      return new LiteralExpr((float) (DurationUtil.parseToMillis(s) / 1000.0d));
     return new LiteralExpr(Float.parseFloat(s));
   }
 
