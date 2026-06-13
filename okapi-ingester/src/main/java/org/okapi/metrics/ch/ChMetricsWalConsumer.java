@@ -7,17 +7,18 @@ package org.okapi.metrics.ch;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import com.google.gson.Gson;
+import lombok.extern.slf4j.Slf4j;
+import org.okapi.metrics.core.MetricsEventEmitter;
+import org.okapi.rest.metrics.Exemplar;
+import org.okapi.rest.metrics.ExportMetricsRequest;
+import org.okapi.rest.metrics.query.METRIC_TYPE;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
-import lombok.extern.slf4j.Slf4j;
-import org.okapi.metrics.core.MetricsEventEmitter;
-import org.okapi.rest.metrics.Exemplar;
-import org.okapi.rest.metrics.ExportMetricsRequest;
-import org.okapi.rest.metrics.query.METRIC_TYPE;
 
 @Slf4j
 public class ChMetricsWalConsumer {
