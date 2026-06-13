@@ -22,8 +22,10 @@ import org.okapi.promql.testing.PromQlTestIngestor.IngestedSeries;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import java.util.regex.Pattern;
 
 /**
@@ -51,46 +53,51 @@ final class InMemoryTimeSeriesStore {
   private final class StoreTsClient implements TsClient {
     @Override
     public Scan get(String name, Map<String, String> tags, RESOLUTION res, long startMs, long endMs) {
+      List<IngestedSeries> matches = new ArrayList<>();
       for (IngestedSeries series : ingestor.series()) {
         SeriesId id = normalize(series);
         if (!id.metric().equals(name)) continue;
         if (!id.labels().tags().equals(tags)) continue;
-        if (series.metricType() == TestMetricClassifier.MetricType.HISTOGRAM) {
-          return buildHistogramSeries(series, startMs, endMs);
-        }
-        return buildGaugeScan(series, startMs, endMs);
+        matches.add(series);
       }
+      if (matches.stream().anyMatch(s -> s.metricType() == TestMetricClassifier.MetricType.HISTOGRAM)) {
+        return buildHistogramSeries(matches, startMs, endMs);
+      }
+      if (!matches.isEmpty()) return buildGaugeScan(matches, startMs, endMs);
       return GaugeScan.builder().universalPath(name).timestamps(List.of()).values(List.of()).build();
     }
 
-    private GaugeScan buildGaugeScan(IngestedSeries series, long startMs, long endMs) {
-      List<Long> timestamps = new ArrayList<>();
-      List<Float> values = new ArrayList<>();
-      long ts = series.startMs();
-      for (Float value : expandPoints(series.points())) {
-        if (ts >= startMs && ts <= endMs && value != null) {
-          timestamps.add(ts);
-          values.add(value);
+    private GaugeScan buildGaugeScan(List<IngestedSeries> fragments, long startMs, long endMs) {
+      Map<Long, Float> points = new TreeMap<>();
+      for (IngestedSeries series : fragments) {
+        long ts = series.startMs();
+        for (Float value : expandPoints(series.points())) {
+          if (ts >= startMs && ts <= endMs && value != null) {
+            points.put(ts, value);
+          }
+          ts += series.stepMs();
         }
-        ts += series.stepMs();
       }
       return GaugeScan.builder()
-          .universalPath(series.metric())
-          .timestamps(timestamps)
-          .values(values)
+          .universalPath(fragments.get(0).metric())
+          .timestamps(new ArrayList<>(points.keySet()))
+          .values(new ArrayList<>(points.values()))
           .build();
     }
 
-    private HistogramSeries buildHistogramSeries(IngestedSeries series, long startMs, long endMs) {
-      List<SeriesSample> points = new ArrayList<>();
-      long ts = series.startMs();
-      for (PointExpr point : expandSeriesPoints(series.points())) {
-        if (ts >= startMs && ts <= endMs && point != null) {
-          points.add(toSeriesSample(ts, point));
+    private HistogramSeries buildHistogramSeries(
+        List<IngestedSeries> fragments, long startMs, long endMs) {
+      Map<Long, SeriesSample> points = new TreeMap<>();
+      for (IngestedSeries series : fragments) {
+        long ts = series.startMs();
+        for (PointExpr point : expandSeriesPoints(series.points())) {
+          if (ts >= startMs && ts <= endMs && point != null) {
+            points.put(ts, toSeriesSample(ts, point));
+          }
+          ts += series.stepMs();
         }
-        ts += series.stepMs();
       }
-      return new HistogramSeries(series.metric(), points);
+      return new HistogramSeries(fragments.get(0).metric(), new ArrayList<>(points.values()));
     }
 
     // Expands PointExpr list to Float values for gauge ingestion.
@@ -167,13 +174,13 @@ final class InMemoryTimeSeriesStore {
   private final class StoreDiscovery implements SeriesDiscovery {
     @Override
     public List<SeriesId> expand(String metricOrNull, List<LabelMatcher> matchers, long start, long end) {
-      List<SeriesId> results = new ArrayList<>();
+      var results = new LinkedHashSet<SeriesId>();
       for (IngestedSeries series : ingestor.series()) {
         SeriesId id = normalize(series);
         if (metricOrNull != null && !metricOrNull.equals(id.metric())) continue;
         if (matchesAll(id, matchers)) results.add(id);
       }
-      return results;
+      return List.copyOf(results);
     }
 
     private boolean matchesAll(SeriesId id, List<LabelMatcher> matchers) {
