@@ -445,6 +445,10 @@ public final class RangeFunctions {
     double durationToEnd = end - previous.endMs();
     double extrapolationThreshold = averageInterval * 1.1d;
     if (durationToStart >= extrapolationThreshold) durationToStart = averageInterval / 2d;
+    if (increase.count() > 0d && first.count() >= 0d) {
+      double durationToZero = sampledInterval * first.count() / increase.count();
+      if (durationToZero < durationToStart) durationToStart = durationToZero;
+    }
     if (durationToEnd >= extrapolationThreshold) durationToEnd = averageInterval / 2d;
     return HistogramSeries.scale(
         increase, (sampledInterval + durationToStart + durationToEnd) / sampledInterval);

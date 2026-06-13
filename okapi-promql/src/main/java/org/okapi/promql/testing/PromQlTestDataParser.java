@@ -395,7 +395,17 @@ public final class PromQlTestDataParser {
       expect(TokenType.RBRACKET, "expected ']'");
       return new HistogramNumberList(values);
     }
-    if (check(TokenType.MINUS) || check(TokenType.NUMBER)) {
+    if (match(TokenType.KEYWORD_NAN)) {
+      return new HistogramNumber(Double.NaN);
+    }
+    if (match(TokenType.KEYWORD_INF)) {
+      return new HistogramNumber(Double.POSITIVE_INFINITY);
+    }
+    if (match(TokenType.MINUS)) {
+      if (match(TokenType.KEYWORD_INF)) return new HistogramNumber(Double.NEGATIVE_INFINITY);
+      return new HistogramNumber(-parseDouble(expect(TokenType.NUMBER, "expected number after '-'").lexeme()));
+    }
+    if (check(TokenType.NUMBER)) {
       return new HistogramNumber(parseSignedNumber());
     }
     String ident = parseIdentLike();

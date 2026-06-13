@@ -287,6 +287,9 @@ public class ExpressionVisitor extends PromQLParserBaseVisitor<LogicalExpr> {
       long ms = DurationUtil.parseToMillis(ctx.DURATION().getText());
       return new LiteralExpr(ms / 1000.0d);
     }
+    if (ctx.METRIC_NAME() != null) {
+      return new FunctionExpr(ctx.METRIC_NAME().getText(), List.of());
+    }
     return new LiteralExpr(Double.parseDouble(ctx.NUMBER().getText()));
   }
 

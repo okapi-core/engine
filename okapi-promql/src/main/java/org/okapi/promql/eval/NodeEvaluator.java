@@ -189,6 +189,10 @@ public final class NodeEvaluator {
             .windowSize(ss.getWindowSize())
             .counts(ss.getCounts())
             .build()));
+      } else if (w.scan() instanceof HistogramSeries hs) {
+        List<HistogramSeries.SeriesSample> points = new ArrayList<>(hs.getPoints().size());
+        for (var point : hs.getPoints()) points.add(retime(point, point.endMs() + offset));
+        shifted.add(new SeriesWindow(w.id(), new HistogramSeries(hs.getUniversalPath(), points)));
       } else {
         shifted.add(w);
       }
@@ -269,17 +273,7 @@ public final class NodeEvaluator {
     if (step <= 0) throw new EvaluationException("subquery step must be positive");
     long subStart = ceilToStep(ctx.startMs - range - offset, step);
     long subEnd = floorToStep(ctx.endMs - offset, step);
-    var subCtx =
-        new EvalContext(
-            subStart,
-            subEnd,
-            step,
-            ctx.nowMs,
-            ctx.resolution,
-            ctx.client,
-            ctx.discovery,
-            ctx.exec,
-            ctx.statisticsMerger);
+    var subCtx = ctx.withWindow(subStart, subEnd, step);
     var innerRes = eval(e.inner, subCtx);
 
     if (innerRes instanceof InstantVectorResult iv) {
@@ -291,6 +285,18 @@ public final class NodeEvaluator {
       for (var entry : map.entrySet()) {
         var samples = entry.getValue();
         samples.sort(Comparator.comparingLong(Sample::ts));
+        if (samples.stream().anyMatch(Sample::isHistogram)) {
+          List<HistogramSeries.SeriesSample> points = new ArrayList<>(samples.size());
+          for (var sample : samples) {
+            long ts = sample.ts() + offset;
+            points.add(
+                sample.isHistogram()
+                    ? retime(sample.histogram(), ts)
+                    : new HistogramSeries.FloatSample(ts, ts, (float) sample.value()));
+          }
+          out.add(new SeriesWindow(entry.getKey(), new HistogramSeries("", points)));
+          continue;
+        }
         List<Long> ts = new ArrayList<>(samples.size());
         List<Float> vals = new ArrayList<>(samples.size());
         for (var smp : samples) {
@@ -322,6 +328,10 @@ public final class NodeEvaluator {
                   .values(gs.getValues())
                   .build();
           shifted.add(new SeriesWindow(w.id(), shiftedGs));
+        } else if (w.scan() instanceof HistogramSeries hs) {
+          List<HistogramSeries.SeriesSample> points = new ArrayList<>(hs.getPoints().size());
+          for (var point : hs.getPoints()) points.add(retime(point, point.endMs() + offset));
+          shifted.add(new SeriesWindow(w.id(), new HistogramSeries(hs.getUniversalPath(), points)));
         } else {
           shifted.add(w);
         }
@@ -330,6 +340,20 @@ public final class NodeEvaluator {
     }
 
     return innerRes;
+  }
+
+  private HistogramSeries.SeriesSample retime(HistogramSeries.SeriesSample point, long ts) {
+    if (point instanceof HistogramSeries.FloatSample sample)
+      return new HistogramSeries.FloatSample(ts, ts, sample.value());
+    if (point instanceof HistogramSeries.NativeHistogramSample sample)
+      return new HistogramSeries.NativeHistogramSample(
+          ts, ts, sample.schema(), sample.zeroThreshold(), sample.zeroCount(),
+          sample.positiveOffset(), sample.positiveBuckets(), sample.negativeOffset(),
+          sample.negativeBuckets(), sample.customValues(), sample.sum(), sample.count(),
+          sample.counterResetHint());
+    var sample = (HistogramSeries.ExplicitHistogramSample) point;
+    return new HistogramSeries.ExplicitHistogramSample(
+        ts, ts, sample.temporality(), sample.upperBounds(), sample.counts(), sample.sum(), sample.count());
   }
 
   // ---------- Binary op ----------
@@ -375,6 +399,8 @@ public final class NodeEvaluator {
   }
 
   private InstantVectorResult evalVectorScalar(BinaryOpExpr e, InstantVectorResult v, double s) {
+    if (e.op.equals("</") || e.op.equals(">/"))
+      return HistogramFunctions.trim(v, s, e.op.equals(">/"));
     if (isArithmetic(e.op))
       return mapVectorArithmetic(v, e.op, val -> applyArith(val, s, e.op), s, false);
     if (isComparison(e.op)) {
@@ -423,7 +449,8 @@ public final class NodeEvaluator {
       default -> {
         boolean isCmp = isComparison(op);
         boolean isAr = isArithmetic(op);
-        if (!isCmp && !isAr) throw new EvaluationException("unsupported op: " + op);
+        boolean isTrim = op.equals("</") || op.equals(">/");
+        if (!isCmp && !isAr && !isTrim) throw new EvaluationException("unsupported op: " + op);
 
         boolean groupLeft = ms != null && ms.groupLeft;
         boolean groupRight = ms != null && ms.groupRight;
@@ -497,6 +524,17 @@ public final class NodeEvaluator {
 
   private Optional<SeriesSample> combineHistograms(
       BinaryOpExpr e, SeriesSample l, SeriesSample r, boolean isCmp) {
+    if (l.sample().isHistogram()
+        && !r.sample().isHistogram()
+        && (e.op.equals("</") || e.op.equals(">/"))) {
+      var trimmed =
+          HistogramFunctions.trim(
+                  new InstantVectorResult(List.of(l)), r.sample().value(), e.op.equals(">/"))
+              .data()
+              .get(0);
+      return Optional.of(
+          new SeriesSample(mergeLabels(l.series(), r.series(), e.matchSpec), trimmed.sample()));
+    }
     if (!l.sample().isHistogram() || !r.sample().isHistogram()) {
       if (isCmp) return Optional.empty();
       HistogramSeries.HistogramSample histogram;
@@ -909,6 +947,8 @@ public final class NodeEvaluator {
       }
       // time functions
       case "time" -> new ScalarResult(ctx.endMs / 1000f);
+      case "start" -> new ScalarResult(ctx.queryStartMs / 1000d);
+      case "end" -> new ScalarResult(ctx.queryEndMs / 1000d);
       case "year", "month", "day_of_month", "day_of_week", "day_of_year", "days_in_month",
           "hour", "minute" -> InstantFunctions.calendar(
               e.name,

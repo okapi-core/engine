@@ -38,6 +38,23 @@ public final class HistogramFunctions {
     return mapHistograms(vector, HistogramFunctions::variance);
   }
 
+  public static InstantVectorResult trim(
+      InstantVectorResult vector, double cutoff, boolean keepLower) {
+    List<SeriesSample> out = new ArrayList<>();
+    for (var seriesSample : vector.data()) {
+      if (!(seriesSample.sample().histogram()
+          instanceof HistogramSeries.NativeHistogramSample histogram)) continue;
+      out.add(
+          new SeriesSample(
+              seriesSample.series(),
+              new Sample(
+                  seriesSample.sample().ts(),
+                  seriesSample.sample().sourceTs(),
+                  trim(histogram, cutoff, keepLower))));
+    }
+    return new InstantVectorResult(out);
+  }
+
   public static InstantVectorResult fraction(
       double lower, double upper, InstantVectorResult vector) {
     return mapHistogramBuckets(
@@ -272,6 +289,96 @@ public final class HistogramFunctions {
     return buckets;
   }
 
+  private static HistogramSeries.NativeHistogramSample trim(
+      HistogramSeries.NativeHistogramSample histogram, double cutoff, boolean keepLower) {
+    if (keepLower && cutoff == Double.NEGATIVE_INFINITY
+        || !keepLower && cutoff == Double.POSITIVE_INFINITY) return histogram;
+    double base = Math.pow(2d, Math.pow(2d, -histogram.schema()));
+    BucketTrim positive =
+        trimBuckets(
+            histogram.positiveOffset(),
+            histogram.positiveBuckets(),
+            index -> new NativeBucket(Math.pow(base, index - 1d), Math.pow(base, index), 0d, true),
+            cutoff,
+            keepLower,
+            keepLower,
+            !keepLower);
+    BucketTrim negative =
+        trimBuckets(
+            histogram.negativeOffset(),
+            histogram.negativeBuckets(),
+            index -> new NativeBucket(-Math.pow(base, index), -Math.pow(base, index - 1d), 0d, true),
+            cutoff,
+            keepLower,
+            !keepLower,
+            keepLower);
+    boolean hasNegative = Arrays.stream(histogram.negativeBuckets()).anyMatch(count -> count != 0d);
+    boolean hasPositive = Arrays.stream(histogram.positiveBuckets()).anyMatch(count -> count != 0d);
+    NativeBucket zero =
+        new NativeBucket(
+            hasNegative || !hasPositive ? -histogram.zeroThreshold() : 0d,
+            hasPositive || !hasNegative ? histogram.zeroThreshold() : 0d,
+            histogram.zeroCount(),
+            false);
+    double zeroCount = selectedCount(zero, cutoff, keepLower);
+    double zeroSum = selectedSum(zero, cutoff, keepLower);
+    return new HistogramSeries.NativeHistogramSample(
+        histogram.startMs(),
+        histogram.endMs(),
+        histogram.schema(),
+        histogram.zeroThreshold(),
+        zeroCount,
+        positive.offset(),
+        positive.buckets(),
+        negative.offset(),
+        negative.buckets(),
+        histogram.customValues(),
+        positive.sum() + negative.sum() + zeroSum,
+        positive.count() + negative.count() + zeroCount,
+        histogram.counterResetHint());
+  }
+
+  private static BucketTrim trimBuckets(
+      int offset,
+      double[] counts,
+      java.util.function.IntFunction<NativeBucket> bounds,
+      double cutoff,
+      boolean keepLower,
+      boolean trimLeading,
+      boolean trimTrailing) {
+    double[] selected = new double[counts.length];
+    double sum = 0d;
+    double count = 0d;
+    for (int i = 0; i < counts.length; i++) {
+      NativeBucket bucket = bounds.apply(offset + i);
+      bucket = new NativeBucket(bucket.lower(), bucket.upper(), counts[i], bucket.exponential());
+      selected[i] = selectedCount(bucket, cutoff, keepLower);
+      count += selected[i];
+      sum += selectedSum(bucket, cutoff, keepLower);
+    }
+    int first = 0;
+    int last = selected.length;
+    if (trimLeading) while (first < last && selected[first] == 0d) first++;
+    if (trimTrailing) while (last > first && selected[last - 1] == 0d) last--;
+    return new BucketTrim(offset + first, Arrays.copyOfRange(selected, first, last), sum, count);
+  }
+
+  private static double selectedCount(NativeBucket bucket, double cutoff, boolean keepLower) {
+    double lower = keepLower ? cutoff : Double.NEGATIVE_INFINITY;
+    double upper = keepLower ? Double.POSITIVE_INFINITY : cutoff;
+    return overlap(bucket, lower, upper);
+  }
+
+  private static double selectedSum(NativeBucket bucket, double cutoff, boolean keepLower) {
+    double lower = Math.max(bucket.lower(), keepLower ? cutoff : Double.NEGATIVE_INFINITY);
+    double upper = Math.min(bucket.upper(), keepLower ? Double.POSITIVE_INFINITY : cutoff);
+    if (lower >= upper) return 0d;
+    double count = selectedCount(bucket, cutoff, keepLower);
+    if (!bucket.exponential()) return count * (lower + upper) / 2d;
+    if (upper <= 0d) return -count * Math.sqrt((-lower) * (-upper));
+    return count * Math.sqrt(lower * upper);
+  }
+
   private static double overlap(NativeBucket bucket, double lower, double upper) {
     double overlapLower = Math.max(lower, bucket.lower());
     double overlapUpper = Math.min(upper, bucket.upper());
@@ -407,6 +514,8 @@ public final class HistogramFunctions {
   private record CumulativeBuckets(double[] bounds, double[] cumulative) {}
 
   private record NativeBucket(double lower, double upper, double count, boolean exponential) {}
+
+  private record BucketTrim(int offset, double[] buckets, double sum, double count) {}
 
   private static double customBucketVariance(double[] bounds, double[] counts, double mean) {
     double variance = 0d;
