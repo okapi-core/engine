@@ -1137,7 +1137,7 @@ public final class NodeEvaluator {
   }
 
   private boolean isArithmetic(String op) {
-    return switch (op) { case "+", "-", "*", "/", "%", "^" -> true; default -> false; };
+    return switch (op) { case "+", "-", "*", "/", "%", "^", "atan2" -> true; default -> false; };
   }
 
   private boolean isComparison(String op) {
@@ -1152,6 +1152,7 @@ public final class NodeEvaluator {
       case "/" -> a / b;  // IEEE 754: 1/0=+Inf, -1/0=-Inf, 0/0=NaN
       case "%" -> a % b;
       case "^" -> Math.pow(a, b);
+      case "atan2" -> Math.atan2(a, b);
       default -> throw new EvaluationException("unknown op: " + op);
     };
   }
