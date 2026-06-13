@@ -752,6 +752,13 @@ public final class NodeEvaluator {
       case "clamp_max" -> InstantFunctions.clampMax(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), TypeChecks.requireScalar(eval(e.args.get(1), ctx), e.name).value);
       case "sort"      -> InstantFunctions.sort(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), false);
       case "sort_desc" -> InstantFunctions.sort(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), true);
+      case "sort_by_label", "sort_by_label_desc" -> {
+        var vector = TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name);
+        List<String> labels = new ArrayList<>();
+        for (int i = 1; i < e.args.size(); i++)
+          labels.add(((StringLiteralExpr) e.args.get(i)).value);
+        yield InstantFunctions.sortByLabel(vector, labels, e.name.equalsIgnoreCase("sort_by_label_desc"));
+      }
       case "absent"    -> InstantFunctions.absent(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), ctx);
       case "timestamp" -> InstantFunctions.timestamp(
           TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name));

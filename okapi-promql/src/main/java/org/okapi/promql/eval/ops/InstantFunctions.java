@@ -57,6 +57,51 @@ public final class InstantFunctions {
     return new InstantVectorResult(data);
   }
 
+  public static InstantVectorResult sortByLabel(
+      InstantVectorResult iv, List<String> labels, boolean desc) {
+    var data = new ArrayList<>(iv.data());
+    data.sort(
+        (left, right) -> {
+          for (String label : labels) {
+            int compared =
+                compareNatural(
+                    labelValue(left.series(), label), labelValue(right.series(), label));
+            if (compared != 0) return compared;
+          }
+          return 0;
+        });
+    if (desc) Collections.reverse(data);
+    return new InstantVectorResult(data);
+  }
+
+  private static String labelValue(SeriesId id, String label) {
+    return "__name__".equals(label) ? id.metric() : id.labels().tags().getOrDefault(label, "");
+  }
+
+  private static int compareNatural(String left, String right) {
+    int li = 0, ri = 0;
+    while (li < left.length() && ri < right.length()) {
+      char lc = left.charAt(li), rc = right.charAt(ri);
+      if (Character.isDigit(lc) && Character.isDigit(rc)) {
+        int le = li, re = ri;
+        while (le < left.length() && Character.isDigit(left.charAt(le))) le++;
+        while (re < right.length() && Character.isDigit(right.charAt(re))) re++;
+        String ln = left.substring(li, le), rn = right.substring(ri, re);
+        int compared = Integer.compare(ln.length(), rn.length());
+        if (compared == 0) compared = ln.compareTo(rn);
+        if (compared != 0) return compared;
+        li = le;
+        ri = re;
+      } else {
+        int compared = Character.compare(lc, rc);
+        if (compared != 0) return compared;
+        li++;
+        ri++;
+      }
+    }
+    return Integer.compare(left.length(), right.length());
+  }
+
   public static InstantVectorResult absent(InstantVectorResult iv, EvalContext ctx) {
     if (iv.data().isEmpty())
       return new InstantVectorResult(
