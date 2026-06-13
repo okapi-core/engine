@@ -1,9 +1,12 @@
+# Build and container settings
 ch_dir = ${HOME}/.okapi-data
-
 FE_SETUP ?= fe-setup.json
 REPO = ghcr.io/okapi-core
-OKAPI_TEST_NET = okapi-test-infra-network
+TAG ?= latest
 DOCKER_COMPOSE ?= docker compose
+
+# Test infrastructure endpoints
+OKAPI_TEST_NET = okapi-test-infra-network
 TEST_INFRA_COMPOSE ?= compose.test-infra.yaml
 TEST_LOCALSTACK_ENDPOINT ?= http://127.0.0.1:4566
 TEST_CLICKHOUSE_HOST ?= 127.0.0.1
@@ -11,11 +14,24 @@ TEST_CLICKHOUSE_PORT ?= 8123
 TEST_POSTGRES_HOST ?= 127.0.0.1
 TEST_POSTGRES_PORT ?= 5432
 TEST_VAULT_ADDR ?= http://127.0.0.1:8200
+POSTGRES_DB ?= okapi_oscar
+POSTGRES_USER ?= okapi_oscar_user_admin
+POSTGRES_PASSWORD ?= okapi_oscar_password
+VAULT_ROOT_TOKEN ?= 0d94159a1b7e9c8f563e4e9e383185dc402ef70e
+TEST_INFRA_ENV = \
+	OKAPI_CH_DIR="$(ch_dir)" \
+	POSTGRES_DB="$(POSTGRES_DB)" \
+	POSTGRES_USER="$(POSTGRES_USER)" \
+	POSTGRES_PASSWORD="$(POSTGRES_PASSWORD)" \
+	VAULT_ROOT_TOKEN="$(VAULT_ROOT_TOKEN)"
+
+# Local application endpoints
 OKAPI_WEB_HOST ?= 127.0.0.1
 OKAPI_WEB_PORT ?= 9001
 OKAPI_INGESTER_HOST ?= 127.0.0.1
 OKAPI_INGESTER_PORT ?= 9009
 
+# Helm deployment settings
 HELM ?= helm
 HELM_NS ?= okapi
 HELM_FLAGS ?=
@@ -40,16 +56,6 @@ OKAPI_AWS_ENDPOINT ?= http://localstack.$(HELM_NS).svc.cluster.local:4566
 OKAPI_CLUSTER_ENDPOINT ?= http://okapi-ingester.$(HELM_NS).svc.cluster.local:9009
 HELM_CHART_REPO ?= oci://ghcr.io/okapi-core
 HELM_CHART_DIST ?= helm/dist
-POSTGRES_DB ?= okapi_oscar
-POSTGRES_USER ?= okapi_oscar_user_admin
-POSTGRES_PASSWORD ?= okapi_oscar_password
-VAULT_ROOT_TOKEN ?= 0d94159a1b7e9c8f563e4e9e383185dc402ef70e
-TEST_INFRA_ENV = \
-	OKAPI_CH_DIR="$(ch_dir)" \
-	POSTGRES_DB="$(POSTGRES_DB)" \
-	POSTGRES_USER="$(POSTGRES_USER)" \
-	POSTGRES_PASSWORD="$(POSTGRES_PASSWORD)" \
-	VAULT_ROOT_TOKEN="$(VAULT_ROOT_TOKEN)"
 
 fe-dist:
 	@python3 build-scripts/fe_dist_copy.py
@@ -59,8 +65,6 @@ package: copy-ch-sql
 
 package-ops: copy-ch-sql
 	mvn -pl okapi-ops package -DskipTests=true
-
-TAG ?= latest
 
 docker-okapi-ingester: package
 	docker build -t $(REPO)/okapi-ingester:$(TAG) -f okapi-ingester/Dockerfile okapi-ingester
