@@ -848,6 +848,16 @@ public final class NodeEvaluator {
         yield new ScalarResult((float) FastMath.PI);
       }
       case "info" -> evalInfo(e, ctx);
+      case "histogram_count" -> HistogramFunctions.count(
+          TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name));
+      case "histogram_sum" -> HistogramFunctions.sum(
+          TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name));
+      case "histogram_avg" -> HistogramFunctions.avg(
+          TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name));
+      case "histogram_stddev" -> HistogramFunctions.stddev(
+          TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name));
+      case "histogram_stdvar" -> HistogramFunctions.stdvar(
+          TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name));
       case "histogram_quantile" -> HistogramFunctions.quantile(
           (float) TypeChecks.requireScalar(eval(e.args.get(0), ctx), e.name).value,
           TypeChecks.requireRangeVector(eval(e.args.get(1), ctx), e.name),

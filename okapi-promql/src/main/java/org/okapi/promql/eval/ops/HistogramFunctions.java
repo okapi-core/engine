@@ -16,6 +16,91 @@ import org.okapi.promql.eval.VectorData.*;
 public final class HistogramFunctions {
   private HistogramFunctions() {}
 
+  public static InstantVectorResult count(InstantVectorResult vector) {
+    return mapHistograms(vector, HistogramSeries.HistogramSample::count);
+  }
+
+  public static InstantVectorResult sum(InstantVectorResult vector) {
+    return mapHistograms(vector, HistogramSeries.HistogramSample::sum);
+  }
+
+  public static InstantVectorResult avg(InstantVectorResult vector) {
+    return mapHistograms(vector, histogram -> histogram.sum() / histogram.count());
+  }
+
+  public static InstantVectorResult stddev(InstantVectorResult vector) {
+    return mapHistograms(vector, histogram -> Math.sqrt(variance(histogram)));
+  }
+
+  public static InstantVectorResult stdvar(InstantVectorResult vector) {
+    return mapHistograms(vector, HistogramFunctions::variance);
+  }
+
+  private static InstantVectorResult mapHistograms(
+      InstantVectorResult vector,
+      java.util.function.ToDoubleFunction<HistogramSeries.HistogramSample> function) {
+    List<SeriesSample> out = new ArrayList<>();
+    for (var seriesSample : vector.data()) {
+      if (!seriesSample.sample().isHistogram()) continue;
+      out.add(
+          new SeriesSample(
+              SeriesIds.derived(seriesSample.series()),
+              new Sample(
+                  seriesSample.sample().ts(),
+                  seriesSample.sample().sourceTs(),
+                  function.applyAsDouble(seriesSample.sample().histogram()))));
+    }
+    return new InstantVectorResult(out);
+  }
+
+  private static double variance(HistogramSeries.HistogramSample histogram) {
+    if (!(histogram instanceof HistogramSeries.NativeHistogramSample nativeHistogram))
+      return Double.NaN;
+    double count = nativeHistogram.count();
+    if (count == 0) return Double.NaN;
+    double mean = nativeHistogram.sum() / count;
+    double variance = nativeHistogram.zeroCount() * mean * mean;
+    if (nativeHistogram.customValues().length > 0) {
+      variance += customBucketVariance(
+          nativeHistogram.customValues(), nativeHistogram.positiveBuckets(), mean);
+    } else {
+      variance += exponentialBucketVariance(nativeHistogram, mean);
+    }
+    return variance / count;
+  }
+
+  private static double customBucketVariance(double[] bounds, double[] counts, double mean) {
+    double variance = 0d;
+    for (int i = 0; i < counts.length; i++) {
+      double representative;
+      if (i == 0) representative = bounds.length == 0 ? 0d : bounds[0];
+      else if (i >= bounds.length) representative = bounds[bounds.length - 1];
+      else representative = (bounds[i - 1] + bounds[i]) / 2d;
+      double difference = representative - mean;
+      variance += counts[i] * difference * difference;
+    }
+    return variance;
+  }
+
+  private static double exponentialBucketVariance(
+      HistogramSeries.NativeHistogramSample histogram, double mean) {
+    double variance = 0d;
+    double base = Math.pow(2d, Math.pow(2d, -histogram.schema()));
+    for (int i = 0; i < histogram.positiveBuckets().length; i++) {
+      int bucket = histogram.positiveOffset() + i;
+      double representative = Math.pow(base, bucket - 0.5d);
+      double difference = representative - mean;
+      variance += histogram.positiveBuckets()[i] * difference * difference;
+    }
+    for (int i = 0; i < histogram.negativeBuckets().length; i++) {
+      int bucket = histogram.negativeOffset() + i;
+      double representative = -Math.pow(base, bucket - 0.5d);
+      double difference = representative - mean;
+      variance += histogram.negativeBuckets()[i] * difference * difference;
+    }
+    return variance;
+  }
+
   public static InstantVectorResult quantile(
       float q, RangeVectorResult rv, long rangeMs, EvalContext ctx) {
     List<SeriesSample> out = new ArrayList<>();
