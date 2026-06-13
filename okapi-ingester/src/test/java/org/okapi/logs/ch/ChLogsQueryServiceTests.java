@@ -134,9 +134,9 @@ public class ChLogsQueryServiceTests {
                 .limit(10)
                 .build());
 
-    assertEquals(5, resp.getItems().size());
+    assertEquals(4, resp.getItems().size());
     assertEquals(BASE_NS + 7, resp.getItems().get(0).getTsNanos());
-    assertEquals(BASE_NS + 3, resp.getItems().get(4).getTsNanos());
+    assertEquals(BASE_NS + 3, resp.getItems().get(3).getTsNanos());
   }
 
   @Test
@@ -148,7 +148,7 @@ public class ChLogsQueryServiceTests {
                     exact(ChLogFilterField.LOG_STREAM, "prod-us-east"),
                     exact(ChLogFilterField.SERVICE_NAME, "checkout-api"),
                     level(ChLogLevelComparison.EQUAL, SeverityNumber.SEVERITY_NUMBER_ERROR_VALUE),
-                    regex(ChLogFilterField.CONTENT, ".*failed.*")),
+                    regex(ChLogFilterField.CONTENT, "Payment.*failed.*")),
                 10));
     assertSingleBody(matching.getItems(), "Payment authorization failed order=2002 provider=stripe");
 

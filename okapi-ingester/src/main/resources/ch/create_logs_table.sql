@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS okapi_logs.logs_table_v1
     service_name LowCardinality(String),
     log_level Int32,
     body String CODEC(ZSTD),
-    INDEX body_text_idx(body) TYPE text() GRANULARITY 1
+    INDEX body_text_idx(body) TYPE text(tokenizer = 'splitByNonAlpha') GRANULARITY 1
 )
 ENGINE = MergeTree
 PARTITION BY toStartOfHour(toDateTime(ts_ns / 1000000000))
