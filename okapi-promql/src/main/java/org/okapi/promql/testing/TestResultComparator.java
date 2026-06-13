@@ -148,7 +148,7 @@ final class TestResultComparator {
         diffs.add(TestExpectationDifference.of(cmd.expression(), "missing series", id.toString(), null));
         continue;
       }
-      List<Float> actual = trimTrailingMissing(alignRangeValues(actualSeries, range));
+      List<Float> actual = trimTrailingMissing(alignRangeValues(actualSeries, range), exp.size());
       if (actual.size() != exp.size()) {
         diffs.add(TestExpectationDifference.of(cmd.expression(), "range vector length mismatch",
             String.valueOf(exp.size()), String.valueOf(actual.size())));
@@ -404,9 +404,9 @@ final class TestResultComparator {
     return out;
   }
 
-  private List<Float> trimTrailingMissing(List<Float> values) {
+  private List<Float> trimTrailingMissing(List<Float> values, int expectedSize) {
     int end = values.size();
-    while (end > 0 && Float.isNaN(values.get(end - 1))) end--;
+    while (end > expectedSize && Float.isNaN(values.get(end - 1))) end--;
     return end == values.size() ? values : new ArrayList<>(values.subList(0, end));
   }
 
