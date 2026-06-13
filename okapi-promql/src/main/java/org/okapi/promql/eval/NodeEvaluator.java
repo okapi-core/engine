@@ -1212,9 +1212,7 @@ public final class NodeEvaluator {
     if (ms.mode == MatchSpec.Mode.ON) {
       for (String k : ms.labels) {
         if (ignoredMetadata.contains(k)) continue;
-        String v = labels.get(k);
-        if (v == null) return null;
-        key.put(k, v);
+        key.put(k, labels.getOrDefault(k, ""));
       }
       return new JoinKey(key, ts);
     }
