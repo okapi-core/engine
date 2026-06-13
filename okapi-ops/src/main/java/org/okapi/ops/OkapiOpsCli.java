@@ -16,7 +16,13 @@ import picocli.CommandLine.Spec;
     description = "Okapi operational tooling.",
     synopsisSubcommandLabel = "COMMAND",
     usageHelpAutoWidth = true,
-    subcommands = {ChMigrateCommand.class, DdbMigrateCommand.class, CreateSecretsCommand.class})
+    subcommands = {
+      ChMigrateCommand.class,
+      DdbMigrateCommand.class,
+      PgMigrateCommand.class,
+      PgValidateCommand.class,
+      CreateSecretsCommand.class
+    })
 public class OkapiOpsCli implements Callable<Integer> {
   @Spec private CommandSpec spec;
 
