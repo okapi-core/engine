@@ -57,6 +57,8 @@ OKAPI_CLUSTER_ENDPOINT ?= http://okapi-ingester.$(HELM_NS).svc.cluster.local:900
 HELM_CHART_REPO ?= oci://ghcr.io/okapi-core
 HELM_CHART_DIST ?= helm/dist
 
+.PHONY: test-infra test-infra-up test-infra-down
+
 fe-dist:
 	@python3 build-scripts/fe_dist_copy.py
 
@@ -91,7 +93,7 @@ tables:
 	java -cp okapi-data-ddb/target/okapi-data-ddb-0.0.1-SNAPSHOT.jar  org.okapi.data.CreateDynamoDBTables $(ENV:ENV=test)
 	java -cp okapi-data-ddb/target/okapi-data-ddb-0.0.1-SNAPSHOT.jar  org.okapi.data.CreateS3Bucket  $(ENV:ENV=test)
 
-stop-test-infra:
+test-infra-down:
 	$(TEST_INFRA_ENV) $(DOCKER_COMPOSE) -f $(TEST_INFRA_COMPOSE) down --remove-orphans
 
 localstack-k8s:
