@@ -383,7 +383,7 @@ public class ExpressionVisitor extends PromQLParserBaseVisitor<LogicalExpr> {
   }
 
   private String stripQuotes(String s) {
-    if (s.length() >= 2 && (s.startsWith("\"") || s.startsWith("`")))
+    if (s.length() >= 2 && (s.startsWith("\"") || s.startsWith("'") || s.startsWith("`")))
       return s.substring(1, s.length() - 1);
     return s;
   }

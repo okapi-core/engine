@@ -840,7 +840,9 @@ public final class NodeEvaluator {
         value ->
             nearest == 0f
                 ? value
-                : (float) (Math.floor(Math.nextUp(value / nearest) + 0.5d) * nearest));
+                : !Float.isFinite(value)
+                    ? value
+                    : (float) (Math.floor(Math.nextUp(value / nearest) + 0.5d) * nearest));
   }
 
   private void requireArgCount(FunctionExpr e, int expected) {
