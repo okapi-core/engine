@@ -48,6 +48,17 @@ public final class RangeFunctions {
   public static InstantVectorResult irate(RangeVectorResult rv, long rangeMs, EvalContext ctx, long anchorMs) {
     List<SeriesSample> out = new ArrayList<>();
     for (SeriesWindow w : rv.data()) {
+      if (w.scan() instanceof HistogramSeries histogramSeries) {
+        for (long t = ctx.startMs; t <= ctx.endMs; t += ctx.stepMs) {
+          long anchor = anchorMs >= 0 ? anchorMs : t;
+          var histogram = histogramIrateInWindow(histogramSeries, anchor - rangeMs, anchor);
+          if (histogram != null)
+            out.add(
+                new SeriesSample(
+                    SeriesIds.derived(w.id()), new Sample(t, t, histogram)));
+        }
+        continue;
+      }
       if (!(w.scan() instanceof SumScan) && !(w.scan() instanceof GaugeScan)) continue;
       for (long t = ctx.startMs; t <= ctx.endMs; t += ctx.stepMs) {
         long anchor = anchorMs >= 0 ? anchorMs : t;
@@ -360,6 +371,26 @@ public final class RangeFunctions {
     if (delta < 0) delta = vals.get(lastIdx);
     float seconds = Math.max((ts.get(lastIdx) - ts.get(prevIdx)) / 1000f, 1f);
     return delta / seconds;
+  }
+
+  private static HistogramSeries.HistogramSample histogramIrateInWindow(
+      HistogramSeries series, long start, long end) {
+    HistogramSeries.HistogramSample previous = null;
+    HistogramSeries.HistogramSample current = null;
+    for (var point : series.getPoints()) {
+      if (point.endMs() <= start || point.endMs() > end) continue;
+      if (point instanceof HistogramSeries.HistogramSample histogram) {
+        previous = current;
+        current = histogram;
+      }
+    }
+    if (previous == null || current == null) return null;
+    double seconds = Math.max((current.endMs() - previous.endMs()) / 1000d, 1d);
+    var delta =
+        HistogramSeries.isReset(previous, current)
+            ? current
+            : HistogramSeries.subtract(current, previous);
+    return HistogramSeries.scale(delta, 1d / seconds);
   }
 
   private static float deltaInWindow(GaugeScan gs, long start, long end) {

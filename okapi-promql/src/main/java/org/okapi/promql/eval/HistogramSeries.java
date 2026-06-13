@@ -173,6 +173,20 @@ public final class HistogramSeries extends Scan {
     throw new IllegalArgumentException("unknown histogram representation");
   }
 
+  public static boolean isReset(HistogramSample previous, HistogramSample current) {
+    if (previous instanceof ExplicitHistogramSample a && current instanceof ExplicitHistogramSample b) {
+      return b.count() < a.count() || decreased(a.counts(), b.counts());
+    }
+    if (previous instanceof NativeHistogramSample a && current instanceof NativeHistogramSample b) {
+      return a.schema() != b.schema()
+          || b.count() < a.count()
+          || b.zeroCount() < a.zeroCount()
+          || decreased(a.positiveBuckets(), b.positiveBuckets())
+          || decreased(a.negativeBuckets(), b.negativeBuckets());
+    }
+    return true;
+  }
+
   private static NativeHistogramSample nativeResult(
       NativeHistogramSample template,
       double[] positiveBuckets,
@@ -224,5 +238,17 @@ public final class HistogramSeries extends Scan {
     double[] result = Arrays.copyOf(values, values.length);
     for (int i = 0; i < result.length; i++) result[i] *= factor;
     return result;
+  }
+
+  private static boolean decreased(int[] previous, int[] current) {
+    if (previous.length != current.length) return true;
+    for (int i = 0; i < previous.length; i++) if (current[i] < previous[i]) return true;
+    return false;
+  }
+
+  private static boolean decreased(double[] previous, double[] current) {
+    if (previous.length != current.length) return true;
+    for (int i = 0; i < previous.length; i++) if (current[i] < previous[i]) return true;
+    return false;
   }
 }

@@ -285,21 +285,10 @@ public final class RangeStats {
 
   private static boolean isReset(Object previous, Object current) {
     if (previous instanceof Float a && current instanceof Float b) return b < a;
-    if (previous instanceof HistogramSeries.NativeHistogramSample a
-        && current instanceof HistogramSeries.NativeHistogramSample b) {
-      return a.schema() != b.schema()
-          || b.count() < a.count()
-          || b.zeroCount() < a.zeroCount()
-          || bucketsDecreased(a.positiveBuckets(), b.positiveBuckets())
-          || bucketsDecreased(a.negativeBuckets(), b.negativeBuckets());
-    }
+    if (previous instanceof HistogramSeries.HistogramSample a
+        && current instanceof HistogramSeries.HistogramSample b)
+      return HistogramSeries.isReset(a, b);
     return !previous.getClass().equals(current.getClass());
-  }
-
-  private static boolean bucketsDecreased(double[] previous, double[] current) {
-    if (previous.length != current.length) return true;
-    for (int i = 0; i < previous.length; i++) if (current[i] < previous[i]) return true;
-    return false;
   }
 
   private record SeriesPoint(long ts, Object value) {}
