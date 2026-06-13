@@ -64,6 +64,8 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-okapi_oscar_password}
       OKAPI_WEB_DB_USER: ${OKAPI_WEB_DB_USER:-okapi_web_user}
       OKAPI_WEB_DB_PASSWORD: ${OKAPI_WEB_DB_PASSWORD:-okapi_web_password}
+      OKAPI_WEB_DB_MIGRATION_USER: ${OKAPI_WEB_DB_MIGRATION_USER:-okapi_web_migration_user}
+      OKAPI_WEB_DB_MIGRATION_PASSWORD: ${OKAPI_WEB_DB_MIGRATION_PASSWORD:-okapi_web_migration_password}
     ports:
       - "5432:5432"
     volumes:

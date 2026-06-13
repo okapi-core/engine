@@ -16,6 +16,8 @@ TEST_POSTGRES_PORT ?= 5432
 TEST_WEB_POSTGRES_SCHEMA ?= okapi_web
 TEST_WEB_POSTGRES_USER ?= okapi_web_user
 TEST_WEB_POSTGRES_PASSWORD ?= okapi_web_password
+TEST_WEB_POSTGRES_MIGRATION_USER ?= okapi_web_migration_user
+TEST_WEB_POSTGRES_MIGRATION_PASSWORD ?= okapi_web_migration_password
 TEST_VAULT_ADDR ?= http://127.0.0.1:8200
 POSTGRES_DB ?= okapi_oscar
 POSTGRES_USER ?= okapi_oscar_user_admin
@@ -28,6 +30,8 @@ TEST_INFRA_ENV = \
 	POSTGRES_PASSWORD="$(POSTGRES_PASSWORD)" \
 	OKAPI_WEB_DB_USER="$(TEST_WEB_POSTGRES_USER)" \
 	OKAPI_WEB_DB_PASSWORD="$(TEST_WEB_POSTGRES_PASSWORD)" \
+	OKAPI_WEB_DB_MIGRATION_USER="$(TEST_WEB_POSTGRES_MIGRATION_USER)" \
+	OKAPI_WEB_DB_MIGRATION_PASSWORD="$(TEST_WEB_POSTGRES_MIGRATION_PASSWORD)" \
 	VAULT_ROOT_TOKEN="$(VAULT_ROOT_TOKEN)"
 
 # Local application endpoints
@@ -183,6 +187,19 @@ migrate: package-ops
 migrate-test-datastores:
 	java -jar okapi-ops/target/okapi-ops-0.0.1-SNAPSHOT.jar ddb-migrate --region us-west-2 --endpoint $(TEST_LOCALSTACK_ENDPOINT)
 	java -jar okapi-ops/target/okapi-ops-0.0.1-SNAPSHOT.jar ch-migrate --host $(TEST_CLICKHOUSE_HOST) --port $(TEST_CLICKHOUSE_PORT) --user default --password okapi_testing_password
+	$(MAKE) migrate-test-postgres
+
+migrate-test-postgres:
+	OKAPI_WEB_DB_MIGRATION_URL="jdbc:postgresql://$(TEST_POSTGRES_HOST):$(TEST_POSTGRES_PORT)/$(POSTGRES_DB)?currentSchema=$(TEST_WEB_POSTGRES_SCHEMA)" \
+	OKAPI_WEB_DB_MIGRATION_USER="$(TEST_WEB_POSTGRES_MIGRATION_USER)" \
+	OKAPI_WEB_DB_MIGRATION_PASSWORD="$(TEST_WEB_POSTGRES_MIGRATION_PASSWORD)" \
+		java -jar okapi-ops/target/okapi-ops-0.0.1-SNAPSHOT.jar pg-migrate
+
+validate-test-postgres:
+	OKAPI_WEB_DB_MIGRATION_URL="jdbc:postgresql://$(TEST_POSTGRES_HOST):$(TEST_POSTGRES_PORT)/$(POSTGRES_DB)?currentSchema=$(TEST_WEB_POSTGRES_SCHEMA)" \
+	OKAPI_WEB_DB_MIGRATION_USER="$(TEST_WEB_POSTGRES_MIGRATION_USER)" \
+	OKAPI_WEB_DB_MIGRATION_PASSWORD="$(TEST_WEB_POSTGRES_MIGRATION_PASSWORD)" \
+		java -jar okapi-ops/target/okapi-ops-0.0.1-SNAPSHOT.jar pg-validate
 
 test-users:
 	java -jar okapi-datagen/target/okapi-datagen-0.0.1-SNAPSHOT.jar users-gen --host http://$(OKAPI_WEB_HOST) --port $(OKAPI_WEB_PORT)
@@ -212,6 +229,7 @@ test-infra-up:
 test-infra:
 	$(MAKE) test-infra-up
 	$(MAKE) migrate-test-datastores
+	$(MAKE) validate-test-postgres
 	$(MAKE) test-secret
 
 run-ingester:
@@ -255,6 +273,12 @@ test: package test-infra start-okapi-ingester-jar start-okapi-web-jar
 	OKAPI_WEB_DB_URL="jdbc:postgresql://$(TEST_POSTGRES_HOST):$(TEST_POSTGRES_PORT)/$(POSTGRES_DB)?currentSchema=$(TEST_WEB_POSTGRES_SCHEMA)" \
 	OKAPI_WEB_DB_USER="$(TEST_WEB_POSTGRES_USER)" \
 	OKAPI_WEB_DB_PASSWORD="$(TEST_WEB_POSTGRES_PASSWORD)" \
+	OKAPI_WEB_DB_MIGRATION_URL="jdbc:postgresql://$(TEST_POSTGRES_HOST):$(TEST_POSTGRES_PORT)/$(POSTGRES_DB)" \
+	OKAPI_WEB_DB_MIGRATION_USER="$(TEST_WEB_POSTGRES_MIGRATION_USER)" \
+	OKAPI_WEB_DB_MIGRATION_PASSWORD="$(TEST_WEB_POSTGRES_MIGRATION_PASSWORD)" \
+	TEST_POSTGRES_ADMIN_URL="jdbc:postgresql://$(TEST_POSTGRES_HOST):$(TEST_POSTGRES_PORT)/$(POSTGRES_DB)" \
+	TEST_POSTGRES_ADMIN_USER="$(POSTGRES_USER)" \
+	TEST_POSTGRES_ADMIN_PASSWORD="$(POSTGRES_PASSWORD)" \
 	OSCAR_DB_URL="jdbc:postgresql://$(TEST_POSTGRES_HOST):$(TEST_POSTGRES_PORT)/okapi_oscar?currentSchema=okapi_oscar" \
 	VAULT_ADDR="$(TEST_VAULT_ADDR)" \
 		mvn test
@@ -298,6 +322,9 @@ test-all: package run-ingester
 
 start-okapi-web-jar: package
 	OKAPI_AWS_ENDPOINT="$(TEST_LOCALSTACK_ENDPOINT)" \
+	OKAPI_WEB_DB_URL="jdbc:postgresql://$(TEST_POSTGRES_HOST):$(TEST_POSTGRES_PORT)/$(POSTGRES_DB)?currentSchema=$(TEST_WEB_POSTGRES_SCHEMA)" \
+	OKAPI_WEB_DB_USER="$(TEST_WEB_POSTGRES_USER)" \
+	OKAPI_WEB_DB_PASSWORD="$(TEST_WEB_POSTGRES_PASSWORD)" \
 		java -jar ./okapi-web/target/okapi-web-0.0.1-SNAPSHOT.jar &
 
 start-okapi-ingester-jar: package

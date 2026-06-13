@@ -41,24 +41,21 @@ class PostgresDaosIT {
 
   @BeforeEach
   void resetDatabase() {
-    jdbc.execute(
-        """
-        TRUNCATE TABLE
-          infra_entity_edges,
-          infra_entity_nodes,
-          pending_jobs,
-          entity_relations,
-          user_entity_relations,
-          token_metadata,
-          federated_sources,
-          dashboard_variables,
-          dashboard_panels,
-          dashboard_rows,
-          dashboard_versions,
-          dashboards,
-          organizations,
-          users
-        """);
+    jdbc.batchUpdate(
+        "DELETE FROM infra_entity_edges",
+        "DELETE FROM infra_entity_nodes",
+        "DELETE FROM pending_jobs",
+        "DELETE FROM entity_relations",
+        "DELETE FROM user_entity_relations",
+        "DELETE FROM token_metadata",
+        "DELETE FROM federated_sources",
+        "DELETE FROM dashboard_variables",
+        "DELETE FROM dashboard_panels",
+        "DELETE FROM dashboard_rows",
+        "DELETE FROM dashboard_versions",
+        "DELETE FROM dashboards",
+        "DELETE FROM organizations",
+        "DELETE FROM users");
   }
 
   @Test
