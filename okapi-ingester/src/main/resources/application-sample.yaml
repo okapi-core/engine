@@ -23,6 +23,15 @@ okapi:
   response:
     maxSize: 10000              # Max items allowed in an in-memory response list before truncation
 
+  metrics:
+    consumptionType: wal        # Set to kafka to consume ClickHouse metric events from Kafka
+    kafka:
+      bootstrapServers: localhost:9092
+      topic: metrics-topic
+      groupId: okapi-metrics-clickhouse
+      pollTimeoutMs: 100
+      maxPollRecords: 1024
+
   # Spans configuration (stored under okapi-logs module after refactor)
   traces:
     dataDir: trace-pages        # Local directory for per app span pages

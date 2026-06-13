@@ -23,6 +23,8 @@ import org.okapi.metrics.ch.ChWalResources;
 import org.okapi.metrics.ch.ChWriter;
 import org.okapi.metrics.ch.SumQueryProcessor;
 import org.okapi.metrics.ch.template.ChMetricTemplateEngine;
+import org.okapi.metrics.core.MetricsEventEmitter;
+import org.okapi.metrics.core.WalMetricsEventEmitter;
 import org.okapi.metrics.otel.OtelConverter;
 import org.okapi.promql.ch.ChPromQlSeriesDiscoveryFactory;
 import org.okapi.promql.ch.ChPromQlTsClientFactory;
@@ -75,8 +77,15 @@ public class TestChMetricsModule extends AbstractModule {
 
   @Provides
   @Singleton
-  ChMetricsWalConsumer provideChMetricsWalConsumer(ChWalResources walResources, ChWriter writer) {
-    return new ChMetricsWalConsumer(batchSize, writer, walResources);
+  MetricsEventEmitter provideMetricsEventEmitter(ChWalResources walResources) {
+    return new WalMetricsEventEmitter(walResources);
+  }
+
+  @Provides
+  @Singleton
+  ChMetricsWalConsumer provideChMetricsWalConsumer(
+      MetricsEventEmitter eventEmitter, ChWriter writer) {
+    return new ChMetricsWalConsumer(batchSize, writer, eventEmitter);
   }
 
   @Provides

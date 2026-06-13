@@ -11,9 +11,9 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.okapi.rest.metrics.ExportMetricsRequest;
-import org.okapi.rest.metrics.payloads.Gauge;
 import org.okapi.rest.metrics.payloads.ExponentialHisto;
 import org.okapi.rest.metrics.payloads.ExponentialHistoPoint;
+import org.okapi.rest.metrics.payloads.Gauge;
 import org.okapi.rest.metrics.payloads.Histo;
 import org.okapi.rest.metrics.payloads.HistoPoint;
 import org.okapi.rest.metrics.payloads.SUM_TEMPORALITY;
@@ -22,7 +22,7 @@ import org.okapi.rest.metrics.payloads.SumPoint;
 
 class ChMetricsWalConsumerNumericPrecisionTests {
   private final Gson gson = new Gson();
-  private final ChMetricsWalConsumer consumer = new ChMetricsWalConsumer(null, 1, null, null);
+  private final ChMetricsWalConsumer consumer = new ChMetricsWalConsumer(1, null, null);
 
   @Test
   void rawNumericRowsPreserveFractionalValues() {

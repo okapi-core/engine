@@ -7,36 +7,29 @@ package org.okapi.metrics.ch;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import com.google.gson.Gson;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.okapi.rest.metrics.Exemplar;
-import org.okapi.rest.metrics.ExportMetricsRequest;
-import org.okapi.rest.metrics.query.METRIC_TYPE;
-import org.okapi.wal.frame.WalEntry;
-import org.okapi.wal.io.WalReader;
-import org.okapi.wal.manager.WalManager;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import lombok.extern.slf4j.Slf4j;
+import org.okapi.metrics.core.MetricsEventEmitter;
+import org.okapi.rest.metrics.Exemplar;
+import org.okapi.rest.metrics.ExportMetricsRequest;
+import org.okapi.rest.metrics.query.METRIC_TYPE;
 
 @Slf4j
-@RequiredArgsConstructor
 public class ChMetricsWalConsumer {
-  final WalReader walReader;
-  final int batchSize;
-  final ChWriter chWriter;
-  final WalManager walManager;
+  private final int batchSize;
+  private final MetricsEventEmitter eventEmitter;
+  private final ChWriter chWriter;
   Gson gson = new Gson();
 
-  public ChMetricsWalConsumer(int batchSize, ChWriter chWriter, ChWalResources resources) {
-    this.walReader = resources.getReader();
+  public ChMetricsWalConsumer(int batchSize, ChWriter chWriter, MetricsEventEmitter eventEmitter) {
     this.batchSize = batchSize;
     this.chWriter = chWriter;
-    this.walManager = resources.getManager();
+    this.eventEmitter = eventEmitter;
   }
 
   public record ChWriteWork(String mainTable, List<String> rows, List<String> meta) {}
@@ -232,12 +225,12 @@ public class ChMetricsWalConsumer {
   }
 
   public void consumeRecords() throws IOException, InterruptedException, ExecutionException {
-    var batch = walReader.readBatchAndAdvance(batchSize);
+    var batch = eventEmitter.next(batchSize);
 
     Multimap<String, String> writeLoad = ArrayListMultimap.create();
 
     for (var entry : batch) {
-      var req = gson.fromJson(new String(entry.getPayload()), ExportMetricsRequest.class);
+      var req = gson.fromJson(new String(entry.payload()), ExportMetricsRequest.class);
       var gaugeWrites = getGaugeSamples(req);
       writeLoad.putAll(gaugeWrites.mainTable(), gaugeWrites.rows());
 
@@ -259,7 +252,8 @@ public class ChMetricsWalConsumer {
     }
 
     chWriter.writeSyncWithBestEffort(writeLoad);
-    var largestLsn = WalEntry.getMaxLsn(batch);
-    walManager.commitLsn(largestLsn);
+    if (!batch.isEmpty()) {
+      eventEmitter.commit();
+    }
   }
 }

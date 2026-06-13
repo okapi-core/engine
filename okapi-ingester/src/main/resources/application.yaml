@@ -18,6 +18,7 @@ okapi:
     chTracesWal: ${user.home}/ch-wal/traces
 
   metrics:
+    consumptionType: wal
     otel:
       converter:
         excludeTags: [ success,type ]

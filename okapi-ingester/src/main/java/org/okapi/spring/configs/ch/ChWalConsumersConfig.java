@@ -11,6 +11,7 @@ import org.okapi.metrics.ch.ChMetricsWalConsumerDriver;
 import org.okapi.metrics.ch.ChWalResources;
 import org.okapi.metrics.ch.ChWriter;
 import org.okapi.metrics.ch.template.ChMetricTemplateEngine;
+import org.okapi.metrics.core.MetricsEventEmitter;
 import org.okapi.runtime.ch.ChWalConsumerCommonDriver;
 import org.okapi.spring.configs.Qualifiers;
 import org.okapi.spring.configs.properties.ChWalConsumerCfg;
@@ -30,10 +31,10 @@ public class ChWalConsumersConfig {
 
   @Bean
   public ChMetricsWalConsumer chMetricsWalConsumer(
-      @Autowired @Qualifier(Qualifiers.METRICS_CH_WAL_RESOURCES) ChWalResources walResources,
+      @Autowired MetricsEventEmitter eventEmitter,
       @Autowired ChWriter writer,
       @Autowired ChWalConsumerCfg walCfg) {
-    return new ChMetricsWalConsumer(walCfg.getBatchSize(), writer, walResources);
+    return new ChMetricsWalConsumer(walCfg.getBatchSize(), writer, eventEmitter);
   }
 
   @Bean

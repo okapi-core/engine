@@ -34,10 +34,8 @@ public class ChConfig {
 
   String password;
 
-  @NotNull(message = "ch metrics wal path should be specified.")
   Path chMetricsWal;
 
-  @NotNull(message = "ch metrics wal config should be specified.")
   WalConfig chMetricsWalCfg;
 
   @NotNull(message = "ch logs wal path should be specified.")

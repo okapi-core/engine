@@ -20,7 +20,7 @@ import org.okapi.rest.metrics.payloads.SumPoint;
 
 class ChMetricsWalConsumerMetadataTests {
   private final Gson gson = new Gson();
-  private final ChMetricsWalConsumer consumer = new ChMetricsWalConsumer(null, 1, null, null);
+  private final ChMetricsWalConsumer consumer = new ChMetricsWalConsumer(1, null, null);
 
   @Test
   void metadataRowsCarryUnitsForEveryMetricType() {
