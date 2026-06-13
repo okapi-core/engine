@@ -56,13 +56,7 @@ public class ChMetricsWalConsumer {
                 .value(req.getGauge().getValue().get(i))
                 .build();
         gaugeSamples.add(gson.toJson(sample));
-        var map = new HashMap<String, Object>();
-        map.put("event_type", METRIC_TYPE.GAUGE.name());
-        map.put("metric", req.getMetricName());
-        map.put("tags", req.getTags());
-        map.put("ts_start", ts);
-        map.put("ts_end", ts);
-        metaRows.add(gson.toJson(map));
+        metaRows.add(metricMetadataRow(req, METRIC_TYPE.GAUGE, null, ts, ts));
       }
     }
     return new ChWriteWork(ChConstants.TBL_GAUGES, gaugeSamples, metaRows);
@@ -104,14 +98,9 @@ public class ChMetricsWalConsumer {
                 .count(pt.getCount())
                 .build();
         histoSamples.add(gson.toJson(sample));
-        var map = new java.util.HashMap<String, Object>();
-        map.put("event_type", METRIC_TYPE.HISTO.name());
-        map.put("metric", req.getMetricName());
-        map.put("tags", req.getTags());
-        map.put("temporality", pt.getTemporality().name());
-        map.put("ts_start", pt.getStart());
-        map.put("ts_end", pt.getEnd());
-        metaRows.add(gson.toJson(map));
+        metaRows.add(
+            metricMetadataRow(
+                req, METRIC_TYPE.HISTO, pt.getTemporality().name(), pt.getStart(), pt.getEnd()));
       }
     }
     return new ChWriteWork(ChConstants.TBL_HISTOS, histoSamples, metaRows);
@@ -139,17 +128,29 @@ public class ChMetricsWalConsumer {
                 .sumType(sumType)
                 .build();
         sumSamples.add(gson.toJson(sample));
-        var map = new java.util.HashMap<String, Object>();
-        map.put("event_type", METRIC_TYPE.SUM.name());
-        map.put("metric", req.getMetricName());
-        map.put("tags", req.getTags());
-        map.put("temporality", req.getSum().getTemporality().name());
-        map.put("ts_start", pt.getStart());
-        map.put("ts_end", pt.getEnd());
-        meta.add(gson.toJson(map));
+        meta.add(
+            metricMetadataRow(
+                req,
+                METRIC_TYPE.SUM,
+                req.getSum().getTemporality().name(),
+                pt.getStart(),
+                pt.getEnd()));
       }
     }
     return new ChWriteWork(ChConstants.TBL_SUM, sumSamples, meta);
+  }
+
+  private String metricMetadataRow(
+      ExportMetricsRequest req, METRIC_TYPE eventType, String temporality, long start, long end) {
+    var map = new HashMap<String, Object>();
+    map.put("event_type", eventType.name());
+    map.put("metric", req.getMetricName());
+    map.put("tags", req.getTags());
+    map.put("unit", req.getUnit());
+    if (temporality != null) map.put("temporality", temporality);
+    map.put("ts_start", start);
+    map.put("ts_end", end);
+    return gson.toJson(map);
   }
 
   public ChExemplarRow exemplarToChRow(Exemplar exemplar) {
