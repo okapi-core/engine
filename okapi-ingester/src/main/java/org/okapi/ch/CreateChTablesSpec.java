@@ -67,5 +67,7 @@ public class CreateChTablesSpec {
     client.queryAll(getTracesTableSpec());
     client.queryAll(getSpansIngestedAttribsTableSpec());
     client.queryAll(getServiceRedEventsTableSpec());
+    client.queryAll("CREATE DATABASE IF NOT EXISTS okapi_logs");
+    client.queryAll(getLogsTableSpec());
   }
 }
