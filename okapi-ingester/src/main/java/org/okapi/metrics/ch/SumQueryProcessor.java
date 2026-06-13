@@ -63,7 +63,7 @@ public class SumQueryProcessor {
       switch (temporality) {
         case CUMULATIVE -> {
           var maxSample =
-              group.stream().max(Comparator.comparingLong(ChSumSample::value)).orElse(null);
+              group.stream().max(Comparator.comparingDouble(ChSumSample::value)).orElse(null);
           sums.add(
               Sum.builder()
                   .ts(maxSample.tsStart())
@@ -73,10 +73,10 @@ public class SumQueryProcessor {
                   .build());
         }
         case DELTA_AGGREGATE -> {
-          long total =
+          double total =
               group.stream()
                   .filter(s -> s.sumType() == CH_SUM_TYPE.DELTA)
-                  .mapToLong(ChSumSample::value)
+                  .mapToDouble(ChSumSample::value)
                   .sum();
           long aggTsStart = group.stream().mapToLong(ChSumSample::tsStart).min().orElse(ts);
           long aggTsEnd = group.stream().mapToLong(ChSumSample::tsEnd).max().orElse(te);
@@ -123,7 +123,7 @@ public class SumQueryProcessor {
           new ChSumSample(
               record.getLong("ts_start_ms"),
               record.getLong("ts_end_ms"),
-              record.getLong("value"),
+              record.getDouble("value"),
               CH_SUM_TYPE.valueOf(record.getString("sums_type")),
               recordTags,
               record.getString("unit")));

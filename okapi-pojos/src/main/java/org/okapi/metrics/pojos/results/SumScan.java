@@ -16,5 +16,5 @@ public class SumScan extends Scan {
   String universalPath;
   List<Long> ts;
   long windowSize;
-  List<Integer> counts;
+  List<Double> counts;
 }

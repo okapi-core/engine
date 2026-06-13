@@ -27,5 +27,5 @@ public class Sum {
   String unit;
 
   @JsonPropertyDescription("Accumulated counter value over this interval.")
-  long count;
+  double count;
 }

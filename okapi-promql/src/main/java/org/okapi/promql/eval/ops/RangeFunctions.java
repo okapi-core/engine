@@ -217,7 +217,7 @@ public final class RangeFunctions {
     for (int i = 0; i < ts.size(); i++) {
       long tsi = ts.get(i);
       if (tsi <= start || tsi > end) continue;
-      total += cnt.get(i);
+      total += cnt.get(i).floatValue();
     }
     return total;
   }
@@ -236,7 +236,7 @@ public final class RangeFunctions {
       }
     }
     if (lastIdx == null || prevIdx == null) return Float.NaN;
-    float delta = cnt.get(lastIdx);
+    float delta = cnt.get(lastIdx).floatValue();
     float seconds = Math.max((ts.get(lastIdx) - ts.get(prevIdx)) / 1000f, 1f);
     return delta / seconds;
   }

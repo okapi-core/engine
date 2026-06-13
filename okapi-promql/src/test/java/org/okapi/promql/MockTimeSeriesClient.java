@@ -56,10 +56,10 @@ public final class MockTimeSeriesClient implements TsClient {
     if (name != null && name.endsWith("_counter")) {
       // Build SumScan
       List<Long> ts = new ArrayList<>(sub.size());
-      List<Integer> counts = new ArrayList<>(sub.size());
+      List<Double> counts = new ArrayList<>(sub.size());
       for (var e : sub.entrySet()) {
         ts.add(e.getKey());
-        counts.add(Math.round(e.getValue()));
+        counts.add((double) e.getValue());
       }
       long windowSize;
       if (ts.size() >= 2) windowSize = Math.max(1L, ts.get(1) - ts.get(0));

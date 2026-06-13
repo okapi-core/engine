@@ -133,25 +133,27 @@ public class ChPromQlTsClient implements TsClient {
     for (var record : records) {
       points.add(
           new SumPoint(
-              record.getLong("ts_start_ms"), record.getLong("ts_end_ms"), record.getLong("value")));
+              record.getLong("ts_start_ms"),
+              record.getLong("ts_end_ms"),
+              record.getDouble("value")));
     }
     points.sort(Comparator.comparingLong(SumPoint::endMs));
     return points;
   }
 
-  private SumScan toSumScan(String metric, List<SumPoint> points, boolean cumulative) {
+  static SumScan toSumScan(String metric, List<SumPoint> points, boolean cumulative) {
     var ts = new ArrayList<Long>(points.size());
-    var counts = new ArrayList<Integer>(points.size());
-    Long prev = null;
+    var counts = new ArrayList<Double>(points.size());
+    Double prev = null;
     for (var p : points) {
       ts.add(p.endMs());
-      long val = p.value();
-      long delta = val;
+      double val = p.value();
+      double delta = val;
       if (cumulative && prev != null) {
         delta = val - prev;
         if (delta < 0) delta = val; // counter reset
       }
-      counts.add(clampToInt(delta));
+      counts.add(delta);
       prev = val;
     }
     return SumScan.builder().universalPath(metric).ts(ts).counts(counts).windowSize(0).build();
@@ -241,12 +243,6 @@ public class ChPromQlTsClient implements TsClient {
     }
   }
 
-  private static int clampToInt(long value) {
-    if (value > Integer.MAX_VALUE) return Integer.MAX_VALUE;
-    if (value < Integer.MIN_VALUE) return Integer.MIN_VALUE;
-    return (int) value;
-  }
-
   static SeriesFetchLabels splitLabels(Map<String, String> labels) {
     var tags = new LinkedHashMap<String, String>();
     if (labels == null) {
@@ -268,5 +264,5 @@ public class ChPromQlTsClient implements TsClient {
 
   record SeriesFetchLabels(String unit, Map<String, String> tags) {}
 
-  private record SumPoint(long startMs, long endMs, long value) {}
+  record SumPoint(long startMs, long endMs, double value) {}
 }
