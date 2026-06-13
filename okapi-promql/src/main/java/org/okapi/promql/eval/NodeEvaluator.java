@@ -741,6 +741,8 @@ public final class NodeEvaluator {
       case "abs"   -> InstantFunctions.mapDerivedSamples(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), Math::abs);
       case "ceil"  -> InstantFunctions.mapDerivedSamples(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), v -> (float) Math.ceil(v));
       case "floor" -> InstantFunctions.mapDerivedSamples(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), v -> (float) Math.floor(v));
+      case "sgn" -> InstantFunctions.mapDerivedSamples(
+          TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), Math::signum);
       case "round" -> evalRound(e, ctx);
       case "clamp" -> InstantFunctions.clamp(
           TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name),

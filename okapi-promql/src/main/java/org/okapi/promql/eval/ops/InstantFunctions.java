@@ -28,11 +28,13 @@ public final class InstantFunctions {
   private static InstantVectorResult mapSamples(
       InstantVectorResult iv, Function<Float, Float> fn, boolean derived) {
     List<SeriesSample> out = new ArrayList<>(iv.data().size());
-    for (var s : iv.data())
+    for (var s : iv.data()) {
+      if (s.sample().isHistogram()) continue;
       out.add(
           new SeriesSample(
               derived ? SeriesIds.derived(s.series()) : s.series(),
               new Sample(s.sample().ts(), s.sample().sourceTs(), fn.apply(s.sample().value()))));
+    }
     return new InstantVectorResult(out);
   }
 
