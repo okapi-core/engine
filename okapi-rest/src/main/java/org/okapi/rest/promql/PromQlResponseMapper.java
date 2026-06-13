@@ -70,7 +70,7 @@ public class PromQlResponseMapper {
     var promQlData = new PromQlData<Sample>();
     promQlData.setResultType(PromQlResultType.SCALAR);
     var now = System.currentTimeMillis() / 1000.;
-    promQlData.setResult(new Sample(now, Float.toString(scalar.getValue())));
+    promQlData.setResult(new Sample(now, Double.toString(scalar.getValue())));
     return promQlData;
   }
 

@@ -119,7 +119,7 @@ public final class RangeFunctions {
   }
 
   public static InstantVectorResult predictLinear(
-      RangeVectorResult rv, long rangeMs, EvalContext ctx, long anchorMs, float t) {
+      RangeVectorResult rv, long rangeMs, EvalContext ctx, long anchorMs, double t) {
     List<SeriesSample> out = new ArrayList<>();
     for (SeriesWindow w : rv.data()) {
       GaugeScan gs = floatScan(w.scan());
@@ -136,14 +136,14 @@ public final class RangeFunctions {
           double x = tsi / 1000.0, y = vals.get(i);
           n++; sumX += x; sumY += y; sumXX += x * x; sumXY += x * y;
         }
-        float v;
+        double v;
         if (n < 2) {
           v = Float.NaN;
         } else {
           double denom = n * sumXX - sumX * sumX;
           double slope = denom == 0 ? 0 : (n * sumXY - sumX * sumY) / denom;
           double intercept = (sumY - slope * sumX) / n;
-          v = (float) (slope * (step / 1000.0 + t) + intercept);
+          v = slope * (step / 1000.0 + t) + intercept;
         }
         out.add(new SeriesSample(SeriesIds.derived(w.id()), new Sample(step, v)));
       }
@@ -395,7 +395,7 @@ public final class RangeFunctions {
     return vals.get(lastIdx) - vals.get(prevIdx);
   }
 
-  private static float derivInWindow(GaugeScan gs, long start, long end) {
+  private static double derivInWindow(GaugeScan gs, long start, long end) {
     gs = Staleness.withoutStaleSamples(gs);
     var ts = gs.getTimestamps();
     var vals = gs.getValues();
@@ -414,7 +414,7 @@ public final class RangeFunctions {
     if (n < 2) return Float.NaN;
     double covariance = n * sumXY - sumX * sumY;
     double variance = n * sumXX - sumX * sumX;
-    return (float) (covariance / variance);
+    return covariance / variance;
   }
 
   private static Float smoothInWindow(

@@ -82,6 +82,6 @@ public class UtilFunctionsTest {
     // cpu_usage has 2 series → scalar(IV{2}) = NaN
     var res = eval(ev, "scalar(avg_over_time(cpu_usage[2m]))", cm.t2, cm.t2, cm.step);
     assertEquals(ValueType.SCALAR, res.type());
-    assertTrue(Float.isNaN(((ScalarResult) res).getValue()));
+    assertTrue(Double.isNaN(((ScalarResult) res).getValue()));
   }
 }

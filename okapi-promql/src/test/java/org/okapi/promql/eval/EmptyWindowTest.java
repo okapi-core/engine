@@ -41,7 +41,7 @@ public class EmptyWindowTest {
     // be NaN.
     // Be tolerant: if engine emits sample, ensure NaN; else zero size is acceptable.
     if (!iv.data().isEmpty()) {
-      assertTrue(Float.isNaN(iv.data().get(0).sample().value()));
+      assertTrue(Double.isNaN(iv.data().get(0).sample().value()));
     }
   }
 }

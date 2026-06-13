@@ -295,7 +295,7 @@ public final class NodeEvaluator {
         List<Float> vals = new ArrayList<>(samples.size());
         for (var smp : samples) {
           ts.add(smp.ts() + offset);
-          vals.add(smp.value());
+          vals.add((float) smp.value());
         }
         GaugeScan gs =
             GaugeScan.builder()
@@ -354,7 +354,7 @@ public final class NodeEvaluator {
     throw new EvaluationException("unsupported operand types for " + e.op);
   }
 
-  private ExpressionResult evalScalarScalar(BinaryOpExpr e, float a, float b) {
+  private ExpressionResult evalScalarScalar(BinaryOpExpr e, double a, double b) {
     if (isArithmetic(e.op)) return new ScalarResult(applyArith(a, b, e.op));
     if (isComparison(e.op)) {
       boolean ok = compare(a, b, e.op);
@@ -363,21 +363,21 @@ public final class NodeEvaluator {
     throw new EvaluationException("set operators require instant vectors, not scalars");
   }
 
-  private InstantVectorResult evalScalarVector(BinaryOpExpr e, float s, InstantVectorResult v) {
+  private InstantVectorResult evalScalarVector(BinaryOpExpr e, double s, InstantVectorResult v) {
     if (isArithmetic(e.op)) return mapVectorDropName(v, val -> applyArith(s, val, e.op));
     if (isComparison(e.op)) {
       return e.boolModifier
-          ? mapVectorDropName(v, val -> compare(s, val, e.op) ? 1f : 0f)
+          ? mapVectorDropName(v, val -> compare(s, val, e.op) ? 1d : 0d)
           : filterVector(v, val -> compare(s, val, e.op));
     }
     throw new EvaluationException("set operators require instant vectors, not scalars");
   }
 
-  private InstantVectorResult evalVectorScalar(BinaryOpExpr e, InstantVectorResult v, float s) {
+  private InstantVectorResult evalVectorScalar(BinaryOpExpr e, InstantVectorResult v, double s) {
     if (isArithmetic(e.op)) return mapVectorDropName(v, val -> applyArith(val, s, e.op));
     if (isComparison(e.op)) {
       return e.boolModifier
-          ? mapVectorDropName(v, val -> compare(val, s, e.op) ? 1f : 0f)
+          ? mapVectorDropName(v, val -> compare(val, s, e.op) ? 1d : 0d)
           : filterVector(v, val -> compare(val, s, e.op));
     }
     throw new EvaluationException("set operators require instant vectors, not scalars");
@@ -475,14 +475,14 @@ public final class NodeEvaluator {
 
   private Optional<SeriesSample> combine(
       BinaryOpExpr e, SeriesSample l, SeriesSample r, boolean isCmp) {
-    float a = l.sample().value(), b = r.sample().value();
+    double a = l.sample().value(), b = r.sample().value();
     long ts = l.sample().ts();
     if (isCmp) {
       boolean ok = compare(a, b, e.op);
       if (e.boolModifier) return Optional.of(new SeriesSample(SeriesIds.derived(l.series()), new Sample(ts, ok ? 1f : 0f)));
       return ok ? Optional.of(l) : Optional.empty();
     }
-    float v = applyArith(a, b, e.op);
+    double v = applyArith(a, b, e.op);
     return Optional.of(new SeriesSample(mergeLabels(l.series(), r.series(), e.matchSpec), new Sample(ts, v)));
   }
 
@@ -530,7 +530,7 @@ public final class NodeEvaluator {
     if (Set.of("topk", "bottomk", "quantile", "limitk", "limit_ratio").contains(op)) {
       if (e.args.size() != 2) throw new EvaluationException(op + ": expected two arguments");
       var pRes = TypeChecks.requireScalar(eval(e.args.get(0), ctx), op);
-      param = pRes.value;
+      param = (float) pRes.value;
       vecIdx = 1;
       validateAggregateParam(op, param);
     }
@@ -628,16 +628,16 @@ public final class NodeEvaluator {
   }
 
   private int compareRanked(SeriesSample left, SeriesSample right, boolean descending) {
-    float a = left.sample().value(), b = right.sample().value();
-    if (Float.isNaN(a)) return Float.isNaN(b) ? 0 : 1;
-    if (Float.isNaN(b)) return -1;
-    return descending ? Float.compare(b, a) : Float.compare(a, b);
+    double a = left.sample().value(), b = right.sample().value();
+    if (Double.isNaN(a)) return Double.isNaN(b) ? 0 : 1;
+    if (Double.isNaN(b)) return -1;
+    return descending ? Double.compare(b, a) : Double.compare(a, b);
   }
 
-  private String formatPromFloat(float value) {
-    if (!Float.isFinite(value)) return Float.toString(value);
+  private String formatPromFloat(double value) {
+    if (!Double.isFinite(value)) return Double.toString(value);
     if (value == Math.rint(value)) return Long.toString((long) value);
-    return Float.toString(value);
+    return Double.toString(value);
   }
 
   private String formatPromValue(Sample sample) {
@@ -688,16 +688,16 @@ public final class NodeEvaluator {
   }
 
   private void addIfNotEmpty(
-      List<SeriesSample> out, List<SeriesSample> samples, SeriesId id, long ts, float value) {
+      List<SeriesSample> out, List<SeriesSample> samples, SeriesId id, long ts, double value) {
     if (!samples.isEmpty()) out.add(sample(id, ts, value));
   }
 
-  private float aggregateExtrema(List<SeriesSample> samples, boolean max) {
-    float result = Float.NaN;
+  private double aggregateExtrema(List<SeriesSample> samples, boolean max) {
+    double result = Double.NaN;
     for (SeriesSample sample : samples) {
-      float value = sample.sample().value();
-      if (Float.isNaN(value)) continue;
-      if (Float.isNaN(result) || (max ? value > result : value < result)) result = value;
+      double value = sample.sample().value();
+      if (Double.isNaN(value)) continue;
+      if (Double.isNaN(result) || (max ? value > result : value < result)) result = value;
     }
     return result;
   }
@@ -724,7 +724,7 @@ public final class NodeEvaluator {
       case "last_over_time"    -> RangeStats.last   (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
       case "present_over_time" -> RangeStats.present(TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
       case "quantile_over_time" -> RangeStats.quantile(
-          TypeChecks.requireScalar(eval(e.args.get(0), ctx), e.name).value,
+          (float) TypeChecks.requireScalar(eval(e.args.get(0), ctx), e.name).value,
           TypeChecks.requireRangeVector(eval(e.args.get(1), ctx), e.name),
           rangeOf(e, 1, ctx), ctx, anchorMsOf(e.args.get(1), ctx));
       case "first_over_time"   -> RangeStats.first  (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
@@ -744,27 +744,27 @@ public final class NodeEvaluator {
       case "double_exponential_smoothing" -> RangeFunctions.doubleExponentialSmoothing(
           TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name),
           rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx),
-          TypeChecks.requireScalar(eval(e.args.get(1), ctx), e.name).value,
-          TypeChecks.requireScalar(eval(e.args.get(2), ctx), e.name).value);
+          (float) TypeChecks.requireScalar(eval(e.args.get(1), ctx), e.name).value,
+          (float) TypeChecks.requireScalar(eval(e.args.get(2), ctx), e.name).value);
       // instant-vector functions
       case "abs"   -> InstantFunctions.mapDerivedSamples(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), Math::abs);
-      case "ceil"  -> InstantFunctions.mapDerivedSamples(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), v -> (float) Math.ceil(v));
-      case "floor" -> InstantFunctions.mapDerivedSamples(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), v -> (float) Math.floor(v));
+      case "ceil"  -> InstantFunctions.mapDerivedSamples(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), Math::ceil);
+      case "floor" -> InstantFunctions.mapDerivedSamples(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), Math::floor);
       case "exp" -> InstantFunctions.mapDerivedSamples(
           TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name),
-          v -> (float) FastMath.exp(v));
+          FastMath::exp);
       case "ln" -> InstantFunctions.mapDerivedSamples(
           TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name),
-          v -> (float) FastMath.log(v));
+          FastMath::log);
       case "sqrt" -> InstantFunctions.mapDerivedSamples(
           TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name),
-          v -> (float) FastMath.sqrt(v));
+          FastMath::sqrt);
       case "log2" -> InstantFunctions.mapDerivedSamples(
           TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name),
-          v -> (float) (FastMath.log(v) / FastMath.log(2d)));
+          v -> FastMath.log(v) / FastMath.log(2d));
       case "log10" -> InstantFunctions.mapDerivedSamples(
           TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name),
-          v -> (float) FastMath.log10(v));
+          FastMath::log10);
       case "sgn" -> InstantFunctions.mapDerivedSamples(
           TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), Math::signum);
       case "round" -> evalRound(e, ctx);
@@ -798,7 +798,7 @@ public final class NodeEvaluator {
       }
       case "info" -> evalInfo(e, ctx);
       case "histogram_quantile" -> HistogramFunctions.quantile(
-          TypeChecks.requireScalar(eval(e.args.get(0), ctx), e.name).value,
+          (float) TypeChecks.requireScalar(eval(e.args.get(0), ctx), e.name).value,
           TypeChecks.requireRangeVector(eval(e.args.get(1), ctx), e.name),
           rangeOf(e, 1, ctx), ctx);
       // vector → scalar
@@ -807,7 +807,7 @@ public final class NodeEvaluator {
       case "vector" -> {
         List<SeriesSample> vout = new ArrayList<>();
         for (long t = ctx.startMs; t <= ctx.endMs; t += ctx.stepMs) {
-          float v = TypeChecks.requireScalar(eval(e.args.get(0), ctx.withWindow(t, t)), e.name).value;
+          double v = TypeChecks.requireScalar(eval(e.args.get(0), ctx.withWindow(t, t)), e.name).value;
           vout.add(new SeriesSample(new SeriesId("", new Labels(Map.of())), new Sample(t, v)));
         }
         yield new InstantVectorResult(vout);
@@ -852,14 +852,14 @@ public final class NodeEvaluator {
   private InstantVectorResult evalRound(FunctionExpr e, EvalContext ctx) {
     if (e.args.size() < 1 || e.args.size() > 2)
       throw new EvaluationException("round: expected one or two arguments");
-    float nearest =
+    double nearest =
         e.args.size() == 2 ? TypeChecks.requireScalar(eval(e.args.get(1), ctx), e.name).value : 1f;
     return InstantFunctions.mapDerivedSamples(
         TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name),
         value ->
             nearest == 0f
                 ? value
-                : !Float.isFinite(value)
+                : !Double.isFinite(value)
                     ? value
                     : (float) (Math.floor(Math.nextUp(value / nearest) + 0.5d) * nearest));
   }
@@ -1139,22 +1139,22 @@ public final class NodeEvaluator {
     return switch (op) { case "==", "!=", ">", "<", ">=", "<=" -> true; default -> false; };
   }
 
-  private float applyArith(float a, float b, String op) {
+  private double applyArith(double a, double b, String op) {
     return switch (op) {
       case "+" -> a + b;
       case "-" -> a - b;
       case "*" -> a * b;
       case "/" -> a / b;  // IEEE 754: 1/0=+Inf, -1/0=-Inf, 0/0=NaN
       case "%" -> a % b;
-      case "^" -> (float) Math.pow(a, b);
+      case "^" -> Math.pow(a, b);
       default -> throw new EvaluationException("unknown op: " + op);
     };
   }
 
-  private boolean compare(float a, float b, String op) {
+  private boolean compare(double a, double b, String op) {
     return switch (op) {
-      case "==" -> Float.compare(a, b) == 0;
-      case "!=" -> Float.compare(a, b) != 0;
+      case "==" -> Double.compare(a, b) == 0;
+      case "!=" -> Double.compare(a, b) != 0;
       case ">"  -> a > b;
       case "<"  -> a < b;
       case ">=" -> a >= b;
@@ -1163,7 +1163,7 @@ public final class NodeEvaluator {
     };
   }
 
-  private InstantVectorResult mapVector(InstantVectorResult iv, java.util.function.Function<Float, Float> fn) {
+  private InstantVectorResult mapVector(InstantVectorResult iv, java.util.function.Function<Double, Double> fn) {
     List<SeriesSample> out = new ArrayList<>(iv.data().size());
     for (var s : iv.data())
       out.add(
@@ -1173,7 +1173,7 @@ public final class NodeEvaluator {
     return new InstantVectorResult(out);
   }
 
-  private InstantVectorResult mapVectorDropName(InstantVectorResult iv, java.util.function.Function<Float, Float> fn) {
+  private InstantVectorResult mapVectorDropName(InstantVectorResult iv, java.util.function.Function<Double, Double> fn) {
     List<SeriesSample> out = new ArrayList<>(iv.data().size());
     for (var s : iv.data())
       out.add(
@@ -1183,7 +1183,7 @@ public final class NodeEvaluator {
     return new InstantVectorResult(out);
   }
 
-  private InstantVectorResult filterVector(InstantVectorResult iv, java.util.function.Predicate<Float> pred) {
+  private InstantVectorResult filterVector(InstantVectorResult iv, java.util.function.Predicate<Double> pred) {
     List<SeriesSample> out = new ArrayList<>();
     for (var s : iv.data())
       if (pred.test(s.sample().value())) out.add(s);
@@ -1285,7 +1285,7 @@ public final class NodeEvaluator {
     return new GroupKey(m);
   }
 
-  private static SeriesSample sample(SeriesId id, long ts, float v) {
+  private static SeriesSample sample(SeriesId id, long ts, double v) {
     return new SeriesSample(id, new Sample(ts, v));
   }
 
@@ -1295,7 +1295,7 @@ public final class NodeEvaluator {
     if (q < 0f) return Float.NEGATIVE_INFINITY;
     if (q > 1f) return Float.POSITIVE_INFINITY;
     var arr = new ArrayList<Float>();
-    for (SeriesSample sample : list) arr.add(sample.sample().value());
+    for (SeriesSample sample : list) arr.add((float) sample.sample().value());
     arr.sort((a, b) -> {
       if (Float.isNaN(a)) return Float.isNaN(b) ? 0 : -1;
       if (Float.isNaN(b)) return 1;

@@ -36,7 +36,7 @@ public class SpecialValuesTest {
     var ev = new ExpressionEvaluator(cm.client, cm.discovery, Executors.newFixedThreadPool(2), new MockStatsMerger());
     var res = eval(ev, "0 / 0", cm.t2, cm.t2, cm.step);
     assertEquals(ValueType.SCALAR, res.type());
-    assertTrue(Float.isNaN(((ScalarResult) res).getValue()), "0/0 must be NaN");
+    assertTrue(Double.isNaN(((ScalarResult) res).getValue()), "0/0 must be NaN");
   }
 
   @Test
@@ -45,7 +45,7 @@ public class SpecialValuesTest {
     var ev = new ExpressionEvaluator(cm.client, cm.discovery, Executors.newFixedThreadPool(2), new MockStatsMerger());
     var res = eval(ev, "1 / 0", cm.t2, cm.t2, cm.step);
     assertEquals(ValueType.SCALAR, res.type());
-    assertTrue(Float.isInfinite(((ScalarResult) res).getValue()), "1/0 must be Infinite");
+    assertTrue(Double.isInfinite(((ScalarResult) res).getValue()), "1/0 must be Infinite");
     assertTrue(((ScalarResult) res).getValue() > 0, "1/0 must be positive Infinity");
   }
 
@@ -55,7 +55,7 @@ public class SpecialValuesTest {
     var ev = new ExpressionEvaluator(cm.client, cm.discovery, Executors.newFixedThreadPool(2), new MockStatsMerger());
     var res = eval(ev, "-1 / 0", cm.t2, cm.t2, cm.step);
     assertEquals(ValueType.SCALAR, res.type());
-    assertTrue(Float.isInfinite(((ScalarResult) res).getValue()), "-1/0 must be Infinite");
+    assertTrue(Double.isInfinite(((ScalarResult) res).getValue()), "-1/0 must be Infinite");
     assertTrue(((ScalarResult) res).getValue() < 0, "-1/0 must be negative Infinity");
   }
 
@@ -66,7 +66,7 @@ public class SpecialValuesTest {
     var iv = (InstantVectorResult) eval(ev, "avg_over_time(cpu_usage[2m]) / 0", cm.t2, cm.t2, cm.step);
     // cpu values are positive → positive / 0 = +Inf
     for (var s : iv.data()) {
-      assertTrue(Float.isInfinite(s.sample().value()), "positive/0 must be +Inf");
+      assertTrue(Double.isInfinite(s.sample().value()), "positive/0 must be +Inf");
       assertTrue(s.sample().value() > 0, "positive/0 must be positive Inf");
     }
   }
@@ -78,7 +78,7 @@ public class SpecialValuesTest {
     // 0 * (v / 0) = 0 * +Inf = NaN per IEEE 754
     var iv = (InstantVectorResult) eval(ev, "0 * (avg_over_time(cpu_usage[2m]) / 0)", cm.t2, cm.t2, cm.step);
     for (var s : iv.data()) {
-      assertTrue(Float.isNaN(s.sample().value()), "0 * Inf must propagate NaN");
+      assertTrue(Double.isNaN(s.sample().value()), "0 * Inf must propagate NaN");
     }
   }
 }

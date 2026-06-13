@@ -69,7 +69,7 @@ final class TestResultComparator {
           cmd.expression(), "expected scalar result but got series",
           expected.get(0).toString(), String.valueOf(scalar.getValue())));
     }
-    if (!floatEquals((float) exp.value(), scalar.getValue())) {
+    if (!floatEquals((float) exp.value(), (float) scalar.getValue())) {
       return List.of(TestExpectationDifference.of(
           cmd.expression(), "scalar value mismatch",
           String.valueOf(exp.value()), String.valueOf(scalar.getValue())));
@@ -88,7 +88,7 @@ final class TestResultComparator {
     Map<SeriesId, Float> actual = new HashMap<>();
     for (SeriesSample s : iv) {
       if (evalTime != null && s.sample().ts() != evalTime) continue;
-      actual.put(s.series(), s.sample().value());
+      actual.put(s.series(), (float) s.sample().value());
     }
 
     record ExpectedValue(float value, boolean histogram) {}
@@ -136,7 +136,7 @@ final class TestResultComparator {
     Map<SeriesId, Map<Long, Float>> actualBySeries = new HashMap<>();
     for (SeriesSample s : iv) {
       actualBySeries.computeIfAbsent(s.series(), k -> new HashMap<>())
-          .put(s.sample().ts(), s.sample().value());
+          .put(s.sample().ts(), (float) s.sample().value());
     }
 
     List<TestExpectationDifference> diffs = new ArrayList<>();

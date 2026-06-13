@@ -38,7 +38,7 @@ public class NaNDivisionTest {
     var iv = (InstantVectorResult) res;
     // PromQL / IEEE 754: nonzero / 0 = +Inf (not NaN). Only 0/0 = NaN.
     for (var s : iv.data()) {
-      assertTrue(Float.isInfinite(s.sample().value()));
+      assertTrue(Double.isInfinite(s.sample().value()));
     }
   }
 }

@@ -8,9 +8,9 @@ import lombok.Getter;
 
 // eval/ScalarResult.java
 public final class ScalarResult implements ExpressionResult {
-  @Getter public final float value;
+  @Getter public final double value;
 
-  public ScalarResult(float value) {
+  public ScalarResult(double value) {
     this.value = value;
   }
 

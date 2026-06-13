@@ -8,5 +8,5 @@ import lombok.AllArgsConstructor;
 
 @AllArgsConstructor
 public final class LiteralExpr implements LogicalExpr {
-  public final float value;
+  public final double value;
 }

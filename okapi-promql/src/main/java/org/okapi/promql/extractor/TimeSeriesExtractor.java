@@ -9,7 +9,7 @@ import org.okapi.promql.eval.VectorData;
 
 public class TimeSeriesExtractor {
   public static float findValue(InstantVectorResult iv, VectorData.SeriesId series, long ts) {
-    return iv.data().stream()
+    return (float) iv.data().stream()
         .filter(s -> s.series().equals(series) && s.sample().ts() == ts)
         .findFirst()
         .orElseThrow(() -> new AssertionError("Missing sample for " + series + " @ " + ts))

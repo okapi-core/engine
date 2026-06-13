@@ -16,17 +16,17 @@ import org.okapi.promql.eval.VectorData.*;
 public final class InstantFunctions {
   private InstantFunctions() {}
 
-  public static InstantVectorResult mapSamples(InstantVectorResult iv, Function<Float, Float> fn) {
+  public static InstantVectorResult mapSamples(InstantVectorResult iv, Function<Double, Double> fn) {
     return mapSamples(iv, fn, false);
   }
 
   public static InstantVectorResult mapDerivedSamples(
-      InstantVectorResult iv, Function<Float, Float> fn) {
+      InstantVectorResult iv, Function<Double, Double> fn) {
     return mapSamples(iv, fn, true);
   }
 
   private static InstantVectorResult mapSamples(
-      InstantVectorResult iv, Function<Float, Float> fn, boolean derived) {
+      InstantVectorResult iv, Function<Double, Double> fn, boolean derived) {
     List<SeriesSample> out = new ArrayList<>(iv.data().size());
     for (var s : iv.data()) {
       if (s.sample().isHistogram()) continue;
@@ -38,15 +38,15 @@ public final class InstantFunctions {
     return new InstantVectorResult(out);
   }
 
-  public static InstantVectorResult clamp(InstantVectorResult iv, float min, float max) {
+  public static InstantVectorResult clamp(InstantVectorResult iv, double min, double max) {
     return mapDerivedSamples(iv, v -> Math.max(min, Math.min(max, v)));
   }
 
-  public static InstantVectorResult clampMin(InstantVectorResult iv, float min) {
+  public static InstantVectorResult clampMin(InstantVectorResult iv, double min) {
     return mapDerivedSamples(iv, v -> Math.max(v, min));
   }
 
-  public static InstantVectorResult clampMax(InstantVectorResult iv, float max) {
+  public static InstantVectorResult clampMax(InstantVectorResult iv, double max) {
     return mapDerivedSamples(iv, v -> Math.min(v, max));
   }
 
@@ -143,7 +143,7 @@ public final class InstantFunctions {
     return new InstantVectorResult(out);
   }
 
-  private static float calendarValue(String name, float unixSeconds) {
+  private static double calendarValue(String name, double unixSeconds) {
     ZonedDateTime time =
         ZonedDateTime.ofInstant(Instant.ofEpochSecond((long) unixSeconds), ZoneOffset.UTC);
     return switch (name) {

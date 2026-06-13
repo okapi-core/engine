@@ -32,9 +32,8 @@ public final class TrigFunctions {
     return new InstantVectorResult(out);
   }
 
-  private static float apply(String name, float value) {
-    return (float)
-        switch (name) {
+  private static double apply(String name, double value) {
+    return switch (name) {
           case "sin" -> FastMath.sin(value);
           case "cos" -> FastMath.cos(value);
           case "tan" -> FastMath.tan(value);

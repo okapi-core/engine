@@ -285,9 +285,9 @@ public class ExpressionVisitor extends PromQLParserBaseVisitor<LogicalExpr> {
   private LogicalExpr parseAtValue(PromQLParser.AtValueContext ctx) {
     if (ctx.DURATION() != null) {
       long ms = DurationUtil.parseToMillis(ctx.DURATION().getText());
-      return new LiteralExpr((float) (ms / 1000.0d));
+      return new LiteralExpr(ms / 1000.0d);
     }
-    return new LiteralExpr(Float.parseFloat(ctx.NUMBER().getText()));
+    return new LiteralExpr(Double.parseDouble(ctx.NUMBER().getText()));
   }
 
   private LogicalExpr applyOffset(LogicalExpr expr, DurationExpr offset) {
@@ -340,8 +340,8 @@ public class ExpressionVisitor extends PromQLParserBaseVisitor<LogicalExpr> {
     if ("nan".equalsIgnoreCase(s)) return new LiteralExpr(Float.NaN);
     if ("inf".equalsIgnoreCase(s)) return new LiteralExpr(Float.POSITIVE_INFINITY);
     if (lit.DURATION() != null)
-      return new LiteralExpr((float) (DurationUtil.parseToMillis(s) / 1000.0d));
-    return new LiteralExpr(Float.parseFloat(s));
+      return new LiteralExpr(DurationUtil.parseToMillis(s) / 1000.0d);
+    return new LiteralExpr(Double.parseDouble(s));
   }
 
   private SelectorExpr buildInstantSelector(PromQLParser.InstantSelectorContext is) {

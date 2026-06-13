@@ -46,7 +46,7 @@ public class ExpressionEvaluatorSanityTest {
     // Assert
     assertNotNull(result);
     assertEquals(ValueType.SCALAR, result.type());
-    float v = ((ScalarResult) result).value;
+    double v = ((ScalarResult) result).value;
     assertEquals(14.0f, v, 1e-6, "2 + 3 * 4 should evaluate to 14");
   }
 }
