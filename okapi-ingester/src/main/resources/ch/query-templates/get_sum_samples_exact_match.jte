@@ -6,6 +6,7 @@ toUnixTimestamp64Milli(ts_end) AS ts_end_ms,
 value, toString(sums_type) AS sums_type
 FROM ${data.getTable()}
 PREWHERE metric_name = '${data.getMetric()}'
+AND unit = '${data.getUnit()}'
 AND ts_start < toDateTime64(${data.getTe()}/1000.0, 3, 'UTC')
 AND ts_end > toDateTime64(${data.getTs()}/1000.0, 3, 'UTC')
 AND sums_type = '${data.getSumsType()}'

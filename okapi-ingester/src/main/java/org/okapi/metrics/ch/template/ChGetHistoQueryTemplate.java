@@ -16,6 +16,7 @@ public class ChGetHistoQueryTemplate {
   String table;
   String metric;
   Map<String, String> tags;
+  String unit;
   String histoType;
   long ts;
   long te;

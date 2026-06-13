@@ -31,6 +31,7 @@ public class ChPromQlTsClient implements TsClient {
       "get_sum_samples_exact_match.jte";
   private static final String GET_METRIC_EVENT_TYPE_EXACT_MATCH =
       "get_metric_event_type_exact_match.jte";
+  private static final Set<String> INTERNAL_LABELS = Set.of("__name__", "__type__", "__unit__");
 
   private final Client client;
   private final ChMetricTemplateEngine templateEngine;
@@ -42,19 +43,19 @@ public class ChPromQlTsClient implements TsClient {
 
   @Override
   public Scan get(String name, Map<String, String> tags, RESOLUTION res, long startMs, long endMs) {
-    Map<String, String> tagCopy = tags == null ? new LinkedHashMap<>() : new LinkedHashMap<>(tags);
+    var labels = splitLabels(tags);
     // todo: cache this information, type information does not change that often.
-    MetricEventType type = resolveMetricType(name, tagCopy, startMs, endMs);
+    MetricEventType type = resolveMetricType(name, labels.tags(), labels.unit(), startMs, endMs);
 
     return switch (type) {
-      case HISTO -> getHistogramSeries(name, tagCopy, startMs, endMs);
-      case SUM -> getSumSeries(name, tagCopy, startMs, endMs);
-      case GAUGE -> getGaugeSeries(name, tagCopy, startMs, endMs);
+      case HISTO -> getHistogramSeries(name, labels.tags(), labels.unit(), startMs, endMs);
+      case SUM -> getSumSeries(name, labels.tags(), labels.unit(), startMs, endMs);
+      case GAUGE -> getGaugeSeries(name, labels.tags(), labels.unit(), startMs, endMs);
     };
   }
 
   private MetricEventType resolveMetricType(
-      String metric, Map<String, String> tags, long startMs, long endMs) {
+      String metric, Map<String, String> tags, String unit, long startMs, long endMs) {
     TemplateOutput output = new StringOutput();
     templateEngine.render(
         GET_METRIC_EVENT_TYPE_EXACT_MATCH,
@@ -64,6 +65,7 @@ public class ChPromQlTsClient implements TsClient {
             .startMs(startMs)
             .endMs(endMs)
             .tags(ChSqlEscaper.escapeTags(tags))
+            .unit(ChSqlEscaper.escapeLiteral(unit))
             .build(),
         output);
     var query = output.toString();
@@ -76,7 +78,7 @@ public class ChPromQlTsClient implements TsClient {
   }
 
   private GaugeScan getGaugeSeries(
-      String metric, Map<String, String> tags, long startMs, long endMs) {
+      String metric, Map<String, String> tags, String unit, long startMs, long endMs) {
     TemplateOutput output = new StringOutput();
     templateEngine.render(
         GET_GAUGE_RAW_SAMPLES_EXACT_MATCH,
@@ -86,6 +88,7 @@ public class ChPromQlTsClient implements TsClient {
             .startMs(startMs)
             .endMs(endMs)
             .tags(ChSqlEscaper.escapeTags(tags))
+            .unit(ChSqlEscaper.escapeLiteral(unit))
             .build(),
         output);
     var query = output.toString();
@@ -99,17 +102,18 @@ public class ChPromQlTsClient implements TsClient {
     return GaugeScan.builder().universalPath(metric).timestamps(times).values(values).build();
   }
 
-  private Scan getSumSeries(String metric, Map<String, String> tags, long startMs, long endMs) {
-    var delta = scanSumSamples(metric, tags, startMs, endMs, "DELTA");
+  private Scan getSumSeries(
+      String metric, Map<String, String> tags, String unit, long startMs, long endMs) {
+    var delta = scanSumSamples(metric, tags, unit, startMs, endMs, "DELTA");
     if (!delta.isEmpty()) {
       return toSumScan(metric, delta, false);
     }
-    var cumulative = scanSumSamples(metric, tags, startMs, endMs, "CUMULATIVE");
+    var cumulative = scanSumSamples(metric, tags, unit, startMs, endMs, "CUMULATIVE");
     return toSumScan(metric, cumulative, true);
   }
 
   private List<SumPoint> scanSumSamples(
-      String metric, Map<String, String> tags, long startMs, long endMs, String type) {
+      String metric, Map<String, String> tags, String unit, long startMs, long endMs, String type) {
     TemplateOutput output = new StringOutput();
     templateEngine.render(
         GET_SUM_SAMPLES_EXACT_MATCH,
@@ -117,6 +121,7 @@ public class ChPromQlTsClient implements TsClient {
             .table(ChConstants.TBL_SUM)
             .metric(ChSqlEscaper.escapeLiteral(metric))
             .tags(ChSqlEscaper.escapeTags(tags))
+            .unit(ChSqlEscaper.escapeLiteral(unit))
             .sumsType(type)
             .ts(startMs)
             .te(endMs)
@@ -153,12 +158,12 @@ public class ChPromQlTsClient implements TsClient {
   }
 
   private Scan getHistogramSeries(
-      String metric, Map<String, String> tags, long startMs, long endMs) {
-    var delta = scanHistoSamples(metric, tags, startMs, endMs, "DELTA");
+      String metric, Map<String, String> tags, String unit, long startMs, long endMs) {
+    var delta = scanHistoSamples(metric, tags, unit, startMs, endMs, "DELTA");
     if (!delta.isEmpty()) {
       return new HistogramSeries(metric, delta);
     }
-    var cumulative = scanHistoSamples(metric, tags, startMs, endMs, "CUMULATIVE");
+    var cumulative = scanHistoSamples(metric, tags, unit, startMs, endMs, "CUMULATIVE");
     if (cumulative.isEmpty()) {
       return new HistogramSeries(metric, List.of());
     }
@@ -166,7 +171,7 @@ public class ChPromQlTsClient implements TsClient {
   }
 
   private List<NativeHistogramSample> scanHistoSamples(
-      String metric, Map<String, String> tags, long startMs, long endMs, String type) {
+      String metric, Map<String, String> tags, String unit, long startMs, long endMs, String type) {
     TemplateOutput output = new StringOutput();
     templateEngine.render(
         GET_HISTO_SAMPLES_EXACT_MATCH,
@@ -174,6 +179,7 @@ public class ChPromQlTsClient implements TsClient {
             .table(ChConstants.TBL_HISTOS)
             .metric(ChSqlEscaper.escapeLiteral(metric))
             .tags(ChSqlEscaper.escapeTags(tags))
+            .unit(ChSqlEscaper.escapeLiteral(unit))
             .histoType(type)
             .ts(startMs)
             .te(endMs)
@@ -241,11 +247,26 @@ public class ChPromQlTsClient implements TsClient {
     return (int) value;
   }
 
+  static SeriesFetchLabels splitLabels(Map<String, String> labels) {
+    var tags = new LinkedHashMap<String, String>();
+    if (labels == null) {
+      return new SeriesFetchLabels("", tags);
+    }
+    for (var entry : labels.entrySet()) {
+      if (!INTERNAL_LABELS.contains(entry.getKey())) {
+        tags.put(entry.getKey(), entry.getValue());
+      }
+    }
+    return new SeriesFetchLabels(labels.getOrDefault("__unit__", ""), tags);
+  }
+
   private enum MetricEventType {
     GAUGE,
     HISTO,
     SUM
   }
+
+  record SeriesFetchLabels(String unit, Map<String, String> tags) {}
 
   private record SumPoint(long startMs, long endMs, long value) {}
 }

@@ -16,4 +16,5 @@ public class ChGetGaugeRawQueryTemplate {
   long startMs;
   long endMs;
   Map<String, String> tags;
+  String unit;
 }

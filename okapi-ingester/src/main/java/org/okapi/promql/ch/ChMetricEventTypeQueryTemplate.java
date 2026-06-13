@@ -16,4 +16,5 @@ public class ChMetricEventTypeQueryTemplate {
   long startMs;
   long endMs;
   Map<String, String> tags;
+  String unit;
 }

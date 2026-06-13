@@ -4,6 +4,7 @@
  */
 package org.okapi.promql.ch;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Map;
@@ -26,6 +27,7 @@ class ChPromQlExactMatchTemplateTests {
                 .table("gauges")
                 .metric("cpu")
                 .tags(tags)
+                .unit("seconds")
                 .startMs(1)
                 .endMs(2)
                 .build()));
@@ -36,6 +38,7 @@ class ChPromQlExactMatchTemplateTests {
                 .table("histograms")
                 .metric("latency")
                 .tags(tags)
+                .unit("seconds")
                 .histoType("DELTA")
                 .ts(1)
                 .te(2)
@@ -47,6 +50,7 @@ class ChPromQlExactMatchTemplateTests {
                 .table("sums")
                 .metric("requests")
                 .tags(tags)
+                .unit("seconds")
                 .sumsType("DELTA")
                 .ts(1)
                 .te(2)
@@ -58,6 +62,7 @@ class ChPromQlExactMatchTemplateTests {
                 .table("events")
                 .metric("cpu")
                 .tags(tags)
+                .unit("seconds")
                 .startMs(1)
                 .endMs(2)
                 .build()));
@@ -78,7 +83,26 @@ class ChPromQlExactMatchTemplateTests {
     assertTrue(query.contains("SELECT DISTINCT metric, tags, unit"), query);
   }
 
+  @Test
+  void internalLabelsAreSeparatedFromPersistedTags() {
+    var labels =
+        ChPromQlTsClient.splitLabels(
+            Map.of(
+                "env", "dev",
+                "__name__", "cpu",
+                "__type__", "gauge",
+                "__unit__", "seconds"));
+
+    assertEquals("seconds", labels.unit());
+    assertEquals(Map.of("env", "dev"), labels.tags());
+
+    var labelsWithoutUnit = ChPromQlTsClient.splitLabels(Map.of("env", "dev"));
+    assertEquals("", labelsWithoutUnit.unit());
+    assertEquals(Map.of("env", "dev"), labelsWithoutUnit.tags());
+  }
+
   private static void assertExactMatch(String query) {
+    assertTrue(query.contains("AND unit = 'seconds'"), query);
     assertTrue(query.contains("AND length(tags) = 2"), query);
     assertTrue(query.contains("mapContains(tags, 'env')"), query);
     assertTrue(query.contains("mapContains(tags, 'host')"), query);

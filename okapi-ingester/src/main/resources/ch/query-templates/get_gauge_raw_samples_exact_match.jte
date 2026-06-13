@@ -4,6 +4,7 @@ SELECT toUnixTimestamp64Milli(timestamp) AS ts_ms, value
 FROM ${data.getTable()}
 PREWHERE 1
 AND metric = '${data.getMetric()}'
+AND unit = '${data.getUnit()}'
 AND timestamp >= toDateTime64(${data.getStartMs()}/1000.0, 3, 'UTC')
 AND timestamp <= toDateTime64(${data.getEndMs()}/1000.0, 3, 'UTC')
 AND length(tags) = ${data.getTags().size()}
