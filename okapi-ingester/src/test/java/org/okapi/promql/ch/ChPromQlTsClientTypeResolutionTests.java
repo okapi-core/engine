@@ -6,6 +6,7 @@ package org.okapi.promql.ch;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -23,5 +24,10 @@ class ChPromQlTsClientTypeResolutionTests {
     assertThrows(
         IllegalStateException.class,
         () -> ChPromQlTsClient.uniqueMetricEventType(List.of("GAUGE", "SUM")));
+  }
+
+  @Test
+  void missingMetadataDoesNotFallbackToGauge() {
+    assertTrue(ChPromQlTsClient.uniqueMetricEventType(List.of()).isEmpty());
   }
 }

@@ -15,6 +15,7 @@ import org.okapi.metrics.ch.template.ChGetHistoQueryTemplate;
 import org.okapi.metrics.ch.template.ChGetSumQueryTemplate;
 import org.okapi.metrics.ch.template.ChMetricTemplateEngine;
 import org.okapi.metrics.pojos.results.GaugeScan;
+import org.okapi.metrics.pojos.results.MissingScan;
 import org.okapi.metrics.pojos.results.Scan;
 import org.okapi.metrics.pojos.results.SumScan;
 import org.okapi.promql.eval.HistogramSeries;
@@ -47,16 +48,17 @@ public class ChPromQlTsClient implements TsClient {
   public Scan get(String name, Map<String, String> tags, RESOLUTION res, long startMs, long endMs) {
     var labels = splitLabels(tags);
     // todo: cache this information, type information does not change that often.
-    MetricEventType type = resolveMetricType(name, labels.tags(), labels.unit(), startMs, endMs);
+    var type = resolveMetricType(name, labels.tags(), labels.unit(), startMs, endMs);
+    if (type.isEmpty()) return MissingScan.INSTANCE;
 
-    return switch (type) {
+    return switch (type.get()) {
       case HISTO -> getHistogramSeries(name, labels.tags(), labels.unit(), startMs, endMs);
       case SUM -> getSumSeries(name, labels.tags(), labels.unit(), startMs, endMs);
       case GAUGE -> getGaugeSeries(name, labels.tags(), labels.unit(), startMs, endMs);
     };
   }
 
-  private MetricEventType resolveMetricType(
+  private Optional<MetricEventType> resolveMetricType(
       String metric, Map<String, String> tags, String unit, long startMs, long endMs) {
     TemplateOutput output = new StringOutput();
     templateEngine.render(
@@ -72,8 +74,7 @@ public class ChPromQlTsClient implements TsClient {
         output);
     var query = output.toString();
     List<GenericRecord> records = client.queryAll(query);
-    return uniqueMetricEventType(records.stream().map(r -> r.getString("event_type")).toList())
-        .orElse(MetricEventType.GAUGE);
+    return uniqueMetricEventType(records.stream().map(r -> r.getString("event_type")).toList());
   }
 
   private GaugeScan getGaugeSeries(
