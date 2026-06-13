@@ -14,6 +14,7 @@ import org.okapi.promql.eval.ts.SeriesDiscovery;
 import org.okapi.promql.eval.ts.StatisticsMerger;
 import org.okapi.promql.eval.ts.TsClient;
 import org.okapi.promql.eval.visitor.ExpressionVisitor;
+import org.okapi.promql.eval.nodes.LogicalExpr;
 import org.okapi.promql.parser.PromQLParser;
 
 public final class ExpressionEvaluator {
@@ -39,7 +40,7 @@ public final class ExpressionEvaluator {
       String promql, long startMs, long endMs, long stepMs, PromQLParser parser)
       throws EvaluationException {
     long nowMs = System.currentTimeMillis();
-    var logical = new ExpressionVisitor().visit(parser.expression());
+    var logical = parse(parser);
     var ctx =
         new EvalContext(
             startMs, endMs, stepMs, nowMs, chooseResolution(stepMs),
@@ -50,7 +51,7 @@ public final class ExpressionEvaluator {
   public ExpressionResult evaluateAt(String promql, long tsMs, PromQLParser parser)
       throws EvaluationException {
     long nowMs = System.currentTimeMillis();
-    var logical = new ExpressionVisitor().visit(parser.expression());
+    var logical = parse(parser);
     var ctx =
         new EvalContext(
             tsMs, tsMs, DEFAULT_INSTANT_STEP_MS, nowMs, chooseResolution(DEFAULT_INSTANT_STEP_MS),
@@ -60,9 +61,22 @@ public final class ExpressionEvaluator {
 
   public List<VectorData.SeriesId> find(PromQLParser parser, long start, long end) {
     var tree = parser.expression();
+    rejectSyntaxErrors(parser);
     var labelMatcher = new LabelMatchVisitor();
     var conditions = (MetricMatchCondition) labelMatcher.visit(tree);
     return discovery.expand(conditions.getMetricNameOrNull(), conditions.getLabelMatchers(), start, end);
+  }
+
+  private LogicalExpr parse(PromQLParser parser) {
+    var tree = parser.expression();
+    rejectSyntaxErrors(parser);
+    return new ExpressionVisitor().visit(tree);
+  }
+
+  private void rejectSyntaxErrors(PromQLParser parser) {
+    if (parser.getNumberOfSyntaxErrors() > 0) {
+      throw new EvaluationException("invalid PromQL expression");
+    }
   }
 
   private static RESOLUTION chooseResolution(long stepMs) {

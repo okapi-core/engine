@@ -30,27 +30,16 @@ public class ExpressionVisitor extends PromQLParserBaseVisitor<LogicalExpr> {
     var inner = visit(ctx.vectorOperation());
     var sq = ctx.subqueryOp();
     var range = sq.subqueryRange();
-    long rangeMs;
-    long stepMs;
-    if (range.SUBQUERY_RANGE() != null) {
-      String token = range.SUBQUERY_RANGE().getText();
-      String body = token.substring(1, token.length() - 1);
-      String[] parts = body.split(":");
-      if (parts.length < 2) throw new IllegalArgumentException("subquery requires [range:step]");
-      rangeMs = DurationUtil.parseToMillis(parts[0]);
-      stepMs = DurationUtil.parseToMillis(parts[1]);
-    } else {
-      rangeMs = parseDurationLiteral(range.durationLiteral(0));
-      if (range.durationLiteral(1) == null) {
-        throw new IllegalArgumentException("subquery requires [range:step]");
-      }
-      stepMs = parseDurationLiteral(range.durationLiteral(1));
+    DurationExpr rangeExpr = parseDurationExpr(range.durationExpr(0));
+    if (range.durationExpr(1) == null) {
+      throw new IllegalArgumentException("subquery requires [range:step]");
     }
-    Long offMs = null;
+    DurationExpr stepExpr = parseDurationExpr(range.durationExpr(1));
+    DurationExpr offsetExpr = null;
     if (sq.offsetOp() != null) {
-      offMs = parseDurationLiteral(sq.offsetOp().durationLiteral());
+      offsetExpr = parseOffsetDurationExpr(sq.offsetOp().offsetDurationExpr());
     }
-    return new SubqueryExpr(inner, rangeMs, stepMs, offMs);
+    return new SubqueryExpr(inner, rangeExpr, stepExpr, offsetExpr);
   }
 
   @Override
@@ -106,8 +95,8 @@ public class ExpressionVisitor extends PromQLParserBaseVisitor<LogicalExpr> {
     var left = visit(ctx.vectorOperation());
     var right = parseAtValue(ctx.atValue());
     if (ctx.offsetOp() != null) {
-      long offMs = parseDurationLiteral(ctx.offsetOp().durationLiteral());
-      left = applyOffset(left, offMs);
+      DurationExpr offset = parseOffsetDurationExpr(ctx.offsetOp().offsetDurationExpr());
+      left = applyOffset(left, offset);
     }
     return new AtExpr(left, right);
   }
@@ -145,21 +134,21 @@ public class ExpressionVisitor extends PromQLParserBaseVisitor<LogicalExpr> {
   public LogicalExpr visitVecMatrix(PromQLParser.VecMatrixContext ctx) {
     var ms = ctx.matrixSelector();
     var sel = buildInstantSelector(ms.instantSelector());
-    long rangeMs = parseTimeRange(ms.timeRange());
-    return new RangeSelectorExpr((SelectorExpr) sel, rangeMs, null);
+    DurationExpr range = parseTimeRange(ms.timeRange());
+    return new RangeSelectorExpr((SelectorExpr) sel, range, null);
   }
 
   @Override
   public LogicalExpr visitVecOffset(PromQLParser.VecOffsetContext ctx) {
-    long offMs = parseDurationLiteral(ctx.offset().durationLiteral());
+    DurationExpr offset = parseOffsetDurationExpr(ctx.offset().offsetDurationExpr());
     if (ctx.offset().instantSelector() != null) {
       var base = (SelectorExpr) buildInstantSelector(ctx.offset().instantSelector());
-      return new InstantizeExpr(new SelectorExpr(base.metricOrNull, base.matchers, base.atTsMs, offMs));
+      return new InstantizeExpr(new SelectorExpr(base.metricOrNull, base.matchers, base.atTsMs, offset));
     } else {
       var ms = ctx.offset().matrixSelector();
       var base = (SelectorExpr) buildInstantSelector(ms.instantSelector());
-      long rangeMs = parseTimeRange(ms.timeRange());
-      return new RangeSelectorExpr(base, rangeMs, offMs);
+      DurationExpr range = parseTimeRange(ms.timeRange());
+      return new RangeSelectorExpr(base, range, offset);
     }
   }
 
@@ -204,24 +193,71 @@ public class ExpressionVisitor extends PromQLParserBaseVisitor<LogicalExpr> {
     return new AggregateExpr(op, isBy, labels, args);
   }
 
-  private long parseDurationLiteral(PromQLParser.DurationLiteralContext ctx) {
-    boolean negative = ctx.SUB() != null;
-    String text;
-    if (ctx.DURATION() != null) {
-      text = ctx.DURATION().getText();
-    } else {
-      text = ctx.NUMBER().getText();
-    }
-    long ms = DurationUtil.parseToMillis(text);
-    return negative ? -ms : ms;
+  private DurationExpr parseDurationExpr(PromQLParser.DurationExprContext ctx) {
+    return parseDurationAddExpr(ctx.durationAddExpr());
   }
 
-  private long parseTimeRange(PromQLParser.TimeRangeContext ctx) {
-    if (ctx.TIME_RANGE() != null) {
-      String tr = ctx.TIME_RANGE().getText();
-      return DurationUtil.parseToMillis(tr.substring(1, tr.length() - 1));
+  private DurationExpr parseDurationAddExpr(PromQLParser.DurationAddExprContext ctx) {
+    DurationExpr expr = parseDurationMultExpr(ctx.durationMultExpr(0));
+    for (int i = 1; i < ctx.durationMultExpr().size(); i++) {
+      expr =
+          new DurationExpr.Binary(
+              ctx.getChild(2 * i - 1).getText(), expr, parseDurationMultExpr(ctx.durationMultExpr(i)));
     }
-    return parseDurationLiteral(ctx.durationLiteral());
+    return expr;
+  }
+
+  private DurationExpr parseDurationMultExpr(PromQLParser.DurationMultExprContext ctx) {
+    DurationExpr expr = parseDurationUnaryExpr(ctx.durationUnaryExpr(0));
+    for (int i = 1; i < ctx.durationUnaryExpr().size(); i++) {
+      expr =
+          new DurationExpr.Binary(
+              ctx.getChild(2 * i - 1).getText(), expr, parseDurationUnaryExpr(ctx.durationUnaryExpr(i)));
+    }
+    return expr;
+  }
+
+  private DurationExpr parseDurationPowExpr(PromQLParser.DurationPowExprContext ctx) {
+    DurationExpr expr = parseDurationPrimaryExpr(ctx.durationPrimaryExpr());
+    return ctx.durationUnaryExpr() == null
+        ? expr
+        : new DurationExpr.Binary("^", expr, parseDurationUnaryExpr(ctx.durationUnaryExpr()));
+  }
+
+  private DurationExpr parseDurationUnaryExpr(PromQLParser.DurationUnaryExprContext ctx) {
+    if (ctx.durationUnaryExpr() != null) {
+      return new DurationExpr.Unary(ctx.getChild(0).getText(), parseDurationUnaryExpr(ctx.durationUnaryExpr()));
+    }
+    return parseDurationPowExpr(ctx.durationPowExpr());
+  }
+
+  private DurationExpr parseDurationPrimaryExpr(PromQLParser.DurationPrimaryExprContext ctx) {
+    if (ctx.DURATION() != null) return durationLiteral(ctx.DURATION().getText());
+    if (ctx.NUMBER() != null) return durationLiteral(ctx.NUMBER().getText());
+    if (ctx.durationFunction() != null) return parseDurationFunction(ctx.durationFunction());
+    return parseDurationExpr(ctx.durationExpr());
+  }
+
+  private DurationExpr parseDurationFunction(PromQLParser.DurationFunctionContext ctx) {
+    String name = ctx.getChild(0).getText();
+    List<DurationExpr> args = new ArrayList<>();
+    for (var arg : ctx.durationExpr()) args.add(parseDurationExpr(arg));
+    return new DurationExpr.Function(name, args);
+  }
+
+  private DurationExpr parseOffsetDurationExpr(PromQLParser.OffsetDurationExprContext ctx) {
+    DurationExpr expr = parseDurationPrimaryExpr(ctx.durationPrimaryExpr());
+    return ctx.ADD() == null && ctx.SUB() == null
+        ? expr
+        : new DurationExpr.Unary(ctx.getChild(0).getText(), expr);
+  }
+
+  private DurationExpr durationLiteral(String text) {
+    return new DurationExpr.Literal(DurationUtil.parseToMillis(text) / 1000d);
+  }
+
+  private DurationExpr parseTimeRange(PromQLParser.TimeRangeContext ctx) {
+    return parseDurationExpr(ctx.durationExpr());
   }
 
   private LogicalExpr parseAtValue(PromQLParser.AtValueContext ctx) {
@@ -232,18 +268,18 @@ public class ExpressionVisitor extends PromQLParserBaseVisitor<LogicalExpr> {
     return new LiteralExpr(Float.parseFloat(ctx.NUMBER().getText()));
   }
 
-  private LogicalExpr applyOffset(LogicalExpr expr, long offMs) {
+  private LogicalExpr applyOffset(LogicalExpr expr, DurationExpr offset) {
     if (expr instanceof InstantizeExpr ie) {
-      return new InstantizeExpr(applyOffset(ie.inner, offMs));
+      return new InstantizeExpr(applyOffset(ie.inner, offset));
     }
     if (expr instanceof SelectorExpr se) {
-      return new SelectorExpr(se.metricOrNull, se.matchers, se.atTsMs, offMs);
+      return new SelectorExpr(se.metricOrNull, se.matchers, se.atTsMs, offset);
     }
     if (expr instanceof RangeSelectorExpr rse) {
-      return new RangeSelectorExpr(rse.base, rse.rangeMs, offMs);
+      return new RangeSelectorExpr(rse.base, rse.range, offset);
     }
     if (expr instanceof SubqueryExpr sq) {
-      return new SubqueryExpr(sq.inner, sq.rangeMs, sq.stepMs, offMs);
+      return new SubqueryExpr(sq.inner, sq.range, sq.step, offset);
     }
     throw new IllegalArgumentException("offset modifier can only apply to selectors");
   }
@@ -284,7 +320,7 @@ public class ExpressionVisitor extends PromQLParserBaseVisitor<LogicalExpr> {
     } else {
       matchers = collectMatchers(is.labelMatcherList());
     }
-    return new SelectorExpr(metric, matchers, null, null);
+    return new SelectorExpr(metric, matchers, null, (DurationExpr) null);
   }
 
   private List<LabelMatcher> collectMatchers(PromQLParser.LabelMatcherListContext list) {

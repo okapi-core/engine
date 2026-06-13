@@ -50,9 +50,10 @@ public final class NodeEvaluator {
     if (e.atTsMs != null) {
       start = end = e.atTsMs;
     }
-    if (e.offsetMs != null) {
-      start -= e.offsetMs;
-      end -= e.offsetMs;
+    if (e.offset != null) {
+      long offset = e.offset.evalMs(ctx);
+      start -= offset;
+      end -= offset;
     }
     var series = ctx.discovery.expand(e.metricOrNull, e.matchers, start, end);
     List<SeriesWindow> windows = new ArrayList<>(series.size());
@@ -70,7 +71,8 @@ public final class NodeEvaluator {
     // Expand fetch window to include the staleness lookback so the selector retrieves
     // data points that pre-date startMs but still fall within the 5-minute staleness window.
     var fetchCtx = ctx.withWindow(Math.max(0L, ctx.startMs - STALENESS_MS), ctx.endMs);
-    var res = eval(e.inner, fetchCtx);
+    var inner = resolveSelectorOffset(e.inner, ctx);
+    var res = eval(inner, fetchCtx);
     if (!(res instanceof RangeVectorResult rv)) return res;
 
     List<SeriesSample> out = new ArrayList<>();
@@ -83,7 +85,7 @@ public final class NodeEvaluator {
       for (long t = ctx.startMs; t <= ctx.endMs; t += ctx.stepMs) {
         // When the inner selector has an embedded @ or offset, the effective lookup
         // time differs from the outer step time t. Use it for the staleness window.
-        long effT = effectiveStepTime(e.inner, t);
+        long effT = effectiveStepTime(inner, t, ctx);
         long winStart = effT - STALENESS_MS;
         while (idx + 1 < n && tsList.get(idx + 1) <= effT) idx++;
         if (n == 0) continue;
@@ -95,10 +97,17 @@ public final class NodeEvaluator {
     return new InstantVectorResult(out);
   }
 
-  private long effectiveStepTime(LogicalExpr inner, long outerT) {
+  private LogicalExpr resolveSelectorOffset(LogicalExpr inner, EvalContext ctx) {
+    if (inner instanceof SelectorExpr s && s.offset != null) {
+      return new SelectorExpr(s.metricOrNull, s.matchers, s.atTsMs, DurationExpr.fixedMs(s.offset.evalMs(ctx)));
+    }
+    return inner;
+  }
+
+  private long effectiveStepTime(LogicalExpr inner, long outerT, EvalContext ctx) {
     if (inner instanceof SelectorExpr s) {
       long base = s.atTsMs != null ? s.atTsMs : outerT;
-      long off  = s.offsetMs != null ? s.offsetMs : 0L;
+      long off  = s.offset != null ? s.offset.evalMs(ctx) : 0L;
       return base - off;
     }
     return outerT;
@@ -108,20 +117,22 @@ public final class NodeEvaluator {
 
   private ExpressionResult evalRangeSelector(RangeSelectorExpr e, EvalContext ctx)
       throws EvaluationException {
-    long start = ctx.startMs - e.rangeMs + 1;
+    long range = e.range.evalMs(ctx);
+    if (range < 0) throw new EvaluationException("range selector duration must not be negative");
+    long start = ctx.startMs - range + 1;
     long end = ctx.endMs;
-    if (e.offsetMs != null) {
-      start -= e.offsetMs;
-      end -= e.offsetMs;
+    Long offset = e.offset == null ? null : e.offset.evalMs(ctx);
+    if (offset != null) {
+      start -= offset;
+      end -= offset;
     }
-    var base = new SelectorExpr(e.base.metricOrNull, e.base.matchers, e.base.atTsMs, null);
+    var base = new SelectorExpr(e.base.metricOrNull, e.base.matchers, e.base.atTsMs, (DurationExpr) null);
     var rv = (RangeVectorResult) evalSelector(base, ctx.withWindow(start, end));
 
     // When an offset is applied, the raw data timestamps are in shifted time. Advance them
     // by offsetMs so downstream window functions compute the correct (t - rangeMs, t] bounds
     // against the original (unshifted) evaluation times.
-    if (e.offsetMs == null) return rv;
-    long offset = e.offsetMs;
+    if (offset == null) return rv;
     List<SeriesWindow> shifted = new ArrayList<>(rv.data().size());
     for (SeriesWindow w : rv.data()) {
       if (w.scan() instanceof GaugeScan gs) {
@@ -173,21 +184,26 @@ public final class NodeEvaluator {
   }
 
   private ExpressionResult evalOffset(OffsetExpr e, EvalContext ctx) throws EvaluationException {
-    return eval(e.inner, ctx.withWindow(ctx.startMs - e.offsetMs, ctx.endMs - e.offsetMs));
+    long offset = e.offset.evalMs(ctx);
+    return eval(e.inner, ctx.withWindow(ctx.startMs - offset, ctx.endMs - offset));
   }
 
   // ---------- Subquery ----------
 
   private ExpressionResult evalSubquery(SubqueryExpr e, EvalContext ctx)
       throws EvaluationException {
-    long offset = e.offsetMs == null ? 0L : e.offsetMs;
-    long subStart = ceilToStep(ctx.startMs - e.rangeMs - offset, e.stepMs);
-    long subEnd = floorToStep(ctx.endMs - offset, e.stepMs);
+    long range = e.range.evalMs(ctx);
+    long step = e.step.evalMs(ctx);
+    long offset = e.offset == null ? 0L : e.offset.evalMs(ctx);
+    if (range < 0) throw new EvaluationException("subquery range must not be negative");
+    if (step <= 0) throw new EvaluationException("subquery step must be positive");
+    long subStart = ceilToStep(ctx.startMs - range - offset, step);
+    long subEnd = floorToStep(ctx.endMs - offset, step);
     var subCtx =
         new EvalContext(
             subStart,
             subEnd,
-            e.stepMs,
+            step,
             ctx.nowMs,
             ctx.resolution,
             ctx.client,
@@ -446,33 +462,33 @@ public final class NodeEvaluator {
       throws EvaluationException {
     return switch (e.name.toLowerCase(Locale.ROOT)) {
       // counter transforms (range-vector → instant-vector)
-      case "rate"     -> RangeFunctions.rate    (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0), ctx, anchorMsOf(e.args.get(0), ctx));
-      case "irate"    -> RangeFunctions.irate   (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0), ctx, anchorMsOf(e.args.get(0), ctx));
-      case "increase" -> RangeFunctions.increase(TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0), ctx, anchorMsOf(e.args.get(0), ctx));
-      case "delta"    -> RangeFunctions.delta   (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0), ctx, anchorMsOf(e.args.get(0), ctx));
-      case "idelta"   -> RangeFunctions.idelta  (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0), ctx, anchorMsOf(e.args.get(0), ctx));
-      case "deriv"    -> RangeFunctions.deriv   (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0), ctx, anchorMsOf(e.args.get(0), ctx));
+      case "rate"     -> RangeFunctions.rate    (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
+      case "irate"    -> RangeFunctions.irate   (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
+      case "increase" -> RangeFunctions.increase(TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
+      case "delta"    -> RangeFunctions.delta   (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
+      case "idelta"   -> RangeFunctions.idelta  (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
+      case "deriv"    -> RangeFunctions.deriv   (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
       // window stats (range-vector → instant-vector)
-      case "avg_over_time"     -> RangeStats.avg    (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0), ctx, anchorMsOf(e.args.get(0), ctx));
-      case "min_over_time"     -> RangeStats.min    (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0), ctx, anchorMsOf(e.args.get(0), ctx));
-      case "max_over_time"     -> RangeStats.max    (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0), ctx, anchorMsOf(e.args.get(0), ctx));
-      case "sum_over_time"     -> RangeStats.sum    (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0), ctx, anchorMsOf(e.args.get(0), ctx));
-      case "count_over_time"   -> RangeStats.count  (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0), ctx, anchorMsOf(e.args.get(0), ctx));
-      case "last_over_time"    -> RangeStats.last   (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0), ctx, anchorMsOf(e.args.get(0), ctx));
-      case "present_over_time" -> RangeStats.present(TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0), ctx, anchorMsOf(e.args.get(0), ctx));
+      case "avg_over_time"     -> RangeStats.avg    (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
+      case "min_over_time"     -> RangeStats.min    (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
+      case "max_over_time"     -> RangeStats.max    (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
+      case "sum_over_time"     -> RangeStats.sum    (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
+      case "count_over_time"   -> RangeStats.count  (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
+      case "last_over_time"    -> RangeStats.last   (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
+      case "present_over_time" -> RangeStats.present(TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
       case "quantile_over_time" -> RangeStats.quantile(
           TypeChecks.requireScalar(eval(e.args.get(0), ctx), e.name).value,
           TypeChecks.requireRangeVector(eval(e.args.get(1), ctx), e.name),
-          rangeOf(e, 1), ctx, anchorMsOf(e.args.get(1), ctx));
-      case "first_over_time"   -> RangeStats.first  (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0), ctx, anchorMsOf(e.args.get(0), ctx));
-      case "stddev_over_time"  -> RangeStats.stddev (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0), ctx, anchorMsOf(e.args.get(0), ctx));
-      case "stdvar_over_time"  -> RangeStats.stdvar (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0), ctx, anchorMsOf(e.args.get(0), ctx));
-      case "mad_over_time"     -> RangeStats.mad    (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0), ctx, anchorMsOf(e.args.get(0), ctx));
-      case "changes"           -> RangeStats.changes(TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0), ctx, anchorMsOf(e.args.get(0), ctx));
-      case "resets"            -> RangeStats.resets (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0), ctx, anchorMsOf(e.args.get(0), ctx));
+          rangeOf(e, 1, ctx), ctx, anchorMsOf(e.args.get(1), ctx));
+      case "first_over_time"   -> RangeStats.first  (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
+      case "stddev_over_time"  -> RangeStats.stddev (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
+      case "stdvar_over_time"  -> RangeStats.stdvar (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
+      case "mad_over_time"     -> RangeStats.mad    (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
+      case "changes"           -> RangeStats.changes(TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
+      case "resets"            -> RangeStats.resets (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
       case "predict_linear" -> RangeFunctions.predictLinear(
           TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name),
-          rangeOf(e, 0), ctx, anchorMsOf(e.args.get(0), ctx),
+          rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx),
           TypeChecks.requireScalar(eval(e.args.get(1), ctx), e.name).value);
       // instant-vector functions
       case "abs"   -> InstantFunctions.mapSamples(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), Math::abs);
@@ -496,7 +512,7 @@ public final class NodeEvaluator {
       case "histogram_quantile" -> HistogramFunctions.quantile(
           TypeChecks.requireScalar(eval(e.args.get(0), ctx), e.name).value,
           TypeChecks.requireRangeVector(eval(e.args.get(1), ctx), e.name),
-          rangeOf(e, 1), ctx);
+          rangeOf(e, 1, ctx), ctx);
       // vector → scalar
       case "scalar" -> InstantFunctions.toScalar(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name));
       // scalar → vector
@@ -549,7 +565,7 @@ public final class NodeEvaluator {
     var base = TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name);
     InstantizeExpr infoArg =
         e.args.size() == 1
-            ? new InstantizeExpr(new SelectorExpr("target_info", List.of(), null, null))
+            ? new InstantizeExpr(new SelectorExpr("target_info", List.of(), null, (DurationExpr) null))
             : requireInfoSelector(e.args.get(1));
     var selector = (SelectorExpr) infoArg.inner;
     boolean hasNameMatcher = selector.matchers.stream().anyMatch(m -> "__name__".equals(m.name()));
@@ -563,7 +579,7 @@ public final class NodeEvaluator {
     if (selector.metricOrNull == null && !hasNameMatcher)
       infoArg =
           new InstantizeExpr(
-              new SelectorExpr("target_info", selector.matchers, selector.atTsMs, selector.offsetMs));
+              new SelectorExpr("target_info", selector.matchers, selector.atTsMs, selector.offset));
 
     selector = (SelectorExpr) infoArg.inner;
     requireFloatInfoSeries(selector, ctx);
@@ -670,15 +686,15 @@ public final class NodeEvaluator {
     return String.valueOf(result);
   }
 
-  private long rangeOf(FunctionExpr e, int argIdx) {
-    return rangeOfExpr(e.args.get(argIdx), e.name, argIdx);
+  private long rangeOf(FunctionExpr e, int argIdx, EvalContext ctx) {
+    return rangeOfExpr(e.args.get(argIdx), e.name, argIdx, ctx);
   }
 
-  private long rangeOfExpr(LogicalExpr expr, String fnName, int argIdx) {
-    if (expr instanceof RangeSelectorExpr r) return r.rangeMs;
-    if (expr instanceof SubqueryExpr sq) return sq.rangeMs;
-    if (expr instanceof AtExpr at) return rangeOfExpr(at.inner, fnName, argIdx);
-    if (expr instanceof OffsetExpr off) return rangeOfExpr(off.inner, fnName, argIdx);
+  private long rangeOfExpr(LogicalExpr expr, String fnName, int argIdx, EvalContext ctx) {
+    if (expr instanceof RangeSelectorExpr r) return r.range.evalMs(ctx);
+    if (expr instanceof SubqueryExpr sq) return sq.range.evalMs(ctx);
+    if (expr instanceof AtExpr at) return rangeOfExpr(at.inner, fnName, argIdx, ctx);
+    if (expr instanceof OffsetExpr off) return rangeOfExpr(off.inner, fnName, argIdx, ctx);
     throw new EvaluationException(fnName + ": arg[" + argIdx + "] must be a range selector or subquery");
   }
 

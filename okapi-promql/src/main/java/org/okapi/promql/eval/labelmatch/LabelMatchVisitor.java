@@ -49,8 +49,7 @@ public class LabelMatchVisitor extends PromQLParserBaseVisitor<LabelMatchCtx> {
   @Override
   public LabelMatchCtx visitVecMatrix(PromQLParser.VecMatrixContext ctx) {
     // vector : matrixSelector
-    // matrixSelector : instantSelector TIME_RANGE
-    // We ignore TIME_RANGE for discovery purposes; extract the base instantSelector.
+    // We ignore the range expression for discovery purposes; extract the base instantSelector.
     return visitInstantSelector(ctx.matrixSelector().instantSelector());
   }
 

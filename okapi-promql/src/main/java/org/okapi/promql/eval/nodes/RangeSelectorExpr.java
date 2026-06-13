@@ -4,11 +4,18 @@
  */
 package org.okapi.promql.eval.nodes;
 
-import lombok.AllArgsConstructor;
-
-@AllArgsConstructor
 public final class RangeSelectorExpr implements LogicalExpr {
   public final SelectorExpr base;
-  public final long rangeMs;
-  public final Long offsetMs;
+  public final DurationExpr range;
+  public final DurationExpr offset;
+
+  public RangeSelectorExpr(SelectorExpr base, DurationExpr range, DurationExpr offset) {
+    this.base = base;
+    this.range = range;
+    this.offset = offset;
+  }
+
+  public RangeSelectorExpr(SelectorExpr base, long rangeMs, Long offsetMs) {
+    this(base, DurationExpr.fixedMs(rangeMs), offsetMs == null ? null : DurationExpr.fixedMs(offsetMs));
+  }
 }
