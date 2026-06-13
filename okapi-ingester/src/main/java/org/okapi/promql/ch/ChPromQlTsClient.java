@@ -18,8 +18,7 @@ import org.okapi.metrics.pojos.results.GaugeScan;
 import org.okapi.metrics.pojos.results.Scan;
 import org.okapi.metrics.pojos.results.SumScan;
 import org.okapi.promql.eval.HistogramSeries;
-import org.okapi.promql.eval.HistogramSeries.ExplicitHistogramSample;
-import org.okapi.promql.eval.HistogramSeries.Temporality;
+import org.okapi.promql.eval.HistogramSeries.NativeHistogramSample;
 import org.okapi.promql.eval.ts.RESOLUTION;
 import org.okapi.promql.eval.ts.TsClient;
 
@@ -166,7 +165,7 @@ public class ChPromQlTsClient implements TsClient {
     return new HistogramSeries(metric, toDeltaHistos(cumulative));
   }
 
-  private List<ExplicitHistogramSample> scanHistoSamples(
+  private List<NativeHistogramSample> scanHistoSamples(
       String metric, Map<String, String> tags, long startMs, long endMs, String type) {
     TemplateOutput output = new StringOutput();
     templateEngine.render(
@@ -182,94 +181,58 @@ public class ChPromQlTsClient implements TsClient {
         output);
     var query = output.toString();
     List<GenericRecord> records = client.queryAll(query);
-    var points = new ArrayList<ExplicitHistogramSample>(records.size());
+    var points = new ArrayList<NativeHistogramSample>(records.size());
     for (var record : records) {
-      float[] buckets = readFloatArray(record, "buckets");
-      int[] counts = readIntArray(record, "counts");
+      double[] buckets = readDoubleArray(record, "buckets");
+      double[] counts = readDoubleArray(record, "counts");
       points.add(
-          new ExplicitHistogramSample(
+          new NativeHistogramSample(
               record.getLong("ts_start_ms"),
               record.getLong("ts_end_ms"),
-              Temporality.valueOf(type),
-              buckets,
+              HistogramSeries.CUSTOM_BUCKET_SCHEMA,
+              0d,
+              0d,
+              0,
               counts,
+              0,
+              new double[0],
+              buckets,
               record.hasValue("sum") ? record.getDouble("sum") : Double.NaN,
-              record.getLong("count")));
+              record.getLong("count"),
+              "gauge"));
     }
-    points.sort(Comparator.comparingLong(ExplicitHistogramSample::endMs));
+    points.sort(Comparator.comparingLong(NativeHistogramSample::endMs));
     return points;
   }
 
-  private List<ExplicitHistogramSample> toDeltaHistos(
-      List<ExplicitHistogramSample> cumulative) {
-    var out = new ArrayList<ExplicitHistogramSample>(cumulative.size());
-    ExplicitHistogramSample prev = null;
+  private List<NativeHistogramSample> toDeltaHistos(
+      List<NativeHistogramSample> cumulative) {
+    var out = new ArrayList<NativeHistogramSample>(cumulative.size());
+    NativeHistogramSample prev = null;
     for (var p : cumulative) {
-      int[] counts = p.counts();
-      if (prev != null && counts != null && prev.counts() != null) {
-        int[] prevCounts = prev.counts();
-        if (prevCounts.length == counts.length) {
-          int[] delta = new int[counts.length];
-          for (int i = 0; i < counts.length; i++) {
-            int d = counts[i] - prevCounts[i];
-            delta[i] = d < 0 ? counts[i] : d;
-          }
-          out.add(
-              new ExplicitHistogramSample(
-                  p.startMs(),
-                  p.endMs(),
-                  Temporality.DELTA,
-                  p.upperBounds(),
-                  delta,
-                  Float.NaN,
-                  totalCount(delta)));
-        } else {
-          out.add(p);
-        }
-      } else {
-        out.add(p);
-      }
+      out.add(
+          prev == null || HistogramSeries.isReset(prev, p)
+              ? p
+              : (NativeHistogramSample) HistogramSeries.subtract(p, prev));
       prev = p;
     }
     return out;
   }
 
-  private static float[] readFloatArray(GenericRecord record, String key) {
+  private static double[] readDoubleArray(GenericRecord record, String key) {
     try {
-      return record.getFloatArray(key);
+      return record.getDoubleArray(key);
     } catch (Exception e) {
       var list = record.getList(key);
       if (list == null) {
-        return new float[0];
+        return new double[0];
       }
-      float[] arr = new float[list.size()];
+      double[] arr = new double[list.size()];
       for (int i = 0; i < list.size(); i++) {
-        arr[i] = ((Number) list.get(i)).floatValue();
+        arr[i] = ((Number) list.get(i)).doubleValue();
       }
       return arr;
     }
-  }
-
-  private static int[] readIntArray(GenericRecord record, String key) {
-    try {
-      return record.getIntArray(key);
-    } catch (Exception e) {
-      var list = record.getList(key);
-      if (list == null) {
-        return new int[0];
-      }
-      int[] arr = new int[list.size()];
-      for (int i = 0; i < list.size(); i++) {
-        arr[i] = ((Number) list.get(i)).intValue();
-      }
-      return arr;
-    }
-  }
-
-  private static int totalCount(int[] counts) {
-    int total = 0;
-    for (int count : counts) total += count;
-    return total;
   }
 
   private static int clampToInt(long value) {

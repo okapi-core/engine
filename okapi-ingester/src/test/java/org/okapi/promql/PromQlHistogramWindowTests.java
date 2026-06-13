@@ -76,8 +76,8 @@ public class PromQlHistogramWindowTests {
             metric,
             AggregationTemporality.AGGREGATION_TEMPORALITY_DELTA,
             List.of(
-                point(tags, 0L, 1_000L, List.of(10.0, 20.0), List.of(1L, 0L, 0L)),
-                point(tags, 1_000L, 2_000L, List.of(10.0, 20.0), List.of(0L, 1L, 0L))));
+                point(tags, 0L, 1_000L, List.of(10.0, 20.0), List.of(1L, 0L, 0L), 5d),
+                point(tags, 1_000L, 2_000L, List.of(10.0, 20.0), List.of(0L, 1L, 0L), 15d)));
 
     ingester.ingestOtelProtobuf(req);
     driver.onTick();
@@ -85,7 +85,7 @@ public class PromQlHistogramWindowTests {
     var result =
         promql.queryRange(
             Constants.DEFAULT_TENANT,
-            "histogram_quantile(0.5, latency_histo[1s])",
+            "histogram_quantile(0.5, latency_histo)",
             1_000L,
             2_000L,
             1_000L);
@@ -95,8 +95,15 @@ public class PromQlHistogramWindowTests {
     var entry = matrix.entrySet().iterator().next();
     List<VectorData.Sample> samples = entry.getValue();
     assertEquals(2, samples.size());
-    assertEquals(10.0f, samples.get(0).value());
-    assertEquals(10.0f, samples.get(1).value());
+    assertEquals(5.0f, samples.get(0).value());
+    assertEquals(15.0f, samples.get(1).value());
+
+    var sumResult =
+        promql.queryRange(
+            Constants.DEFAULT_TENANT, "histogram_sum(latency_histo)", 1_000L, 2_000L, 1_000L);
+    var sumSamples = ((InstantVectorResult) sumResult).toMatrix().values().iterator().next();
+    assertEquals(5.0f, sumSamples.get(0).value());
+    assertEquals(15.0f, sumSamples.get(1).value());
   }
 
   @Test
@@ -218,13 +225,20 @@ public class PromQlHistogramWindowTests {
   }
 
   private HistogramDataPoint point(
-      Map<String, String> tags, long startMs, long endMs, List<Double> bounds, List<Long> counts) {
+      Map<String, String> tags,
+      long startMs,
+      long endMs,
+      List<Double> bounds,
+      List<Long> counts,
+      double sum) {
     var builder =
         HistogramDataPoint.newBuilder()
             .setStartTimeUnixNano(startMs * 1_000_000)
             .setTimeUnixNano(endMs * 1_000_000)
             .addAllExplicitBounds(bounds)
-            .addAllBucketCounts(counts);
+            .addAllBucketCounts(counts)
+            .setCount(counts.stream().mapToLong(Long::longValue).sum())
+            .setSum(sum);
     for (var entry : tags.entrySet()) {
       builder.addAttributes(
           io.opentelemetry.proto.common.v1.KeyValue.newBuilder()
