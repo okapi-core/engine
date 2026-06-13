@@ -750,6 +750,21 @@ public final class NodeEvaluator {
       case "abs"   -> InstantFunctions.mapDerivedSamples(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), Math::abs);
       case "ceil"  -> InstantFunctions.mapDerivedSamples(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), v -> (float) Math.ceil(v));
       case "floor" -> InstantFunctions.mapDerivedSamples(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), v -> (float) Math.floor(v));
+      case "exp" -> InstantFunctions.mapDerivedSamples(
+          TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name),
+          v -> (float) FastMath.exp(v));
+      case "ln" -> InstantFunctions.mapDerivedSamples(
+          TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name),
+          v -> (float) FastMath.log(v));
+      case "sqrt" -> InstantFunctions.mapDerivedSamples(
+          TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name),
+          v -> (float) FastMath.sqrt(v));
+      case "log2" -> InstantFunctions.mapDerivedSamples(
+          TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name),
+          v -> (float) (FastMath.log(v) / FastMath.log(2d)));
+      case "log10" -> InstantFunctions.mapDerivedSamples(
+          TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name),
+          v -> (float) FastMath.log10(v));
       case "sgn" -> InstantFunctions.mapDerivedSamples(
           TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), Math::signum);
       case "round" -> evalRound(e, ctx);

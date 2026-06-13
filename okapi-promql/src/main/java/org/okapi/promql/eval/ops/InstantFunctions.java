@@ -160,7 +160,8 @@ public final class InstantFunctions {
   }
 
   public static ScalarResult toScalar(InstantVectorResult iv) {
-    if (iv.data().size() != 1) return new ScalarResult(Float.NaN);
-    return new ScalarResult(iv.data().get(0).sample().value());
+    var floats = iv.data().stream().filter(sample -> !sample.sample().isHistogram()).toList();
+    if (floats.size() != 1) return new ScalarResult(Float.NaN);
+    return new ScalarResult(floats.get(0).sample().value());
   }
 }
