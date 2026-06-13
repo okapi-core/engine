@@ -4,11 +4,12 @@
  */
 package org.okapi.ops;
 
-import java.util.concurrent.Callable;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.Spec;
+
+import java.util.concurrent.Callable;
 
 @Command(
     name = "okapi-ops",
@@ -18,7 +19,6 @@ import picocli.CommandLine.Spec;
     usageHelpAutoWidth = true,
     subcommands = {
       ChMigrateCommand.class,
-      DdbMigrateCommand.class,
       PgMigrateCommand.class,
       PgValidateCommand.class,
       CreateSecretsCommand.class
