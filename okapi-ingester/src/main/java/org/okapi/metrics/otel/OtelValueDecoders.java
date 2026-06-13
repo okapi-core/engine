@@ -37,33 +37,12 @@ public class OtelValueDecoders {
     return anyVal.map(v -> KeyValueJson.builder().key(key).value(v).build());
   }
 
-  public static float extractNumberAsFloat(NumberDataPoint p) {
+  public static double extractNumberAsDouble(NumberDataPoint p) {
     return switch (p.getValueCase()) {
-      case AS_DOUBLE -> (float) p.getAsDouble();
-      case AS_INT -> (float) p.getAsInt();
-      case VALUE_NOT_SET -> 0.0f;
+      case AS_DOUBLE -> p.getAsDouble();
+      case AS_INT -> p.getAsInt();
+      case VALUE_NOT_SET -> 0.0d;
     };
-  }
-
-  public static int extractNumberAsInt(NumberDataPoint p) {
-    switch (p.getValueCase()) {
-      case AS_DOUBLE:
-        double d = p.getAsDouble();
-        long rounded = Math.round(d);
-        return clampToInt(rounded);
-      case AS_INT:
-        return clampToInt(p.getAsInt());
-      case VALUE_NOT_SET:
-        return 0;
-      default:
-        return 0;
-    }
-  }
-
-  public static int clampToInt(long value) {
-    if (value > Integer.MAX_VALUE) return Integer.MAX_VALUE;
-    if (value < Integer.MIN_VALUE) return Integer.MIN_VALUE;
-    return (int) value;
   }
 
   public static String anyValueToString(AnyValue v) {

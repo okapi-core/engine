@@ -29,7 +29,7 @@ public class ChSumSampleRow extends AbstractChRow {
 
   String unit;
 
-  long value;
+  double value;
 
   @SerializedName("sums_type")
   CH_SUM_TYPE sumType;

@@ -18,7 +18,7 @@ import org.okapi.rest.metrics.Exemplar;
 @ToString
 public class Gauge {
   private List<Long> ts;
-  private List<Float> value;
+  private List<? extends Number> value;
   private List<Exemplar> exemplars;
 
   public void lock() {
@@ -26,7 +26,7 @@ public class Gauge {
     value = Collections.unmodifiableList(value);
   }
 
-  public Gauge(List<Long> ts, List<Float> value) {
+  public Gauge(List<Long> ts, List<? extends Number> value) {
     this.ts = ts;
     this.value = value;
     this.exemplars = Collections.emptyList();

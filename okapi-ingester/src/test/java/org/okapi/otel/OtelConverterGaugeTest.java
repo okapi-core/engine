@@ -82,6 +82,6 @@ public class OtelConverterGaugeTest {
     assertNotNull(g);
     assertEquals(List.of(1L, 2L), g.getTs());
     assertEquals(2, g.getValue().size());
-    assertEquals(List.of(1.5f, 2.0f), g.getValue());
+    assertEquals(List.of(1.5d, 2.0d), g.getValue());
   }
 }

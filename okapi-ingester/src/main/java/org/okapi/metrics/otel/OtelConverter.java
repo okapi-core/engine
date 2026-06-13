@@ -155,7 +155,7 @@ public final class OtelConverter {
     // Group points by tags
     Map<String, Map<String, String>> tagKeyToTags = new HashMap<>();
     Map<String, List<Long>> tsByKey = new HashMap<>();
-    Map<String, List<Float>> valsByKey = new HashMap<>();
+    Map<String, List<Double>> valsByKey = new HashMap<>();
     Map<String, List<Exemplar>> exemplarsByKey = new HashMap<>();
     for (var p : g.getDataPointsList()) {
       Map<String, String> tags = toTagsMap(p.getAttributesList());
@@ -166,7 +166,7 @@ public final class OtelConverter {
           .add(nanosToMillis(p.getTimeUnixNano()));
       valsByKey
           .computeIfAbsent(key, OkapiLists::keyToEmptyArrayList)
-          .add(OtelValueDecoders.extractNumberAsFloat(p));
+          .add(OtelValueDecoders.extractNumberAsDouble(p));
       var exemplar = collectExemplar(metricName, tags, p);
       exemplarsByKey.computeIfAbsent(key, OkapiLists::keyToEmptyArrayList).addAll(exemplar);
     }
@@ -212,7 +212,7 @@ public final class OtelConverter {
       SumPoint pt = new SumPoint();
       pt.setStart(nanosToMillis(p.getStartTimeUnixNano()));
       pt.setEnd(nanosToMillis(p.getTimeUnixNano()));
-      pt.setSum(extractNumberAsInt(p));
+      pt.setSum(OtelValueDecoders.extractNumberAsDouble(p));
       ptsByKey.computeIfAbsent(key, OkapiLists::keyToEmptyArrayList).add(pt);
     }
 

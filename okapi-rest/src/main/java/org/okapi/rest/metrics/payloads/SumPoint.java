@@ -14,5 +14,5 @@ import lombok.*;
 public class SumPoint {
   Long start;
   Long end;
-  long sum;
+  double sum;
 }

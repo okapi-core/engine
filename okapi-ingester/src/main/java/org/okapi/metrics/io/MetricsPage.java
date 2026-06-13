@@ -75,7 +75,7 @@ public class MetricsPage extends AbstractTimestampedPage
       var ts = gauge.getTs().get(i);
       metadata.updateTsStart(ts);
       metadata.updateTsEnd(ts);
-      body.updateGauge(path, gauge.getTs().get(i), gauge.getValue().get(i));
+      body.updateGauge(path, gauge.getTs().get(i), gauge.getValue().get(i).floatValue());
     }
   }
 
@@ -119,7 +119,7 @@ public class MetricsPage extends AbstractTimestampedPage
             sumPoint.getStart(),
             sumPoint.getEnd(),
             Histogram.TEMPORALITY.CUMULATIVE,
-            new long[] {sumPoint.getSum()},
+            new long[] {Math.round(sumPoint.getSum())},
             new float[] {});
     body.updateHistogram(path, sumPoint.getStart(), histogram);
   }

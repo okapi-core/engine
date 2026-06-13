@@ -18,6 +18,6 @@ public class ChGaugeSampleRow extends AbstractChRow {
   long timestamp;
   String metric;
   Map<String, String> tags;
-  float value;
+  double value;
   String unit;
 }

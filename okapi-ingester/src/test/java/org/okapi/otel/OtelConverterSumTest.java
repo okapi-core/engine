@@ -73,11 +73,11 @@ public class OtelConverterSumTest {
     var sp1 = r.getSum().getSumPoints().get(0);
     assertEquals(1L, sp1.getStart());
     assertEquals(2L, sp1.getEnd());
-    assertEquals(3, sp1.getSum());
+    assertEquals(3d, sp1.getSum());
 
     var sp2 = r.getSum().getSumPoints().get(1);
     assertEquals(2L, sp2.getStart());
     assertEquals(3L, sp2.getEnd());
-    assertEquals(4, sp2.getSum()); // 4.2 rounded -> 4
+    assertEquals(4.2d, sp2.getSum());
   }
 }

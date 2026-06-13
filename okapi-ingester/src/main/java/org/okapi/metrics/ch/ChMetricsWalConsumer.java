@@ -53,7 +53,7 @@ public class ChMetricsWalConsumer {
                 .tags(req.getTags())
                 .unit(req.getUnit())
                 .timestamp(ts)
-                .value(req.getGauge().getValue().get(i))
+                .value(req.getGauge().getValue().get(i).doubleValue())
                 .build();
         gaugeSamples.add(gson.toJson(sample));
         metaRows.add(metricMetadataRow(req, METRIC_TYPE.GAUGE, null, ts, ts));
