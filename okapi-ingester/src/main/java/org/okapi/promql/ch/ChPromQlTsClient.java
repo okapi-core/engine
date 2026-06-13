@@ -72,11 +72,8 @@ public class ChPromQlTsClient implements TsClient {
         output);
     var query = output.toString();
     List<GenericRecord> records = client.queryAll(query);
-    if (records.isEmpty()) {
-      return MetricEventType.GAUGE;
-    }
-    String eventType = records.getFirst().getString("event_type");
-    return MetricEventType.valueOf(eventType);
+    return uniqueMetricEventType(records.stream().map(r -> r.getString("event_type")).toList())
+        .orElse(MetricEventType.GAUGE);
   }
 
   private GaugeScan getGaugeSeries(
@@ -345,7 +342,15 @@ public class ChPromQlTsClient implements TsClient {
     return new SeriesFetchLabels(labels.getOrDefault("__unit__", ""), tags);
   }
 
-  private enum MetricEventType {
+  static Optional<MetricEventType> uniqueMetricEventType(List<String> eventTypes) {
+    var types = eventTypes.stream().map(MetricEventType::valueOf).collect(java.util.stream.Collectors.toSet());
+    if (types.size() > 1) {
+      throw new IllegalStateException("series identity contains conflicting metric types: " + types);
+    }
+    return types.stream().findFirst();
+  }
+
+  enum MetricEventType {
     GAUGE,
     HISTO,
     SUM

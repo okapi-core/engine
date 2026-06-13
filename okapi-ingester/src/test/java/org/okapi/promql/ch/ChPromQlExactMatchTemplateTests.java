@@ -96,6 +96,24 @@ class ChPromQlExactMatchTemplateTests {
   }
 
   @Test
+  void typeResolutionSelectsEveryDistinctType() {
+    var query =
+        engine.render(
+            "get_metric_event_type_exact_match.jte",
+            ChMetricEventTypeQueryTemplate.builder()
+                .table("events")
+                .metric("cpu")
+                .tags(Map.of())
+                .unit("cores")
+                .startMs(1)
+                .endMs(2)
+                .build());
+
+    assertTrue(query.contains("SELECT DISTINCT event_type"), query);
+    assertTrue(!query.contains("LIMIT 1"), query);
+  }
+
+  @Test
   void internalLabelsAreSeparatedFromPersistedTags() {
     var labels =
         ChPromQlTsClient.splitLabels(

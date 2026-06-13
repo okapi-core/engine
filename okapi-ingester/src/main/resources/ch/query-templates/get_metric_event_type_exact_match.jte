@@ -1,6 +1,6 @@
 @param org.okapi.promql.ch.ChMetricEventTypeQueryTemplate data
 
-SELECT event_type
+SELECT DISTINCT event_type
 FROM ${data.getTable()}
 PREWHERE 1
 AND metric = '${data.getMetric()}'
@@ -11,4 +11,3 @@ AND length(tags) = ${data.getTags().size()}
 @for(var tag : data.getTags().entrySet())
     AND mapContains(tags, '${tag.getKey()}') AND tags['${tag.getKey()}'] = '${tag.getValue()}'
 @endfor
-LIMIT 1
