@@ -2,7 +2,10 @@ name: okapi-test-infra
 
 services:
   clickhouse:
-    image: clickhouse/clickhouse-server:25.12
+    build:
+      context: .
+      dockerfile: test-infra/clickhouse/Dockerfile
+    image: okapi-test-clickhouse:25.12
     container_name: okapi-clickhouse
     environment:
       CLICKHOUSE_PASSWORD: okapi_testing_password
@@ -16,7 +19,6 @@ services:
     volumes:
       - "${OKAPI_CH_DIR:-${HOME}/.okapi-data}/ch_data:/var/lib/clickhouse"
       - "${OKAPI_CH_DIR:-${HOME}/.okapi-data}/ch_logs:/var/log/clickhouse-server"
-      - ./test-infra/clickhouse/users.xml:/etc/clickhouse-server/users.d/okapi-test.xml:ro
     healthcheck:
       test:
         [
@@ -49,7 +51,10 @@ services:
       - okapi-test-network
 
   postgres:
-    image: postgres:16
+    build:
+      context: .
+      dockerfile: test-infra/postgres/Dockerfile
+    image: okapi-test-postgres:16
     container_name: okapi-postgres
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-okapi_oscar}
@@ -57,8 +62,6 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-okapi_oscar_password}
     ports:
       - "5432:5432"
-    volumes:
-      - ./postgres-init/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
       test:
         [
