@@ -731,6 +731,10 @@ public final class NodeEvaluator {
       case "stddev_over_time"  -> RangeStats.stddev (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
       case "stdvar_over_time"  -> RangeStats.stdvar (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
       case "mad_over_time"     -> RangeStats.mad    (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
+      case "ts_of_min_over_time" -> RangeStats.timestampOf(TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx), RangeStats.TimestampSelector.MIN);
+      case "ts_of_max_over_time" -> RangeStats.timestampOf(TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx), RangeStats.TimestampSelector.MAX);
+      case "ts_of_first_over_time" -> RangeStats.timestampOf(TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx), RangeStats.TimestampSelector.FIRST);
+      case "ts_of_last_over_time" -> RangeStats.timestampOf(TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx), RangeStats.TimestampSelector.LAST);
       case "changes"           -> RangeStats.changes(TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeEvalContextOf(e.args.get(0), ctx), anchorMsOf(e.args.get(0), ctx));
       case "resets"            -> RangeStats.resets (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeEvalContextOf(e.args.get(0), ctx), anchorMsOf(e.args.get(0), ctx));
       case "predict_linear" -> RangeFunctions.predictLinear(

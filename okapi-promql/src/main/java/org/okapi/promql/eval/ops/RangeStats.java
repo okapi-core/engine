@@ -18,6 +18,13 @@ import java.util.List;
 
 /** Pure functions over RangeVectorResult for window statistics. */
 public final class RangeStats {
+  public enum TimestampSelector {
+    FIRST,
+    LAST,
+    MIN,
+    MAX
+  }
+
   private RangeStats() {}
 
   public static InstantVectorResult avg(RangeVectorResult rv, long rangeMs, EvalContext ctx, long anchorMs) {
@@ -97,6 +104,28 @@ public final class RangeStats {
 
   public static InstantVectorResult first(RangeVectorResult rv, long rangeMs, EvalContext ctx, long anchorMs) {
     return selectSample(rv, rangeMs, ctx, anchorMs, true);
+  }
+
+  public static InstantVectorResult timestampOf(
+      RangeVectorResult rv,
+      long rangeMs,
+      EvalContext ctx,
+      long anchorMs,
+      TimestampSelector selector) {
+    List<SeriesSample> out = new ArrayList<>();
+    for (SeriesWindow window : rv.data()) {
+      for (long t = ctx.startMs; t <= ctx.endMs; t += ctx.stepMs) {
+        long anchor = anchorMs >= 0 ? anchorMs : t;
+        TimelineSample selected = selectTimelineSample(
+            samplesInWindow(window, anchor - rangeMs, anchor), selector);
+        if (selected != null) {
+          out.add(
+              new SeriesSample(
+                  SeriesIds.derived(window.id()), new Sample(t, selected.sourceTs() / 1000f)));
+        }
+      }
+    }
+    return new InstantVectorResult(out);
   }
 
   public static InstantVectorResult stddev(RangeVectorResult rv, long rangeMs, EvalContext ctx, long anchorMs) {
@@ -379,6 +408,24 @@ public final class RangeStats {
       }
     }
     return samples;
+  }
+
+  private static TimelineSample selectTimelineSample(
+      List<TimelineSample> samples, TimestampSelector selector) {
+    if (samples.isEmpty()) return null;
+    if (selector == TimestampSelector.FIRST) return samples.get(0);
+    if (selector == TimestampSelector.LAST) return samples.get(samples.size() - 1);
+
+    TimelineSample selected = null;
+    for (TimelineSample sample : samples) {
+      if (sample.value() == null || Float.isNaN(sample.value())) continue;
+      if (selected == null
+          || selector == TimestampSelector.MIN && sample.value() <= selected.value()
+          || selector == TimestampSelector.MAX && sample.value() >= selected.value()) {
+        selected = sample;
+      }
+    }
+    return selected;
   }
 
   private record TimelineSample(
