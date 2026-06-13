@@ -42,10 +42,7 @@ public class ChPromQlSeriesDiscovery implements SeriesDiscovery {
     for (var record : records) {
       @SuppressWarnings("unchecked")
       var tags = (Map<String, String>) record.getObject("tags");
-      var labels = new LinkedHashMap<String, String>();
-      if (tags != null) {
-        labels.putAll(tags);
-      }
+      var labels = labelsWithUnit(tags, record.getString("unit"));
       var matchLabels = new LinkedHashMap<>(labels);
       var name = record.getString("metric");
       if (name != null) {
@@ -61,6 +58,13 @@ public class ChPromQlSeriesDiscovery implements SeriesDiscovery {
       out.add(id);
     }
     return out;
+  }
+
+  static Map<String, String> labelsWithUnit(Map<String, String> tags, String unit) {
+    var labels = new LinkedHashMap<String, String>();
+    if (tags != null) labels.putAll(tags);
+    labels.put("__unit__", unit == null ? "" : unit);
+    return labels;
   }
 
   static boolean matches(Map<String, String> labels, List<LabelMatcher> matchers) {

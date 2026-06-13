@@ -5,6 +5,7 @@
 package org.okapi.promql.ch;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -30,6 +31,16 @@ class ChPromQlSeriesDiscoveryMatcherTests {
     assertFalse(matches(LabelOp.NE, ""));
     assertFalse(matches(LabelOp.RE, ".+"));
     assertFalse(matches(LabelOp.NRE, ".*"));
+  }
+
+  @Test
+  void discoveryLabelsCarryUnitAsInternalMetadata() {
+    assertEquals(
+        Map.of("env", "prod", "__unit__", "seconds"),
+        ChPromQlSeriesDiscovery.labelsWithUnit(LABELS, "seconds"));
+    assertEquals(
+        Map.of("env", "prod", "__unit__", ""),
+        ChPromQlSeriesDiscovery.labelsWithUnit(LABELS, null));
   }
 
   private static boolean matches(LabelOp op, String value) {

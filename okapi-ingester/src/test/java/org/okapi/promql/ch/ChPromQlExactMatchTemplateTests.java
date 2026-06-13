@@ -63,6 +63,21 @@ class ChPromQlExactMatchTemplateTests {
                 .build()));
   }
 
+  @Test
+  void seriesDiscoverySelectsUnitMetadata() {
+    var query =
+        engine.render(
+            "get_metric_events_series.jte",
+            ChSeriesDiscoveryQueryTemplate.builder()
+                .table("events")
+                .metric("cpu")
+                .startMs(1)
+                .endMs(2)
+                .build());
+
+    assertTrue(query.contains("SELECT DISTINCT metric, tags, unit"), query);
+  }
+
   private static void assertExactMatch(String query) {
     assertTrue(query.contains("AND length(tags) = 2"), query);
     assertTrue(query.contains("mapContains(tags, 'env')"), query);
