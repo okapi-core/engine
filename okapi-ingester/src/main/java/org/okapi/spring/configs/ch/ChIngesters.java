@@ -9,6 +9,7 @@ import org.okapi.metrics.ch.ChMetricsIngester;
 import org.okapi.metrics.ch.ChWalResources;
 import org.okapi.metrics.otel.OtelConverter;
 import org.okapi.spring.configs.Qualifiers;
+import org.okapi.spring.configs.properties.LogsConsumptionCfg;
 import org.okapi.spring.configs.properties.MetricsConsumptionCfg;
 import org.okapi.traces.ch.ChTracesIngester;
 import org.okapi.traces.ch.NoopSpanFilterStrategy;
@@ -26,8 +27,12 @@ public class ChIngesters {
 
   @Bean
   public ChLogsIngester logsIngester(
-      @Autowired @Qualifier(Qualifiers.LOGS_CH_WAL_RESOURCES) ChWalResources walResources) {
-    return new ChLogsIngester(walResources);
+      @Autowired @Qualifier(Qualifiers.LOGS_CH_WAL_RESOURCES)
+          ObjectProvider<ChWalResources> chWalResources,
+      @Autowired LogsConsumptionCfg cfg) {
+    var directIngestionEnabled =
+        cfg.getConsumptionType() == LogsConsumptionCfg.ConsumptionType.WAL;
+    return new ChLogsIngester(chWalResources.getIfAvailable(), directIngestionEnabled);
   }
 
   @Bean

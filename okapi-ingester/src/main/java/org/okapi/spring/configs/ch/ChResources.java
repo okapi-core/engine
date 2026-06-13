@@ -38,6 +38,10 @@ public class ChResources {
   }
 
   @Bean(name = Qualifiers.LOGS_CH_WAL_RESOURCES)
+  @ConditionalOnProperty(
+      name = "okapi.logs.consumptionType",
+      havingValue = "wal",
+      matchIfMissing = true)
   public ChWalResources logsChWalResources(@Autowired ChConfig chConfig) throws IOException {
     return new ChWalResources(
         chConfig.getChLogsWal(),
