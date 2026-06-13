@@ -597,7 +597,7 @@ public final class NodeEvaluator {
   private InstantVectorResult evalCountValues(AggregateExpr e, EvalContext ctx) {
     if (e.args.size() != 2 || !(e.args.get(0) instanceof StringLiteralExpr labelArg))
       throw new EvaluationException("count_values: expected a string label name and an instant-vector");
-    if (!labelArg.value.matches("[a-zA-Z_][a-zA-Z0-9_]*"))
+    if (!isValidLabelName(labelArg.value))
       throw new EvaluationException("invalid label name \"" + labelArg.value + "\"");
     var iv = TypeChecks.requireInstantVector(eval(e.args.get(1), ctx), e.op);
     Map<GroupKey, Integer> counts = new LinkedHashMap<>();
@@ -934,6 +934,7 @@ public final class NodeEvaluator {
 
   private InstantVectorResult labelReplace(
       InstantVectorResult iv, String dstLabel, String replacement, String srcLabel, String regex) {
+    requireValidLabelName(dstLabel);
     Pattern p;
     try {
       p = Pattern.compile(regex);
@@ -966,6 +967,7 @@ public final class NodeEvaluator {
 
   private InstantVectorResult labelJoin(
       InstantVectorResult iv, String dstLabel, String separator, List<String> srcLabels) {
+    requireValidLabelName(dstLabel);
     List<SeriesSample> out = new ArrayList<>(iv.data().size());
     for (var sample : iv.data()) {
       SeriesId sourceId = sample.series();
@@ -974,6 +976,8 @@ public final class NodeEvaluator {
       String joined = srcLabels.stream().map(label -> labelValue(sourceId, label)).collect(java.util.stream.Collectors.joining(separator));
       if ("__name__".equals(dstLabel)) {
         id = SeriesIds.withMetric(id, joined);
+      } else if (joined.isEmpty()) {
+        tags.remove(dstLabel);
       } else {
         tags.put(dstLabel, joined);
       }
@@ -984,6 +988,14 @@ public final class NodeEvaluator {
 
   private String labelValue(SeriesId id, String label) {
     return "__name__".equals(label) ? id.metric() : id.labels().tags().getOrDefault(label, "");
+  }
+
+  private void requireValidLabelName(String label) {
+    if (!isValidLabelName(label)) throw new EvaluationException("invalid label name \"" + label + "\"");
+  }
+
+  private boolean isValidLabelName(String label) {
+    return "__name__".equals(label) || label.matches("[a-zA-Z_][a-zA-Z0-9_]*");
   }
 
   private String summarize(ExpressionResult result) {

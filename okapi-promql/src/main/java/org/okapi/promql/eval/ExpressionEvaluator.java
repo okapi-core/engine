@@ -87,7 +87,7 @@ public final class ExpressionEvaluator {
       for (var sample : iv.data()) {
         var id = SeriesIds.materialize(sample.series());
         if (!seen.add(new SeriesTimestamp(id, sample.sample().ts()))) {
-          throw new EvaluationException("vector contains duplicate labelsets after metric-name removal");
+          throw new EvaluationException("vector cannot contain metrics with the same labelset");
         }
         out.add(new VectorData.SeriesSample(id, sample.sample()));
       }
