@@ -57,7 +57,7 @@ public final class NodeEvaluator {
     List<SeriesWindow> windows = new ArrayList<>(series.size());
     for (SeriesId id : series) {
       Scan scan = ctx.client.get(id.metric(), id.labels().tags(), ctx.resolution, start, end);
-      windows.add(new SeriesWindow(id, scan));
+      if (!isEmptyScan(scan)) windows.add(new SeriesWindow(id, scan));
     }
     return new RangeVectorResult(windows);
   }
@@ -107,7 +107,7 @@ public final class NodeEvaluator {
 
   private ExpressionResult evalRangeSelector(RangeSelectorExpr e, EvalContext ctx)
       throws EvaluationException {
-    long start = ctx.startMs - e.rangeMs;
+    long start = ctx.startMs - e.rangeMs + 1;
     long end = ctx.endMs;
     if (e.offsetMs != null) {
       start -= e.offsetMs;
@@ -145,6 +145,13 @@ public final class NodeEvaluator {
       }
     }
     return new RangeVectorResult(shifted);
+  }
+
+  private boolean isEmptyScan(Scan scan) {
+    if (scan instanceof GaugeScan gs) return gs.getTimestamps().isEmpty();
+    if (scan instanceof SumScan ss) return ss.getTs().isEmpty();
+    if (scan instanceof HistogramSeries hs) return hs.getPoints().isEmpty();
+    return false;
   }
 
   // ---------- At / Offset ----------

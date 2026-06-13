@@ -177,7 +177,7 @@ final class TestResultComparator {
         continue;
       }
       if (window.scan() instanceof GaugeScan gs) {
-        List<Float> actual = alignRangeValues(gs, range);
+        List<Float> actual = alignRangeValues(gs, range, exp.size());
         if (actual.size() != exp.size()) {
           diffs.add(TestExpectationDifference.of(cmd.expression(), "range vector length mismatch",
               String.valueOf(exp.size()), String.valueOf(actual.size())));
@@ -193,11 +193,11 @@ final class TestResultComparator {
         }
       } else if (window.scan() instanceof HistogramSeries hs) {
         List<HistogramCounts> expHist = expectedHistogram(id, cmd);
-        List<HistogramCounts> actual = alignHistogramValues(hs, range);
         if (expHist == null) {
           diffs.add(TestExpectationDifference.of(cmd.expression(), "unexpected series", null, id.toString()));
           continue;
         }
+        List<HistogramCounts> actual = alignHistogramValues(hs, range, expHist.size());
         compareHistogramList(cmd, expHist, actual, diffs);
       } else {
         diffs.add(TestExpectationDifference.of(cmd.expression(), "unsupported scan type", null,
@@ -361,19 +361,27 @@ final class TestResultComparator {
   // ---------- Range alignment ----------
 
   private List<Float> alignRangeValues(GaugeScan scan, RangeSpec range) {
+    return alignRangeValues(scan, range, range.steps);
+  }
+
+  private List<Float> alignRangeValues(GaugeScan scan, RangeSpec range, int steps) {
     if (range.stepMs <= 0 || range.steps <= 0) return new ArrayList<>(scan.getValues());
     Map<Long, Float> byTs = new HashMap<>();
     List<Long> ts = scan.getTimestamps();
     List<Float> vals = scan.getValues();
     for (int i = 0; i < ts.size(); i++) byTs.put(ts.get(i), vals.get(i));
-    return alignRangeValues(byTs, range);
+    return alignRangeValues(byTs, range, steps);
   }
 
   private List<Float> alignRangeValues(Map<Long, Float> byTs, RangeSpec range) {
+    return alignRangeValues(byTs, range, range.steps);
+  }
+
+  private List<Float> alignRangeValues(Map<Long, Float> byTs, RangeSpec range, int steps) {
     if (range.stepMs <= 0 || range.steps <= 0) return new ArrayList<>(byTs.values());
     List<Float> out = new ArrayList<>();
     long t = range.startMs;
-    for (int i = 0; i < range.steps; i++) {
+    for (int i = 0; i < steps; i++) {
       Float v = byTs.get(t);
       out.add(v == null || Staleness.isStale(v) ? Float.NaN : v);
       t += range.stepMs;
@@ -382,6 +390,10 @@ final class TestResultComparator {
   }
 
   private List<HistogramCounts> alignHistogramValues(HistogramSeries hs, RangeSpec range) {
+    return alignHistogramValues(hs, range, range.steps);
+  }
+
+  private List<HistogramCounts> alignHistogramValues(HistogramSeries hs, RangeSpec range, int steps) {
     List<HistogramCounts> out = new ArrayList<>();
     if (range.stepMs <= 0 || range.steps <= 0) {
       for (var p : hs.getPoints()) out.add(new HistogramCounts(p.sum(), p.count()));
@@ -390,7 +402,7 @@ final class TestResultComparator {
     Map<Long, HistogramCounts> byTs = new HashMap<>();
     for (var p : hs.getPoints()) byTs.put(p.endMs(), new HistogramCounts(p.sum(), p.count()));
     long t = range.startMs;
-    for (int i = 0; i < range.steps; i++) {
+    for (int i = 0; i < steps; i++) {
       out.add(byTs.get(t));
       t += range.stepMs;
     }
