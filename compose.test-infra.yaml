@@ -2,7 +2,7 @@ name: okapi-test-infra
 
 services:
   clickhouse:
-    image: clickhouse/clickhouse-server
+    image: clickhouse/clickhouse-server:25.12
     container_name: okapi-clickhouse
     environment:
       CLICKHOUSE_PASSWORD: okapi_testing_password
@@ -16,6 +16,7 @@ services:
     volumes:
       - "${OKAPI_CH_DIR:-${HOME}/.okapi-data}/ch_data:/var/lib/clickhouse"
       - "${OKAPI_CH_DIR:-${HOME}/.okapi-data}/ch_logs:/var/log/clickhouse-server"
+      - ./test-infra/clickhouse/users.xml:/etc/clickhouse-server/users.d/okapi-test.xml:ro
     healthcheck:
       test:
         [
@@ -120,4 +121,4 @@ services:
 
 networks:
   okapi-test-network:
-    name: okapi-test-network
+    name: okapi-test-infra-network

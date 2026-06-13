@@ -2,7 +2,7 @@ ch_dir = ${HOME}/.okapi-data
 
 FE_SETUP ?= fe-setup.json
 REPO = ghcr.io/okapi-core
-OKAPI_TEST_NET = okapi-test-network
+OKAPI_TEST_NET = okapi-test-infra-network
 DOCKER_COMPOSE ?= docker compose
 TEST_INFRA_COMPOSE ?= compose.test-infra.yaml
 
