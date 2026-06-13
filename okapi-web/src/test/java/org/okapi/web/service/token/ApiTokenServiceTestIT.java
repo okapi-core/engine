@@ -11,7 +11,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.okapi.data.dao.RelationGraphDao;
 import org.okapi.data.dao.UsersDao;
-import org.okapi.data.dto.TOKEN_STATUS;
+import org.okapi.data.model.TokenStatus;
 import org.okapi.web.auth.AbstractIT;
 import org.okapi.web.auth.OrgManager;
 import org.okapi.web.auth.TokenManager;
@@ -68,11 +68,11 @@ public class ApiTokenServiceTestIT extends AbstractIT {
     var afterCreateList = apiTokenService.listTokens(tempToken);
     assertEquals(1, afterCreateList.getTokens().size(), "Expected one token after creation");
     var tokenMeta = afterCreateList.getTokens().get(0);
-    assertEquals(TOKEN_STATUS.ACTIVE.name(), tokenMeta.getTokenStatus());
+    assertEquals(TokenStatus.ACTIVE.name(), tokenMeta.getTokenStatus());
 
-    var updateReq = new UpdateTokenRequest(tokenMeta.getTokenId(), TOKEN_STATUS.INACTIVE.name());
+    var updateReq = new UpdateTokenRequest(tokenMeta.getTokenId(), TokenStatus.INACTIVE.name());
     var updated = apiTokenService.updateToken(tempToken, updateReq);
-    assertEquals(TOKEN_STATUS.INACTIVE.name(), updated.getTokenStatus());
+    assertEquals(TokenStatus.INACTIVE.name(), updated.getTokenStatus());
 
     var afterUpdateList = apiTokenService.listTokens(tempToken);
     assertTrue(afterUpdateList.getTokens().isEmpty(), "Inactive tokens should not be listed");

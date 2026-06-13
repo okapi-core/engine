@@ -5,21 +5,19 @@
 package org.okapi.web.spring.config;
 
 import org.okapi.data.dao.*;
-import org.okapi.data.ddb.*;
-import org.okapi.data.ddb.dao.*;
+import org.okapi.data.pg.PostgresDaos;
+import org.okapi.data.pg.PostgresDataStore;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
-import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.s3.S3Client;
 
 @Configuration
 public class DaoConfiguration {
 
   @Bean
-  public DynamoDbEnhancedClient enhancedClient(@Autowired DynamoDbClient dynamoDbClient) {
-    return DynamoDbEnhancedClient.builder().dynamoDbClient(dynamoDbClient).build();
+  public PostgresDataStore postgresDataStore() {
+    return PostgresDataStore.fromEnvironment();
   }
 
   @Bean
@@ -28,69 +26,63 @@ public class DaoConfiguration {
   }
 
   @Bean
-  public UsersDao usersDao(@Autowired DynamoDbEnhancedClient enhancedClient) {
-    return new UsersDaoImpl(enhancedClient);
+  public UsersDao usersDao(@Autowired PostgresDataStore store) {
+    return PostgresDaos.users(store);
   }
 
   @Bean
-  public OrgDao orgDao(@Autowired DynamoDbEnhancedClient enhancedClient) {
-    return new OrgDaoDdbImpl(enhancedClient);
+  public OrgDao orgDao(@Autowired PostgresDataStore store) {
+    return PostgresDaos.organizations(store);
   }
 
   @Bean
-  public RelationGraphDao relationGraphDao(@Autowired DynamoDbEnhancedClient enhancedClient) {
-    return new RelationGraphDaoImpl(enhancedClient);
+  public RelationGraphDao relationGraphDao(@Autowired PostgresDataStore store) {
+    return PostgresDaos.relationGraph(store);
   }
 
   @Bean
-  public DashboardDao dashboardDao(@Autowired DynamoDbEnhancedClient enhancedClient) {
-    return new DashboardDaoImpl(enhancedClient);
+  public DashboardDao dashboardDao(@Autowired PostgresDataStore store) {
+    return PostgresDaos.dashboards(store);
   }
 
   @Bean
-  public FederatedSourceRepo federatedSourceRepo(@Autowired DynamoDbEnhancedClient enhancedClient) {
-    return new FederatedSourceRepoImpl(enhancedClient, new CommonQueryPatterns<>());
+  public FederatedSourceRepo federatedSourceRepo(@Autowired PostgresDataStore store) {
+    return PostgresDaos.federatedSources(store);
   }
 
   @Bean
-  public DashboardRowDao dashboardRowDao(@Autowired DynamoDbEnhancedClient enhancedClient) {
-    return new DashboardRowDaoDdbImpl(enhancedClient);
+  public DashboardRowDao dashboardRowDao(@Autowired PostgresDataStore store) {
+    return PostgresDaos.dashboardRows(store);
   }
 
   @Bean
-  public DashboardPanelDao dashboardPanelDao(@Autowired DynamoDbEnhancedClient enhancedClient) {
-    return new DashboardPanelDaoDdbImpl(enhancedClient);
+  public DashboardPanelDao dashboardPanelDao(@Autowired PostgresDataStore store) {
+    return PostgresDaos.dashboardPanels(store);
   }
 
   @Bean
-  public DashboardDao dashboardDaoDdb(@Autowired DynamoDbEnhancedClient enhancedClient) {
-    return new DashboardDaoImpl(enhancedClient);
-  }
-
-  @Bean
-  public UserEntityRelationsDao userEntityRelationsDao(
-      @Autowired DynamoDbEnhancedClient enhancedClient) {
-    return new UserEntityRelationsDaoImpl(enhancedClient);
+  public UserEntityRelationsDao userEntityRelationsDao(@Autowired PostgresDataStore store) {
+    return PostgresDaos.userEntityRelations(store);
   }
 
   @Bean
   public PendingJobsDao pendingJobsDao(
-      @Autowired DynamoDbEnhancedClient enhancedClient, @Autowired ResultUploader resultUploader) {
-    return new PendingJobsDaoDdbImpl(enhancedClient, resultUploader);
+      @Autowired PostgresDataStore store, @Autowired ResultUploader resultUploader) {
+    return PostgresDaos.pendingJobs(store, resultUploader);
   }
 
   @Bean
-  public TokenMetaDao tokenMetaDao(@Autowired DynamoDbEnhancedClient enhancedClient) {
-    return new TokenMetaDaoDdbImpl(enhancedClient);
+  public TokenMetaDao tokenMetaDao(@Autowired PostgresDataStore store) {
+    return PostgresDaos.tokens(store);
   }
 
   @Bean
-  public DashboardVarDao dashboardVarDao(@Autowired DynamoDbEnhancedClient enhancedClient) {
-    return new DashboardVarDaoImpl(enhancedClient);
+  public DashboardVarDao dashboardVarDao(@Autowired PostgresDataStore store) {
+    return PostgresDaos.dashboardVariables(store);
   }
 
   @Bean
-  public DashboardVersionDao dashboardVersionDao(@Autowired DynamoDbEnhancedClient enhancedClient) {
-    return new DashboardVersionDaoImpl(enhancedClient);
+  public DashboardVersionDao dashboardVersionDao(@Autowired PostgresDataStore store) {
+    return PostgresDaos.dashboardVersions(store);
   }
 }

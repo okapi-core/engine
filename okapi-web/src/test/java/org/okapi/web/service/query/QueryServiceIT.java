@@ -46,7 +46,6 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.s3.S3Client;
 
 @SpringBootTest
@@ -61,7 +60,6 @@ class QueryServiceIT {
   @MockitoBean private TokenManager tokenManager;
   @MockitoBean private AccessManager accessManager;
   @MockitoBean private SecretsManagerImpl secretsManagerImpl;
-  @MockitoBean private DynamoDbClient dynamoDbClient;
   @MockitoBean private S3Client s3Client;
   @MockitoBean private Algorithm algorithm;
 

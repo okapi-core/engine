@@ -17,7 +17,6 @@ import org.okapi.data.dao.DashboardDao;
 import org.okapi.data.dao.DashboardPanelDao;
 import org.okapi.data.dao.DashboardRowDao;
 import org.okapi.data.dao.RelationGraphDao;
-import org.okapi.data.ddb.dao.ResourceIdCreator;
 import org.okapi.data.model.DashboardPanel;
 import org.okapi.data.model.ResourceOrder;
 import org.okapi.web.auth.AbstractIT;

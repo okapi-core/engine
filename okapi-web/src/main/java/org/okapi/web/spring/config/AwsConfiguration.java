@@ -12,7 +12,6 @@ import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.EnvironmentVariableCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.InstanceProfileCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
-import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.secretsmanager.SecretsManagerClient;
 
@@ -54,14 +53,4 @@ public class AwsConfiguration {
         .build();
   }
 
-  @Bean
-  public DynamoDbClient dynamoDbClientProd(
-      @Autowired AwsCredentialsProvider credentialsProvider,
-      @Autowired AwsConfigurationValues configurationValues) {
-    return DynamoDbClient.builder()
-        .endpointOverride(URI.create(configurationValues.getEndpoint()))
-        .region(Region.of(configurationValues.getRegion()))
-        .credentialsProvider(credentialsProvider)
-        .build();
-  }
 }
