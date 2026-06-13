@@ -12,6 +12,8 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.okapi.rest.metrics.ExportMetricsRequest;
 import org.okapi.rest.metrics.payloads.Gauge;
+import org.okapi.rest.metrics.payloads.Histo;
+import org.okapi.rest.metrics.payloads.HistoPoint;
 import org.okapi.rest.metrics.payloads.SUM_TEMPORALITY;
 import org.okapi.rest.metrics.payloads.Sum;
 import org.okapi.rest.metrics.payloads.SumPoint;
@@ -45,6 +47,34 @@ class ChMetricsWalConsumerNumericPrecisionTests {
 
     assertEquals(1.234567890123d, value(gaugeRows.getFirst()));
     assertEquals(4.25d, value(sumRows.getFirst()));
+  }
+
+  @Test
+  void explicitHistogramRowsPreserveRawOtelBucketCounts() {
+    var rows =
+        consumer
+            .getHistoSamples(
+                ExportMetricsRequest.builder()
+                    .metricName("latency")
+                    .histo(
+                        Histo.builder()
+                            .histoPoints(
+                                List.of(
+                                    HistoPoint.builder()
+                                        .start(1L)
+                                        .end(2L)
+                                        .temporality(HistoPoint.TEMPORALITY.DELTA)
+                                        .buckets(new float[] {10f, 20f})
+                                        .bucketCounts(new long[] {5L, 7L, 2L})
+                                        .count(14L)
+                                        .build()))
+                            .build())
+                    .build())
+            .rows();
+
+    @SuppressWarnings("unchecked")
+    var row = (Map<String, Object>) gson.fromJson(rows.getFirst(), Map.class);
+    assertEquals(List.of(5d, 7d, 2d), row.get("counts"));
   }
 
   private double value(String json) {

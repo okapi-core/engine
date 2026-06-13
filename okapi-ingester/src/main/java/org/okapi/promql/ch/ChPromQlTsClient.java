@@ -194,27 +194,37 @@ public class ChPromQlTsClient implements TsClient {
       double[] buckets = readDoubleArray(record, "buckets");
       double[] counts = readDoubleArray(record, "counts");
       points.add(
-          new NativeHistogramSample(
+          nativeCustomHistogram(
               record.getLong("ts_start_ms"),
               record.getLong("ts_end_ms"),
-              HistogramSeries.CUSTOM_BUCKET_SCHEMA,
-              0d,
-              0d,
-              0,
-              counts,
-              0,
-              new double[0],
               buckets,
+              counts,
               record.hasValue("sum") ? record.getDouble("sum") : Double.NaN,
-              record.getLong("count"),
-              "gauge"));
+              record.getLong("count")));
     }
     points.sort(Comparator.comparingLong(NativeHistogramSample::endMs));
     return points;
   }
 
-  private List<NativeHistogramSample> toDeltaHistos(
-      List<NativeHistogramSample> cumulative) {
+  static NativeHistogramSample nativeCustomHistogram(
+      long startMs, long endMs, double[] buckets, double[] counts, double sum, double count) {
+    return new NativeHistogramSample(
+        startMs,
+        endMs,
+        HistogramSeries.CUSTOM_BUCKET_SCHEMA,
+        0d,
+        0d,
+        0,
+        counts,
+        0,
+        new double[0],
+        buckets,
+        sum,
+        count,
+        "gauge");
+  }
+
+  static List<NativeHistogramSample> toDeltaHistos(List<NativeHistogramSample> cumulative) {
     var out = new ArrayList<NativeHistogramSample>(cumulative.size());
     NativeHistogramSample prev = null;
     for (var p : cumulative) {
