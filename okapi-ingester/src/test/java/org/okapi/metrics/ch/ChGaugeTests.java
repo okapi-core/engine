@@ -272,6 +272,32 @@ public class ChGaugeTests {
     assertEquals(expected, gauge.getSeries());
   }
 
+  @Test
+  void gaugeWithNoUnit_returnsEmptyUnit() throws Exception {
+    var ingester = injector.getInstance(ChMetricsIngester.class);
+    var driver = injector.getInstance(ChMetricsWalConsumerDriver.class);
+    var qp = injector.getInstance(ChMetricsQueryProcessor.class);
+
+    ingester.ingestOtelProtobuf(
+        otelFactory.buildGaugeRequest(
+            "svc-nounit", "metric_nounit", List.of(1_000L), List.of(1.0), ""));
+    driver.onTick();
+
+    var req =
+        GetMetricsRequest.builder()
+            .metric("metric_nounit")
+            .tags(Map.of("env", "dev", "test-session", testSession))
+            .start(0)
+            .end(10_000)
+            .metricType(METRIC_TYPE.GAUGE)
+            .gaugeQueryConfig(new GaugeQueryConfig(RES_TYPE.SECONDLY, AGG_TYPE.AVG))
+            .build();
+
+    var series = qp.getMetricsResponse(req).getGaugeResponse().getSeries();
+    assertEquals(1, series.size());
+    assertEquals("", series.get(0).getUnit());
+  }
+
   private void truncateGaugeTable() {
     client.queryAll("TRUNCATE TABLE IF EXISTS okapi_metrics.gauge_raw_samples");
   }

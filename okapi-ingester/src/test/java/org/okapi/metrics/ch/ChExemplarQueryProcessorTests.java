@@ -54,7 +54,7 @@ public class ChExemplarQueryProcessorTests {
             metric, tags, List.of(1_000L), List.of(1.25), spanId, traceId));
     driver.onTick();
 
-    var resp = qp.getExemplarsResponse(buildRequest(metric, tags, 0, 2_000));
+    var resp = qp.getExemplars(buildRequest(metric, tags, 0, 2_000));
     assertNotNull(resp);
     assertEquals(metric, resp.getMetric());
     assertEquals(tags, resp.getLabels());
@@ -89,7 +89,7 @@ public class ChExemplarQueryProcessorTests {
             metric, tagsWest, List.of(2_000L), List.of(9.0), "0000000000000003", "00000000000000000000000000000003"));
     driver.onTick();
 
-    var resp = qp.getExemplarsResponse(buildRequest(metric, tagsEast, 1_500, 2_500));
+    var resp = qp.getExemplars(buildRequest(metric, tagsEast, 1_500, 2_500));
     assertNotNull(resp);
     assertEquals(1, resp.getExemplars().size());
     assertEquals(TimeUtils.millisToNanos(2_000L), resp.getExemplars().get(0).getTsNanos());
@@ -110,7 +110,7 @@ public class ChExemplarQueryProcessorTests {
     driver.onTick();
 
     var mismatchTags = tagsWithSession("us-west");
-    var resp = qp.getExemplarsResponse(buildRequest(metric, mismatchTags, 0, 2_000));
+    var resp = qp.getExemplars(buildRequest(metric, mismatchTags, 0, 2_000));
     assertNotNull(resp);
     assertEquals(0, resp.getExemplars().size());
 
@@ -129,7 +129,7 @@ public class ChExemplarQueryProcessorTests {
             metric, tags, List.of(1_000L), List.of(1.0), "0000000000000005", "00000000000000000000000000000005"));
     driver.onTick();
 
-    var resp = qp.getExemplarsResponse(buildRequest("metric.exemplar.other", tags, 0, 2_000));
+    var resp = qp.getExemplars(buildRequest("metric.exemplar.other", tags, 0, 2_000));
     assertNotNull(resp);
     assertEquals(0, resp.getExemplars().size());
 
@@ -153,7 +153,7 @@ public class ChExemplarQueryProcessorTests {
             "00000000000000000000000000000006"));
     driver.onTick();
 
-    var resp = qp.getExemplarsResponse(buildRequest(metric, tags, 500, 3_000));
+    var resp = qp.getExemplars(buildRequest(metric, tags, 500, 3_000));
     assertNotNull(resp);
     assertEquals(3, resp.getExemplars().size());
 

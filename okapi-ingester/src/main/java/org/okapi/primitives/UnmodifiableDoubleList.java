@@ -74,19 +74,21 @@ public class UnmodifiableDoubleList extends AbstractUnmodifiableList<Float> {
     return out;
   }
 
+  @SuppressWarnings("unchecked")
   @NotNull
   @Override
   public <T> T[] toArray(@NotNull T[] a) {
-    int n = size();
-    T[] arr =
-        a.length >= n
-            ? a
-            : (T[]) java.lang.reflect.Array.newInstance(a.getClass().getComponentType(), n);
-    for (int i = 0; i < n; i++) {
-      arr[i] = (T) get(i);
+    int size = size();
+    if (a.length < size) {
+      throw new IllegalArgumentException("Array too small: " + a.length + " < " + size);
     }
-    if (arr.length > n) arr[n] = null;
-    return arr;
+    for (int i = 0; i < size; i++) {
+      a[i] = (T) get(i);
+    }
+    if (a.length > size) {
+      a[size] = null;
+    }
+    return a;
   }
 
   @Override

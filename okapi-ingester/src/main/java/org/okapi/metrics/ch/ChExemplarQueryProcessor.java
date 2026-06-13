@@ -21,7 +21,7 @@ public class ChExemplarQueryProcessor {
     this.gson = new Gson();
   }
 
-  public GetExemplarsResponse getExemplarsResponse(GetExemplarsRequest request) {
+  public GetExemplarsResponse getExemplars(GetExemplarsRequest request) {
     var template =
         ChGetExemplarTemplate.builder()
             .fqTable(ChConstants.TBL_EXEMPLAR)

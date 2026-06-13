@@ -49,8 +49,8 @@ public class ChMetricsQueryController {
   }
 
   @PostMapping("/metrics/exemplars")
-  public GetExemplarsResponse getTagValueHints(@RequestBody GetExemplarsRequest request) {
-    return chMetricsQueryProcessor.getExemplarsResponse(request);
+  public GetExemplarsResponse getExemplars(@RequestBody GetExemplarsRequest request) {
+    return chMetricsQueryProcessor.getExemplars(request);
   }
 
   @PostMapping("/metrics/search")

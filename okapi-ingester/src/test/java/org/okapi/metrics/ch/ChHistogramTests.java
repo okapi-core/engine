@@ -146,6 +146,42 @@ public class ChHistogramTests {
     assertEquals(List.of(4L, 5L, 6L), byUnit.get("s").getCounts());
   }
 
+  @Test
+  void histogramWithNoUnit_returnsEmptyUnit() throws Exception {
+    var ingester = injector.getInstance(ChMetricsIngester.class);
+    var driver = injector.getInstance(ChMetricsWalConsumerDriver.class);
+    var qp = injector.getInstance(ChMetricsQueryProcessor.class);
+
+    var resource = "svc-histo-nounit-" + UUID.randomUUID();
+    var metric = "metric_histo_nounit";
+    var tags = Map.of("env", "dev", "test-session", testSession);
+
+    ingester.ingestOtelProtobuf(
+        buildHistogramRequest(
+            resource,
+            metric,
+            tags,
+            "",
+            AggregationTemporality.AGGREGATION_TEMPORALITY_DELTA,
+            List.of(point(1_000L, 2_000L, List.of(10.0, 20.0), List.of(1L, 2L, 3L)))));
+    driver.onTick();
+
+    var queryReq =
+        GetMetricsRequest.builder()
+            .metric(metric)
+            .tags(tags)
+            .start(0)
+            .end(5_000)
+            .metricType(METRIC_TYPE.HISTO)
+            .histoQueryConfig(
+                HistoQueryConfig.builder().temporality(HistoQueryConfig.TEMPORALITY.MERGED).build())
+            .build();
+
+    var series = qp.getMetricsResponse(queryReq).getHistogramResponse().getSeries();
+    assertEquals(1, series.size());
+    assertEquals("", series.get(0).getUnit());
+  }
+
   private ExportMetricsServiceRequest buildHistogramRequest(
       String resourceName,
       String metricName,

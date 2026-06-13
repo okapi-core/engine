@@ -232,6 +232,9 @@ test-run-web:
 
 test-run: test-run-ingester test-run-web
 
+test: package test-infra start-okapi-ingester-jar start-okapi-web-jar
+	mvn test
+
 publish-docker:
 	docker push $(REPO)/okapi-web:$(TAG)
 	docker push $(REPO)/okapi-ingester:$(TAG)
@@ -250,7 +253,7 @@ publish-okapi-cp-test:
 copy-ch-sql:
 	cp -r ./okapi-ingester/src/main/resources/ch/*.sql ./okapi-ops/src/main/resources/ch/
 
-start-oscar:
+start-oscar-jar:
 	export POSTGRES_HOST=localhost
 	export POSTGRES_PORT=5432
 	export OSCAR_DB_URL='jdbc:postgresql://${POSTGRES_HOST}:${POSTGRES_PORT}/okapi_oscar'
@@ -273,10 +276,10 @@ start-oscar-dummy: package
 test-all: package run-ingester
 	mvn test -Dmaven.test.failure.ignore=true
 
-start-okapi-web: package
+start-okapi-web-jar: package
 	java -jar ./okapi-web/target/okapi-web-0.0.1-SNAPSHOT.jar &
 
-start-okapi-ingester: package
+start-okapi-ingester-jar: package
 	java -jar ./okapi-ingester/target/okapi-ingester-0.0.1-SNAPSHOT.jar &
 
-test-env: package test-infra start-okapi-ingester start-oscar start-okapi-web test-data
+test-env: package test-infra start-okapi-ingester-jar start-oscar-jar start-okapi-web-jar test-data

@@ -4,9 +4,10 @@
  */
 package org.okapi.primitives;
 
+
+import org.jetbrains.annotations.NotNull;
 import java.util.Collection;
 import java.util.List;
-import org.jetbrains.annotations.NotNull;
 
 public abstract class AbstractUnmodifiableList<T> implements List<T> {
   @Override

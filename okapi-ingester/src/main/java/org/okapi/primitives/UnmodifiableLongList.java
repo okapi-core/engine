@@ -5,6 +5,7 @@
 package org.okapi.primitives;
 
 import org.jetbrains.annotations.NotNull;
+import org.springframework.lang.NonNull;
 
 import java.util.Iterator;
 import java.util.List;
@@ -64,7 +65,6 @@ public class UnmodifiableLongList extends AbstractUnmodifiableList<Long> {
     };
   }
 
-  @NotNull
   @Override
   public Object[] toArray() {
     int n = size();
@@ -75,19 +75,21 @@ public class UnmodifiableLongList extends AbstractUnmodifiableList<Long> {
     return out;
   }
 
-  @NotNull
+  @SuppressWarnings("unchecked")
+  @NonNull
   @Override
   public <T> T[] toArray(@NotNull T[] a) {
-    int n = size();
-    T[] arr =
-        a.length >= n
-            ? a
-            : (T[]) java.lang.reflect.Array.newInstance(a.getClass().getComponentType(), n);
-    for (int i = 0; i < n; i++) {
-      arr[i] = (T) get(i);
+    int size = size();
+    if (a.length < size) {
+      throw new IllegalArgumentException("Array too small: " + a.length + " < " + size);
     }
-    if (arr.length > n) arr[n] = null;
-    return arr;
+    for (int i = 0; i < size; i++) {
+      a[i] = (T) get(i);
+    }
+    if (a.length > size) {
+      a[size] = null;
+    }
+    return a;
   }
 
   @Override
@@ -100,11 +102,11 @@ public class UnmodifiableLongList extends AbstractUnmodifiableList<Long> {
 
   @Override
   public int indexOf(Object o) {
-    if (!(o instanceof Integer)) {
+    if (!(o instanceof Long)) {
       return -1;
     }
     for (int i = start; i < end; i++) {
-      if (array[i] == (Integer) o) {
+      if (array[i] == (Long) o) {
         return i - start;
       }
     }
@@ -113,11 +115,11 @@ public class UnmodifiableLongList extends AbstractUnmodifiableList<Long> {
 
   @Override
   public int lastIndexOf(Object o) {
-    if (!(o instanceof Integer)) {
+    if (!(o instanceof Long)) {
       return -1;
     }
     for (int i = end - 1; i >= start; i--) {
-      if (array[i] == (Integer) o) {
+      if (array[i] == (Long) o) {
         return i - start;
       }
     }

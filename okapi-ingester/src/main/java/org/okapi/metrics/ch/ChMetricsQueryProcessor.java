@@ -78,8 +78,7 @@ public class ChMetricsQueryProcessor {
   }
 
   public GetMetricsHintsResponse getTagHints(GetTagHintsRequest request) {
-    Objects.requireNonNull(request, "request is required");
-    var interval = Objects.requireNonNull(request.getInterval(), "interval is required");
+    var interval = request.getInterval();
     var filter = request.getMetricEventFilter();
     var metricType = filter == null ? null : filter.getMetricType();
 
@@ -141,7 +140,7 @@ public class ChMetricsQueryProcessor {
     return output.toString();
   }
 
-  public GetExemplarsResponse getExemplarsResponse(GetExemplarsRequest request) {
-    return exemplarQueryProcessor.getExemplarsResponse(request);
+  public GetExemplarsResponse getExemplars(GetExemplarsRequest request) {
+    return exemplarQueryProcessor.getExemplars(request);
   }
 }
