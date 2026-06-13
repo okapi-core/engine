@@ -768,7 +768,11 @@ public final class NodeEvaluator {
           labels.add(((StringLiteralExpr) e.args.get(i)).value);
         yield InstantFunctions.sortByLabel(vector, labels, e.name.equalsIgnoreCase("sort_by_label_desc"));
       }
-      case "absent"    -> InstantFunctions.absent(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), ctx);
+      case "absent"    -> evalAbsent(e, ctx);
+      case "absent_over_time" -> RangeStats.absent(
+          TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name),
+          rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx),
+          absentLabels(e.args.get(0)));
       case "timestamp" -> InstantFunctions.timestamp(
           TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name));
       case "sin", "cos", "tan", "asin", "acos", "atan", "sinh", "cosh", "tanh",
@@ -843,6 +847,36 @@ public final class NodeEvaluator {
                 : !Float.isFinite(value)
                     ? value
                     : (float) (Math.floor(Math.nextUp(value / nearest) + 0.5d) * nearest));
+  }
+
+  private InstantVectorResult evalAbsent(FunctionExpr e, EvalContext ctx) {
+    requireArgCount(e, 1);
+    return InstantFunctions.absent(
+        TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name),
+        ctx,
+        absentLabels(e.args.get(0)));
+  }
+
+  private Map<String, String> absentLabels(LogicalExpr expr) {
+    SelectorExpr selector = switch (expr) {
+      case InstantizeExpr instantize when instantize.inner instanceof SelectorExpr selected ->
+          selected;
+      case RangeSelectorExpr range -> range.base;
+      default -> null;
+    };
+    if (selector == null) return Map.of();
+
+    Map<String, String> labels = new HashMap<>();
+    Set<String> ambiguous = new HashSet<>();
+    for (LabelMatcher matcher : selector.matchers) {
+      if ("__name__".equals(matcher.name()) || ambiguous.contains(matcher.name())) continue;
+      if (matcher.op() != org.okapi.promql.parse.LabelOp.EQ
+          || labels.putIfAbsent(matcher.name(), matcher.value()) != null) {
+        labels.remove(matcher.name());
+        ambiguous.add(matcher.name());
+      }
+    }
+    return labels;
   }
 
   private void requireArgCount(FunctionExpr e, int expected) {

@@ -15,6 +15,7 @@ import org.okapi.promql.eval.VectorData.*;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /** Pure functions over RangeVectorResult for window statistics. */
 public final class RangeStats {
@@ -104,6 +105,29 @@ public final class RangeStats {
 
   public static InstantVectorResult first(RangeVectorResult rv, long rangeMs, EvalContext ctx, long anchorMs) {
     return selectSample(rv, rangeMs, ctx, anchorMs, true);
+  }
+
+  public static InstantVectorResult absent(
+      RangeVectorResult rv,
+      long rangeMs,
+      EvalContext ctx,
+      long anchorMs,
+      Map<String, String> labels) {
+    List<SeriesSample> out = new ArrayList<>();
+    for (long t = ctx.startMs; t <= ctx.endMs; t += ctx.stepMs) {
+      long anchor = anchorMs >= 0 ? anchorMs : t;
+      boolean hasSamples = false;
+      for (SeriesWindow window : rv.data()) {
+        if (!samplesInWindow(window, anchor - rangeMs, anchor).isEmpty()) {
+          hasSamples = true;
+          break;
+        }
+      }
+      if (!hasSamples) {
+        out.add(new SeriesSample(new SeriesId("", new Labels(labels)), new Sample(t, 1f)));
+      }
+    }
+    return new InstantVectorResult(out);
   }
 
   public static InstantVectorResult timestampOf(

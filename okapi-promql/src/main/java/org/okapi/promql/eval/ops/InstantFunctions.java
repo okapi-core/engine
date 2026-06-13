@@ -102,12 +102,13 @@ public final class InstantFunctions {
     return Integer.compare(left.length(), right.length());
   }
 
-  public static InstantVectorResult absent(InstantVectorResult iv, EvalContext ctx) {
+  public static InstantVectorResult absent(
+      InstantVectorResult iv, EvalContext ctx, Map<String, String> labels) {
     if (iv.data().isEmpty())
       return new InstantVectorResult(
           List.of(
               new SeriesSample(
-                  new SeriesId("absent", new Labels(Map.of())), new Sample(ctx.endMs, 1f))));
+                  new SeriesId("", new Labels(labels)), new Sample(ctx.endMs, 1f))));
     return new InstantVectorResult(List.of());
   }
 
