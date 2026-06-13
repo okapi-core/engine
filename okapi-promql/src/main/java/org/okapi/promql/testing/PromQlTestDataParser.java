@@ -116,6 +116,9 @@ public final class PromQlTestDataParser {
   private void parseEvalBody(List<Expectation> expectations, List<ExpectedResult> results) {
     expect(TokenType.NEWLINE, "expected newline after eval header");
     while (true) {
+      if (check(TokenType.EOF)) {
+        break;
+      }
       if (check(TokenType.NEWLINE)) {
         if (isBlockEnd()) {
           break;

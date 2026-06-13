@@ -10,6 +10,7 @@ import org.okapi.promql.eval.EvalContext;
 import org.okapi.promql.eval.InstantVectorResult;
 import org.okapi.promql.eval.RangeEvalContext;
 import org.okapi.promql.eval.RangeVectorResult;
+import org.okapi.promql.eval.Staleness;
 import org.okapi.promql.eval.VectorData.*;
 import org.okapi.promql.eval.nodes.ExtendedVectorMode;
 
@@ -117,6 +118,7 @@ public final class RangeFunctions {
     List<SeriesSample> out = new ArrayList<>();
     for (SeriesWindow w : rv.data()) {
       if (!(w.scan() instanceof GaugeScan gs)) continue;
+      gs = Staleness.withoutStaleSamples(gs);
       var ts = gs.getTimestamps();
       var vals = gs.getValues();
       for (long step = ctx.startMs; step <= ctx.endMs; step += ctx.stepMs) {
@@ -177,6 +179,7 @@ public final class RangeFunctions {
   }
 
   private static float sampledCounterIncrease(GaugeScan gs, long start, long end) {
+    gs = Staleness.withoutStaleSamples(gs);
     var ts = gs.getTimestamps();
     var vals = gs.getValues();
     int firstIdx = -1, lastIdx = -1;
@@ -223,6 +226,7 @@ public final class RangeFunctions {
 
   private static float extendedRate(
       GaugeScan gs, RangeEvalContext rangeCtx, long anchor, boolean counter) {
+    gs = Staleness.withoutStaleSamples(gs);
     var ts = gs.getTimestamps();
     var vals = gs.getValues();
     if (ts.isEmpty()) return Float.NaN;
@@ -309,6 +313,7 @@ public final class RangeFunctions {
   private record Point(long ts, float value) {}
 
   private static float sampledCounterIrate(GaugeScan gs, long start, long end) {
+    gs = Staleness.withoutStaleSamples(gs);
     var ts = gs.getTimestamps();
     var vals = gs.getValues();
     Integer lastIdx = null, prevIdx = null;
@@ -329,6 +334,7 @@ public final class RangeFunctions {
   }
 
   private static float deltaInWindow(GaugeScan gs, long start, long end) {
+    gs = Staleness.withoutStaleSamples(gs);
     var ts = gs.getTimestamps();
     var vals = gs.getValues();
     int firstIdx = -1, lastIdx = -1;
@@ -343,6 +349,7 @@ public final class RangeFunctions {
   }
 
   private static float ideltaInWindow(GaugeScan gs, long start, long end) {
+    gs = Staleness.withoutStaleSamples(gs);
     var ts = gs.getTimestamps();
     var vals = gs.getValues();
     Integer lastIdx = null, prevIdx = null;
@@ -360,6 +367,7 @@ public final class RangeFunctions {
   }
 
   private static float derivInWindow(GaugeScan gs, long start, long end) {
+    gs = Staleness.withoutStaleSamples(gs);
     var ts = gs.getTimestamps();
     var vals = gs.getValues();
     int firstIdx = -1, lastIdx = -1;

@@ -101,7 +101,7 @@ public final class NodeEvaluator {
         while (idx + 1 < n && tsList.get(idx + 1) <= effT) idx++;
         if (n == 0) continue;
         long ptsTs = tsList.get(idx);
-        if (ptsTs <= effT && ptsTs > winStart)
+        if (ptsTs <= effT && ptsTs > winStart && !Staleness.isStale(valList.get(idx)))
           out.add(new SeriesSample(id, new Sample(t, ptsTs, valList.get(idx))));
       }
   }

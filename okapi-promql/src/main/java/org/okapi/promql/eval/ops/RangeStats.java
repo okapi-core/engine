@@ -9,6 +9,7 @@ import org.okapi.promql.eval.EvalContext;
 import org.okapi.promql.eval.InstantVectorResult;
 import org.okapi.promql.eval.RangeEvalContext;
 import org.okapi.promql.eval.RangeVectorResult;
+import org.okapi.promql.eval.Staleness;
 import org.okapi.promql.eval.VectorData.*;
 
 import java.util.ArrayList;
@@ -244,8 +245,9 @@ public final class RangeStats {
     List<SeriesSample> out = new ArrayList<>();
     for (SeriesWindow w : rv.data()) {
       if (!(w.scan() instanceof GaugeScan gs)) continue;
-      var ts = gs.getTimestamps();
-      var vals = gs.getValues();
+      var normalized = Staleness.withoutStaleSamples(gs);
+      var ts = normalized.getTimestamps();
+      var vals = normalized.getValues();
       for (long t = ctx.startMs; t <= ctx.endMs; t += ctx.stepMs) {
         long anchor = anchorMs >= 0 ? anchorMs : t;
         float v = fn.apply(ts, vals, anchor - rangeMs, anchor);
