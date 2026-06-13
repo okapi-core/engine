@@ -277,19 +277,9 @@ public final class RangeStats {
 
   private static boolean sameValue(Object left, Object right) {
     if (left instanceof Float a && right instanceof Float b) return Float.compare(a, b) == 0;
-    if (left instanceof HistogramSeries.NativeHistogramSample a
-        && right instanceof HistogramSeries.NativeHistogramSample b) {
-      return a.schema() == b.schema()
-          && Double.compare(a.zeroThreshold(), b.zeroThreshold()) == 0
-          && Double.compare(a.zeroCount(), b.zeroCount()) == 0
-          && a.positiveOffset() == b.positiveOffset()
-          && java.util.Arrays.equals(a.positiveBuckets(), b.positiveBuckets())
-          && a.negativeOffset() == b.negativeOffset()
-          && java.util.Arrays.equals(a.negativeBuckets(), b.negativeBuckets())
-          && java.util.Arrays.equals(a.customValues(), b.customValues())
-          && Double.compare(a.sum(), b.sum()) == 0
-          && Double.compare(a.count(), b.count()) == 0;
-    }
+    if (left instanceof HistogramSeries.HistogramSample a
+        && right instanceof HistogramSeries.HistogramSample b)
+      return HistogramSeries.sameValue(a, b);
     return left.equals(right);
   }
 

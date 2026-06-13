@@ -4,6 +4,7 @@
  */
 package org.okapi.promql.eval;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import org.okapi.metrics.pojos.results.GaugeScan;
@@ -90,4 +91,26 @@ public final class HistogramSeries extends Scan {
       double count,
       String counterResetHint)
       implements HistogramSample {}
+
+  public static boolean sameValue(HistogramSample left, HistogramSample right) {
+    if (left instanceof ExplicitHistogramSample a && right instanceof ExplicitHistogramSample b) {
+      return Arrays.equals(a.upperBounds(), b.upperBounds())
+          && Arrays.equals(a.counts(), b.counts())
+          && Double.compare(a.sum(), b.sum()) == 0
+          && Double.compare(a.count(), b.count()) == 0;
+    }
+    if (left instanceof NativeHistogramSample a && right instanceof NativeHistogramSample b) {
+      return a.schema() == b.schema()
+          && Double.compare(a.zeroThreshold(), b.zeroThreshold()) == 0
+          && Double.compare(a.zeroCount(), b.zeroCount()) == 0
+          && a.positiveOffset() == b.positiveOffset()
+          && Arrays.equals(a.positiveBuckets(), b.positiveBuckets())
+          && a.negativeOffset() == b.negativeOffset()
+          && Arrays.equals(a.negativeBuckets(), b.negativeBuckets())
+          && Arrays.equals(a.customValues(), b.customValues())
+          && Double.compare(a.sum(), b.sum()) == 0
+          && Double.compare(a.count(), b.count()) == 0;
+    }
+    return false;
+  }
 }

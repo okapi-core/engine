@@ -475,6 +475,8 @@ public final class NodeEvaluator {
 
   private Optional<SeriesSample> combine(
       BinaryOpExpr e, SeriesSample l, SeriesSample r, boolean isCmp) {
+    if (l.sample().isHistogram() || r.sample().isHistogram())
+      return combineHistograms(e, l, r, isCmp);
     double a = l.sample().value(), b = r.sample().value();
     long ts = l.sample().ts();
     if (isCmp) {
@@ -489,6 +491,20 @@ public final class NodeEvaluator {
     }
     double v = applyArith(a, b, e.op);
     return Optional.of(new SeriesSample(mergeLabels(l.series(), r.series(), e.matchSpec), new Sample(ts, v)));
+  }
+
+  private Optional<SeriesSample> combineHistograms(
+      BinaryOpExpr e, SeriesSample l, SeriesSample r, boolean isCmp) {
+    if (!isCmp || !l.sample().isHistogram() || !r.sample().isHistogram())
+      return Optional.empty();
+    if (!e.op.equals("==") && !e.op.equals("!=")) return Optional.empty();
+    boolean equal = HistogramSeries.sameValue(l.sample().histogram(), r.sample().histogram());
+    boolean ok = e.op.equals("==") ? equal : !equal;
+    if (e.boolModifier)
+      return Optional.of(
+          new SeriesSample(
+              SeriesIds.derived(l.series()), new Sample(l.sample().ts(), ok ? 1d : 0d)));
+    return ok ? Optional.of(l) : Optional.empty();
   }
 
   private Float fillForMissingLeft(BinaryOpExpr e, boolean groupRight) {
@@ -1159,8 +1175,8 @@ public final class NodeEvaluator {
 
   private boolean compare(double a, double b, String op) {
     return switch (op) {
-      case "==" -> Double.compare(a, b) == 0;
-      case "!=" -> Double.compare(a, b) != 0;
+      case "==" -> a == b;
+      case "!=" -> a != b;
       case ">"  -> a > b;
       case "<"  -> a < b;
       case ">=" -> a >= b;
@@ -1171,28 +1187,33 @@ public final class NodeEvaluator {
 
   private InstantVectorResult mapVector(InstantVectorResult iv, java.util.function.Function<Double, Double> fn) {
     List<SeriesSample> out = new ArrayList<>(iv.data().size());
-    for (var s : iv.data())
+    for (var s : iv.data()) {
+      if (s.sample().isHistogram()) continue;
       out.add(
           new SeriesSample(
               s.series(),
               new Sample(s.sample().ts(), s.sample().sourceTs(), fn.apply(s.sample().value()))));
+    }
     return new InstantVectorResult(out);
   }
 
   private InstantVectorResult mapVectorDropName(InstantVectorResult iv, java.util.function.Function<Double, Double> fn) {
     List<SeriesSample> out = new ArrayList<>(iv.data().size());
-    for (var s : iv.data())
+    for (var s : iv.data()) {
+      if (s.sample().isHistogram()) continue;
       out.add(
           new SeriesSample(
               SeriesIds.derived(s.series()),
               new Sample(s.sample().ts(), s.sample().sourceTs(), fn.apply(s.sample().value()))));
+    }
     return new InstantVectorResult(out);
   }
 
   private InstantVectorResult filterVector(InstantVectorResult iv, java.util.function.Predicate<Double> pred) {
     List<SeriesSample> out = new ArrayList<>();
-    for (var s : iv.data())
-      if (pred.test(s.sample().value())) out.add(s);
+    for (var s : iv.data()) {
+      if (!s.sample().isHistogram() && pred.test(s.sample().value())) out.add(s);
+    }
     return new InstantVectorResult(out);
   }
 
