@@ -12,6 +12,8 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.okapi.rest.metrics.ExportMetricsRequest;
 import org.okapi.rest.metrics.payloads.Gauge;
+import org.okapi.rest.metrics.payloads.ExponentialHisto;
+import org.okapi.rest.metrics.payloads.ExponentialHistoPoint;
 import org.okapi.rest.metrics.payloads.Histo;
 import org.okapi.rest.metrics.payloads.HistoPoint;
 import org.okapi.rest.metrics.payloads.SUM_TEMPORALITY;
@@ -75,6 +77,44 @@ class ChMetricsWalConsumerNumericPrecisionTests {
     @SuppressWarnings("unchecked")
     var row = (Map<String, Object>) gson.fromJson(rows.getFirst(), Map.class);
     assertEquals(List.of(5d, 7d, 2d), row.get("counts"));
+  }
+
+  @Test
+  void exponentialHistogramRowsPreserveNativeBucketLayout() {
+    var rows =
+        consumer
+            .getExponentialHistoSamples(
+                ExportMetricsRequest.builder()
+                    .metricName("latency")
+                    .unit("ms")
+                    .exponentialHisto(
+                        ExponentialHisto.builder()
+                            .histoPoints(
+                                List.of(
+                                    ExponentialHistoPoint.builder()
+                                        .start(1L)
+                                        .end(2L)
+                                        .temporality(HistoPoint.TEMPORALITY.DELTA)
+                                        .scale(3)
+                                        .zeroThreshold(0.01d)
+                                        .zeroCount(2L)
+                                        .positiveOffset(-1)
+                                        .positiveCounts(new long[] {3L, 4L})
+                                        .negativeOffset(2)
+                                        .negativeCounts(new long[] {5L})
+                                        .count(14L)
+                                        .build()))
+                            .build())
+                    .build())
+            .rows();
+
+    @SuppressWarnings("unchecked")
+    var row = (Map<String, Object>) gson.fromJson(rows.getFirst(), Map.class);
+    assertEquals(-1d, row.get("positive_offset"));
+    assertEquals(List.of(3d, 4d), row.get("positive_counts"));
+    assertEquals(2d, row.get("negative_offset"));
+    assertEquals(List.of(5d), row.get("negative_counts"));
+    assertEquals("ms", row.get("unit"));
   }
 
   private double value(String json) {

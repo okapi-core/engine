@@ -12,6 +12,8 @@ import org.okapi.collections.OkapiLists;
 import org.okapi.rest.metrics.Exemplar;
 import org.okapi.rest.metrics.ExportMetricsRequest;
 import org.okapi.rest.metrics.MetricType;
+import org.okapi.rest.metrics.payloads.ExponentialHisto;
+import org.okapi.rest.metrics.payloads.ExponentialHistoPoint;
 import org.okapi.rest.metrics.payloads.Gauge.GaugeBuilder;
 import org.okapi.rest.metrics.payloads.Histo;
 import org.okapi.rest.metrics.payloads.HistoPoint;
@@ -105,6 +107,8 @@ public final class OtelConverter {
       return convertSum(m);
     } else if (m.hasHistogram()) {
       return convertHistogram(m);
+    } else if (m.hasExponentialHistogram()) {
+      return convertExponentialHistogram(m);
     }
     return Collections.emptyList();
   }
@@ -293,5 +297,59 @@ public final class OtelConverter {
               .build());
     }
     return out;
+  }
+
+  private List<ExportMetricsRequest> convertExponentialHistogram(Metric metric) {
+    var histogram = metric.getExponentialHistogram();
+    var temporality =
+        switch (histogram.getAggregationTemporality()) {
+          case AGGREGATION_TEMPORALITY_CUMULATIVE -> HistoPoint.TEMPORALITY.CUMULATIVE;
+          case AGGREGATION_TEMPORALITY_DELTA, AGGREGATION_TEMPORALITY_UNSPECIFIED ->
+              HistoPoint.TEMPORALITY.DELTA;
+          default -> HistoPoint.TEMPORALITY.DELTA;
+        };
+    Map<String, Map<String, String>> tagKeyToTags = new HashMap<>();
+    Map<String, List<ExponentialHistoPoint>> pointsByKey = new HashMap<>();
+    for (var point : histogram.getDataPointsList()) {
+      Map<String, String> tags = toTagsMap(point.getAttributesList());
+      String key = canonicalKey(tags);
+      tagKeyToTags.putIfAbsent(key, tags);
+      pointsByKey
+          .computeIfAbsent(key, OkapiLists::keyToEmptyArrayList)
+          .add(
+              ExponentialHistoPoint.builder()
+                  .start(nanosToMillis(point.getStartTimeUnixNano()))
+                  .end(nanosToMillis(point.getTimeUnixNano()))
+                  .temporality(temporality)
+                  .scale(point.getScale())
+                  .zeroThreshold(point.getZeroThreshold())
+                  .zeroCount(point.getZeroCount())
+                  .positiveOffset(point.getPositive().getOffset())
+                  .positiveCounts(toLongArray(point.getPositive().getBucketCountsList()))
+                  .negativeOffset(point.getNegative().getOffset())
+                  .negativeCounts(toLongArray(point.getNegative().getBucketCountsList()))
+                  .sum(point.hasSum() ? point.getSum() : null)
+                  .count(point.getCount())
+                  .build());
+    }
+    List<ExportMetricsRequest> out = new ArrayList<>();
+    for (String key : tagKeyToTags.keySet()) {
+      out.add(
+          ExportMetricsRequest.builder()
+              .unit(metric.getUnit())
+              .metricName(metric.getName())
+              .tags(tagKeyToTags.get(key))
+              .type(MetricType.HISTO)
+              .exponentialHisto(
+                  ExponentialHisto.builder().histoPoints(pointsByKey.get(key)).build())
+              .build());
+    }
+    return out;
+  }
+
+  private static long[] toLongArray(List<Long> counts) {
+    long[] values = new long[counts.size()];
+    for (int i = 0; i < counts.size(); i++) values[i] = counts.get(i);
+    return values;
   }
 }

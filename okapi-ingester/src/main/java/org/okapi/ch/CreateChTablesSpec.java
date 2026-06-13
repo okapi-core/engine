@@ -18,6 +18,10 @@ public class CreateChTablesSpec {
     return ClasspathResourceReader.readResource(metricsPath);
   }
 
+  public static String getCreateExponentialHistoTableSpec() {
+    return ClasspathResourceReader.readResource("ch/create_exponential_histos_table.sql");
+  }
+
   public static String getCreateSumTableSpec() {
     var metricsPath = "ch/create_sums_raw_samples.sql";
     return ClasspathResourceReader.readResource(metricsPath);
@@ -55,6 +59,7 @@ public class CreateChTablesSpec {
     client.queryAll("CREATE DATABASE IF NOT EXISTS okapi_metrics");
     client.queryAll(getCreateGaugeTableSpec());
     client.queryAll(getCreateHistoTableSpec());
+    client.queryAll(getCreateExponentialHistoTableSpec());
     client.queryAll(getCreateSumTableSpec());
     client.queryAll(getCreateMetricEventsMetaTableSpec());
     client.queryAll(getExemplarsTableSpec());

@@ -7,6 +7,7 @@ package org.okapi.rest.metrics;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import org.okapi.rest.metrics.payloads.Gauge;
+import org.okapi.rest.metrics.payloads.ExponentialHisto;
 import org.okapi.rest.metrics.payloads.Histo;
 import org.okapi.rest.metrics.payloads.Sum;
 
@@ -34,6 +35,7 @@ public class ExportMetricsRequest {
 
   Gauge gauge;
   Histo histo;
+  ExponentialHisto exponentialHisto;
   Sum sum;
 
   @Builder(toBuilder = true)
@@ -43,6 +45,7 @@ public class ExportMetricsRequest {
       MetricType type,
       Gauge gauge,
       Histo histo,
+      ExponentialHisto exponentialHisto,
       Sum sum,
       String unit) {
     this.metricName = metricName;
@@ -50,6 +53,7 @@ public class ExportMetricsRequest {
     this.type = type;
     this.gauge = gauge;
     this.histo = histo;
+    this.exponentialHisto = exponentialHisto;
     this.sum = sum;
     this.unit = unit;
   }

@@ -140,6 +140,47 @@ public class ChMetricsWalConsumer {
     return new ChWriteWork(ChConstants.TBL_SUM, sumSamples, meta);
   }
 
+  public ChWriteWork getExponentialHistoSamples(ExportMetricsRequest req) {
+    List<String> samples = new ArrayList<>();
+    List<String> metaRows = new ArrayList<>();
+    if (req.getExponentialHisto() != null) {
+      for (var point : req.getExponentialHisto().getHistoPoints()) {
+        var histoType =
+            switch (point.getTemporality()) {
+              case DELTA -> ChHistoSample.HISTO_TYPE.DELTA;
+              case CUMULATIVE -> ChHistoSample.HISTO_TYPE.CUMULATIVE;
+            };
+        var sample =
+            ChExponentialHistoSampleRow.builder()
+                .metric(req.getMetricName())
+                .tags(req.getTags())
+                .histoType(histoType)
+                .tsStart(point.getStart())
+                .tsEnd(point.getEnd())
+                .scale(point.getScale())
+                .zeroThreshold(point.getZeroThreshold())
+                .zeroCount(point.getZeroCount())
+                .positiveOffset(point.getPositiveOffset())
+                .positiveCounts(point.getPositiveCounts())
+                .negativeOffset(point.getNegativeOffset())
+                .negativeCounts(point.getNegativeCounts())
+                .sum(point.getSum())
+                .count(point.getCount())
+                .unit(req.getUnit())
+                .build();
+        samples.add(gson.toJson(sample));
+        metaRows.add(
+            metricMetadataRow(
+                req,
+                METRIC_TYPE.HISTO,
+                point.getTemporality().name(),
+                point.getStart(),
+                point.getEnd()));
+      }
+    }
+    return new ChWriteWork(ChConstants.TBL_EXPONENTIAL_HISTOS, samples, metaRows);
+  }
+
   private String metricMetadataRow(
       ExportMetricsRequest req, METRIC_TYPE eventType, String temporality, long start, long end) {
     var map = new HashMap<String, Object>();
@@ -215,9 +256,13 @@ public class ChMetricsWalConsumer {
       var sumWrites = getSumSamples(req);
       writeLoad.putAll(sumWrites.mainTable(), sumWrites.rows());
 
+      var exponentialHistoWrites = getExponentialHistoSamples(req);
+      writeLoad.putAll(exponentialHistoWrites.mainTable(), exponentialHistoWrites.rows());
+
       writeLoad.putAll(ChConstants.TBL_METRIC_EVENTS_META, gaugeWrites.meta());
       writeLoad.putAll(ChConstants.TBL_METRIC_EVENTS_META, histoWrites.meta());
       writeLoad.putAll(ChConstants.TBL_METRIC_EVENTS_META, sumWrites.meta());
+      writeLoad.putAll(ChConstants.TBL_METRIC_EVENTS_META, exponentialHistoWrites.meta());
       var exemplarRows = exemplarWriteWork(req);
       writeLoad.putAll(ChConstants.TBL_EXEMPLAR, exemplarRows.rows());
     }

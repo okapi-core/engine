@@ -14,4 +14,14 @@ class CreateChTablesSpecTests {
     assertTrue(CreateChTablesSpec.getCreateGaugeTableSpec().contains("value Float64"));
     assertTrue(CreateChTablesSpec.getCreateSumTableSpec().contains("value Float64"));
   }
+
+  @Test
+  void exponentialHistogramsUseDedicatedNativeStorage() {
+    var schema = CreateChTablesSpec.getCreateExponentialHistoTableSpec();
+
+    assertTrue(schema.contains("exponential_histo_raw_samples"));
+    assertTrue(schema.contains("positive_counts Array(UInt64)"));
+    assertTrue(schema.contains("negative_counts Array(UInt64)"));
+    assertTrue(schema.contains("zero_threshold Float64"));
+  }
 }
