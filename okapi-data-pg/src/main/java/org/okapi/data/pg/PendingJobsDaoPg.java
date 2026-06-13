@@ -4,34 +4,43 @@
  */
 package org.okapi.data.pg;
 
-import static org.okapi.data.pg.PgKeys.key;
-
+import com.google.gson.Gson;
 import java.util.List;
 import java.util.Optional;
 import org.okapi.agent.dto.QueryResult;
 import org.okapi.data.dao.PendingJobsDao;
 import org.okapi.data.dao.ResultUploader;
 import org.okapi.data.exceptions.*;
+import org.okapi.data.model.DataSourceQuery;
 import org.okapi.data.model.JobStatus;
 import org.okapi.data.model.PendingJob;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 public final class PendingJobsDaoPg implements PendingJobsDao {
   private static final int MAX_RETRY_ATTEMPTS = 5;
-  private final JdbcRecordStore store;
+  private final JdbcTemplate jdbc;
   private final ResultUploader uploader;
+  private final Gson gson;
 
-  public PendingJobsDaoPg(JdbcRecordStore store, ResultUploader uploader) {
-    this.store = store;
+  public PendingJobsDaoPg(JdbcTemplate jdbc, ResultUploader uploader, Gson gson) {
+    this.jdbc = jdbc;
     this.uploader = uploader;
+    this.gson = gson;
   }
 
   public Optional<PendingJob> getPendingJob(String org, String job) {
-    return store.get("pending-job", key(org, job), PendingJob.class);
+    return jdbc
+        .query("SELECT * FROM pending_jobs WHERE org_id = ? AND job_id = ?", this::map, org, job)
+        .stream()
+        .findFirst();
   }
 
   public List<PendingJob> getPendingJobsByTenantAndStatus(String org, JobStatus status) {
-    return store.listByStatus(
-        "pending-job", org, null, status.name(), Integer.MAX_VALUE, PendingJob.class);
+    return jdbc.query(
+        "SELECT * FROM pending_jobs WHERE org_id = ? AND status = ? ORDER BY job_id",
+        this::map,
+        org,
+        status.name());
   }
 
   public void createPendingJob(PendingJob job) {
@@ -51,7 +60,7 @@ public final class PendingJobsDaoPg implements PendingJobsDao {
   }
 
   public void deletePendingJob(String org, String job) {
-    store.delete("pending-job", key(org, job));
+    jdbc.update("DELETE FROM pending_jobs WHERE org_id = ? AND job_id = ?", org, job);
   }
 
   public void retryJob(String org, String job)
@@ -80,7 +89,18 @@ public final class PendingJobsDaoPg implements PendingJobsDao {
 
   public List<PendingJob> getJobsBySourceAndStatus(
       String org, String source, JobStatus status, int limit) {
-    return store.listByStatus("pending-job", org, source, status.name(), limit, PendingJob.class);
+    return jdbc.query(
+        """
+        SELECT * FROM pending_jobs
+        WHERE org_id = ? AND source_id = ? AND status = ?
+        ORDER BY job_id
+        LIMIT ?
+        """,
+        this::map,
+        org,
+        source,
+        status.name(),
+        limit);
   }
 
   public PendingJob updateJobResult(String org, String job, String result)
@@ -108,18 +128,62 @@ public final class PendingJobsDaoPg implements PendingJobsDao {
         getPendingJob(org, job).orElseThrow(() -> new JobNotFoundException("Job not found"));
     if (value.getJobStatus() != JobStatus.COMPLETED && value.getJobStatus() != JobStatus.FAILED)
       return Optional.empty();
-    return Optional.of(store.gson().fromJson(uploader.getRawResult(org, job), QueryResult.class));
+    return Optional.of(gson.fromJson(uploader.getRawResult(org, job), QueryResult.class));
   }
 
   private void save(PendingJob job) {
-    store.put(
-        "pending-job",
-        key(job.getOrgId(), job.getJobId()),
+    jdbc.update(
+        """
+        INSERT INTO pending_jobs (
+          org_id, job_id, result_location, error_location, status, source_id,
+          query_text, query_source_id, attempt_count, created_at, assigned_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT (org_id, job_id) DO UPDATE SET
+          result_location = EXCLUDED.result_location,
+          error_location = EXCLUDED.error_location,
+          status = EXCLUDED.status,
+          source_id = EXCLUDED.source_id,
+          query_text = EXCLUDED.query_text,
+          query_source_id = EXCLUDED.query_source_id,
+          attempt_count = EXCLUDED.attempt_count,
+          created_at = EXCLUDED.created_at,
+          assigned_at = EXCLUDED.assigned_at
+        """,
         job.getOrgId(),
-        null,
+        job.getJobId(),
+        job.getResultLocation(),
+        job.getErrorLocation(),
         job.getJobStatus().name(),
         job.getSourceId(),
-        job);
+        job.getQuery() == null ? null : job.getQuery().query(),
+        job.getQuery() == null ? null : job.getQuery().sourceId(),
+        job.getAttemptCount(),
+        job.getCreatedAt(),
+        job.getAssignedAt());
+  }
+
+  private PendingJob map(java.sql.ResultSet rs, int row) throws java.sql.SQLException {
+    var queryText = rs.getString("query_text");
+    var querySource = rs.getString("query_source_id");
+    var createdAt = rs.getLong("created_at");
+    Long created = rs.wasNull() ? null : createdAt;
+    var assignedAt = rs.getLong("assigned_at");
+    Long assigned = rs.wasNull() ? null : assignedAt;
+    return PendingJob.builder()
+        .orgId(rs.getString("org_id"))
+        .jobId(rs.getString("job_id"))
+        .resultLocation(rs.getString("result_location"))
+        .errorLocation(rs.getString("error_location"))
+        .jobStatus(JobStatus.valueOf(rs.getString("status")))
+        .sourceId(rs.getString("source_id"))
+        .query(
+            queryText == null && querySource == null
+                ? null
+                : new DataSourceQuery(queryText, querySource))
+        .attemptCount(rs.getInt("attempt_count"))
+        .createdAt(created)
+        .assignedAt(assigned)
+        .build();
   }
 
   private boolean canTransition(JobStatus from, JobStatus to) {

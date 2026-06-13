@@ -4,29 +4,51 @@
  */
 package org.okapi.data.pg;
 
-import static org.okapi.data.pg.PgKeys.key;
-
 import java.util.ArrayDeque;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Queue;
 import org.okapi.data.dao.RelationGraphDao;
 import org.okapi.data.model.*;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 public final class RelationGraphDaoPg implements RelationGraphDao {
-  private final JdbcRecordStore store;
+  private final JdbcTemplate jdbc;
 
-  public RelationGraphDaoPg(JdbcRecordStore store) {
-    this.store = store;
+  public RelationGraphDaoPg(JdbcTemplate jdbc) {
+    this.jdbc = jdbc;
   }
 
   private List<RelationGraphNode> all(EntityId value) {
-    return store.list("relation", value.toString(), null, RelationGraphNode.class);
+    return jdbc.query(
+        """
+        SELECT target_type, target_id, array_agg(relation_type ORDER BY relation_type) relations
+        FROM entity_relations
+        WHERE source_type = ? AND source_id = ?
+        GROUP BY target_type, target_id
+        ORDER BY target_type, target_id
+        """,
+        (rs, row) -> node(value, rs),
+        value.type().name(),
+        value.id());
   }
 
   public Optional<RelationGraphNode> getRelationsBetween(EntityId left, EntityId right) {
-    return store.get("relation", key(left.toString(), right.toString()), RelationGraphNode.class);
+    return jdbc
+        .query(
+            """
+            SELECT target_type, target_id, array_agg(relation_type ORDER BY relation_type) relations
+            FROM entity_relations
+            WHERE source_type = ? AND source_id = ? AND target_type = ? AND target_id = ?
+            GROUP BY target_type, target_id
+            """,
+            (rs, row) -> node(left, rs),
+            left.type().name(),
+            left.id(),
+            right.type().name(),
+            right.id())
+        .stream()
+        .findFirst();
   }
 
   public boolean hasRelationBetween(EntityId left, EntityId right, RelationType type) {
@@ -36,17 +58,34 @@ public final class RelationGraphDaoPg implements RelationGraphDao {
   }
 
   public void removeAllRelations(EntityId left, EntityId right) {
-    store.delete("relation", key(left.toString(), right.toString()));
-    store.delete("relation", key(right.toString(), left.toString()));
+    jdbc.update(
+        """
+        DELETE FROM entity_relations
+        WHERE (source_type = ? AND source_id = ? AND target_type = ? AND target_id = ?)
+           OR (source_type = ? AND source_id = ? AND target_type = ? AND target_id = ?)
+        """,
+        left.type().name(),
+        left.id(),
+        right.type().name(),
+        right.id(),
+        right.type().name(),
+        right.id(),
+        left.type().name(),
+        left.id());
   }
 
   public void removeRelation(EntityId left, EntityId right, RelationType type) {
-    getRelationsBetween(left, right)
-        .ifPresent(
-            node -> {
-              node.getRelationships().remove(type);
-              save(node);
-            });
+    jdbc.update(
+        """
+        DELETE FROM entity_relations
+        WHERE source_type = ? AND source_id = ? AND target_type = ? AND target_id = ?
+          AND relation_type = ?
+        """,
+        left.type().name(),
+        left.id(),
+        right.type().name(),
+        right.id(),
+        type.name());
   }
 
   public RelationGraphNode addRelationship(EntityId left, EntityId right, RelationType type) {
@@ -55,21 +94,21 @@ public final class RelationGraphDaoPg implements RelationGraphDao {
 
   public RelationGraphNode addAllRelationships(
       EntityId left, EntityId right, List<RelationType> types) {
-    var node =
-        getRelationsBetween(left, right)
-            .orElseGet(
-                () ->
-                    RelationGraphNode.builder()
-                        .entityId(left.toString())
-                        .relatedEntity(right.toString())
-                        .relatedEntityType(right.type())
-                        .relationships(new ArrayList<>())
-                        .build());
-    types.stream()
-        .filter(type -> !node.getRelationships().contains(type))
-        .forEach(node.getRelationships()::add);
-    save(node);
-    return node;
+    for (var type : types) {
+      jdbc.update(
+          """
+          INSERT INTO entity_relations
+            (source_type, source_id, target_type, target_id, relation_type)
+          VALUES (?, ?, ?, ?, ?)
+          ON CONFLICT DO NOTHING
+          """,
+          left.type().name(),
+          left.id(),
+          right.type().name(),
+          right.id(),
+          type.name());
+    }
+    return getRelationsBetween(left, right).orElseThrow();
   }
 
   public boolean isPathBetween(EntityId start, EntityId end, EdgeSequence acceptedPath) {
@@ -113,23 +152,30 @@ public final class RelationGraphDaoPg implements RelationGraphDao {
   }
 
   public void deleteEntity(EntityId entity) {
-    var id = entity.toString();
-    for (var relation : all(entity)) {
-      store.delete("relation", key(relation.getRelatedEntity(), id));
-    }
-    store.deleteByScope("relation", id);
-    store.deleteBySource("relation", id);
+    jdbc.update(
+        """
+        DELETE FROM entity_relations
+        WHERE (source_type = ? AND source_id = ?) OR (target_type = ? AND target_id = ?)
+        """,
+        entity.type().name(),
+        entity.id(),
+        entity.type().name(),
+        entity.id());
   }
 
-  private void save(RelationGraphNode node) {
-    store.put(
-        "relation",
-        key(node.getEntityId(), node.getRelatedEntity()),
-        node.getEntityId(),
-        node.getRelatedEntityType().name(),
-        null,
-        node.getRelatedEntity(),
-        node);
+  private RelationGraphNode node(EntityId source, java.sql.ResultSet rs)
+      throws java.sql.SQLException {
+    var targetType = EntityType.valueOf(rs.getString("target_type"));
+    var relationships =
+        java.util.Arrays.stream((String[]) rs.getArray("relations").getArray())
+            .map(RelationType::valueOf)
+            .toList();
+    return RelationGraphNode.builder()
+        .entityId(source.toString())
+        .relatedEntity(EntityId.of(targetType, rs.getString("target_id")).toString())
+        .relatedEntityType(targetType)
+        .relationships(new java.util.ArrayList<>(relationships))
+        .build();
   }
 
   private record PathNode(int pathIndex, EntityId node) {}

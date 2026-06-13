@@ -13,6 +13,7 @@ import com.google.gson.stream.JsonWriter;
 import java.io.IOException;
 import java.time.Instant;
 import javax.sql.DataSource;
+import org.flywaydb.core.Flyway;
 import org.okapi.data.dao.*;
 import org.postgresql.ds.PGSimpleDataSource;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -21,6 +22,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.DependsOn;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 @AutoConfiguration
@@ -43,91 +45,114 @@ public class PostgresDataAutoConfiguration {
   }
 
   @Bean
-  @ConditionalOnMissingBean
-  JdbcRecordStore jdbcRecordStore(
-      @Qualifier("okapiJdbcTemplate") JdbcTemplate okapiJdbcTemplate) {
-    return new JdbcRecordStore(
-        okapiJdbcTemplate,
-        new GsonBuilder().registerTypeAdapter(Instant.class, new InstantAdapter()).create());
+  @ConditionalOnMissingBean(name = "okapiFlyway")
+  Flyway okapiFlyway(@Qualifier("okapiDataSource") DataSource okapiDataSource) {
+    var flyway =
+        Flyway.configure()
+            .dataSource(okapiDataSource)
+            .locations("classpath:db/migration")
+            .baselineOnMigrate(true)
+            .baselineVersion("0")
+            .load();
+    flyway.migrate();
+    return flyway;
   }
 
   @Bean
+  @DependsOn("okapiFlyway")
   @ConditionalOnMissingBean
-  UsersDao usersDao(JdbcRecordStore store) {
-    return new UsersDaoPg(store);
+  UsersDao usersDao(@Qualifier("okapiJdbcTemplate") JdbcTemplate jdbc) {
+    return new UsersDaoPg(jdbc);
   }
 
   @Bean
+  @DependsOn("okapiFlyway")
   @ConditionalOnMissingBean
-  OrgDao orgDao(JdbcRecordStore store) {
-    return new OrgDaoPg(store);
+  OrgDao orgDao(@Qualifier("okapiJdbcTemplate") JdbcTemplate jdbc) {
+    return new OrgDaoPg(jdbc);
   }
 
   @Bean
+  @DependsOn("okapiFlyway")
   @ConditionalOnMissingBean
-  RelationGraphDao relationGraphDao(JdbcRecordStore store) {
-    return new RelationGraphDaoPg(store);
+  RelationGraphDao relationGraphDao(@Qualifier("okapiJdbcTemplate") JdbcTemplate jdbc) {
+    return new RelationGraphDaoPg(jdbc);
   }
 
   @Bean
+  @DependsOn("okapiFlyway")
   @ConditionalOnMissingBean
-  DashboardDao dashboardDao(JdbcRecordStore store) {
-    return new DashboardDaoPg(store);
+  DashboardDao dashboardDao(@Qualifier("okapiJdbcTemplate") JdbcTemplate jdbc) {
+    return new DashboardDaoPg(jdbc, gson());
   }
 
   @Bean
+  @DependsOn("okapiFlyway")
   @ConditionalOnMissingBean
-  FederatedSourceRepo federatedSourceRepo(JdbcRecordStore store) {
-    return new FederatedSourceRepoPg(store);
+  FederatedSourceRepo federatedSourceRepo(@Qualifier("okapiJdbcTemplate") JdbcTemplate jdbc) {
+    return new FederatedSourceRepoPg(jdbc);
   }
 
   @Bean
+  @DependsOn("okapiFlyway")
   @ConditionalOnMissingBean
-  DashboardRowDao dashboardRowDao(JdbcRecordStore store) {
-    return new DashboardRowDaoPg(store);
+  DashboardRowDao dashboardRowDao(@Qualifier("okapiJdbcTemplate") JdbcTemplate jdbc) {
+    return new DashboardRowDaoPg(jdbc, gson());
   }
 
   @Bean
+  @DependsOn("okapiFlyway")
   @ConditionalOnMissingBean
-  DashboardPanelDao dashboardPanelDao(JdbcRecordStore store) {
-    return new DashboardPanelDaoPg(store);
+  DashboardPanelDao dashboardPanelDao(@Qualifier("okapiJdbcTemplate") JdbcTemplate jdbc) {
+    return new DashboardPanelDaoPg(jdbc, gson());
   }
 
   @Bean
+  @DependsOn("okapiFlyway")
   @ConditionalOnMissingBean
-  UserEntityRelationsDao userEntityRelationsDao(JdbcRecordStore store) {
-    return new UserEntityRelationsDaoPg(store);
+  UserEntityRelationsDao userEntityRelationsDao(@Qualifier("okapiJdbcTemplate") JdbcTemplate jdbc) {
+    return new UserEntityRelationsDaoPg(jdbc);
   }
 
   @Bean
+  @DependsOn("okapiFlyway")
   @ConditionalOnBean(ResultUploader.class)
   @ConditionalOnMissingBean
-  PendingJobsDao pendingJobsDao(JdbcRecordStore store, ResultUploader uploader) {
-    return new PendingJobsDaoPg(store, uploader);
+  PendingJobsDao pendingJobsDao(
+      @Qualifier("okapiJdbcTemplate") JdbcTemplate jdbc, ResultUploader uploader) {
+    return new PendingJobsDaoPg(jdbc, uploader, gson());
   }
 
   @Bean
+  @DependsOn("okapiFlyway")
   @ConditionalOnMissingBean
-  TokenMetaDao tokenMetaDao(JdbcRecordStore store) {
-    return new TokenMetaDaoPg(store);
+  TokenMetaDao tokenMetaDao(@Qualifier("okapiJdbcTemplate") JdbcTemplate jdbc) {
+    return new TokenMetaDaoPg(jdbc);
   }
 
   @Bean
+  @DependsOn("okapiFlyway")
   @ConditionalOnMissingBean
-  DashboardVarDao dashboardVarDao(JdbcRecordStore store) {
-    return new DashboardVarDaoPg(store);
+  DashboardVarDao dashboardVarDao(@Qualifier("okapiJdbcTemplate") JdbcTemplate jdbc) {
+    return new DashboardVarDaoPg(jdbc);
   }
 
   @Bean
+  @DependsOn("okapiFlyway")
   @ConditionalOnMissingBean
-  DashboardVersionDao dashboardVersionDao(JdbcRecordStore store) {
-    return new DashboardVersionDaoPg(store);
+  DashboardVersionDao dashboardVersionDao(@Qualifier("okapiJdbcTemplate") JdbcTemplate jdbc) {
+    return new DashboardVersionDaoPg(jdbc);
   }
 
   @Bean
+  @DependsOn("okapiFlyway")
   @ConditionalOnMissingBean
-  InfraEntityNodeDao infraEntityNodeDao(JdbcRecordStore store) {
-    return new InfraEntityNodeDaoPg(store);
+  InfraEntityNodeDao infraEntityNodeDao(@Qualifier("okapiJdbcTemplate") JdbcTemplate jdbc) {
+    return new InfraEntityNodeDaoPg(jdbc, gson());
+  }
+
+  private static Gson gson() {
+    return new GsonBuilder().registerTypeAdapter(Instant.class, new InstantAdapter()).create();
   }
 
   private static final class InstantAdapter extends TypeAdapter<Instant> {

@@ -11,20 +11,50 @@ import org.okapi.data.bcrypt.BCrypt;
 import org.okapi.data.dao.UsersDao;
 import org.okapi.data.exceptions.UserAlreadyExistsException;
 import org.okapi.data.model.User;
+import org.springframework.dao.DuplicateKeyException;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 public final class UsersDaoPg implements UsersDao {
-  private final JdbcRecordStore store;
+  private final JdbcTemplate jdbc;
 
-  public UsersDaoPg(JdbcRecordStore store) {
-    this.store = store;
+  public UsersDaoPg(JdbcTemplate jdbc) {
+    this.jdbc = jdbc;
   }
 
   public Optional<User> get(String id) {
-    return store.get("user", id, User.class);
+    return jdbc
+        .query(
+            "SELECT * FROM users WHERE user_id = ?",
+            (rs, row) ->
+                User.builder()
+                    .userId(rs.getString("user_id"))
+                    .email(rs.getString("email"))
+                    .status(User.Status.valueOf(rs.getString("status")))
+                    .firstName(rs.getString("first_name"))
+                    .lastName(rs.getString("last_name"))
+                    .hashedPassword(rs.getString("hashed_password"))
+                    .build(),
+            id)
+        .stream()
+        .findFirst();
   }
 
   public Optional<User> getWithEmail(String email) {
-    return store.findByScope("user", email, User.class);
+    return jdbc
+        .query(
+            "SELECT * FROM users WHERE lower(email) = lower(?)",
+            (rs, row) ->
+                User.builder()
+                    .userId(rs.getString("user_id"))
+                    .email(rs.getString("email"))
+                    .status(User.Status.valueOf(rs.getString("status")))
+                    .firstName(rs.getString("first_name"))
+                    .lastName(rs.getString("last_name"))
+                    .hashedPassword(rs.getString("hashed_password"))
+                    .build(),
+            email)
+        .stream()
+        .findFirst();
   }
 
   public User createIfNotExists(String first, String last, String email, String password)
@@ -43,18 +73,44 @@ public final class UsersDaoPg implements UsersDao {
             .build();
     try {
       update(user);
-    } catch (RuntimeException e) {
-      if (getWithEmail(email).isPresent()) throw new UserAlreadyExistsException();
-      throw e;
+    } catch (DuplicateKeyException e) {
+      throw new UserAlreadyExistsException();
     }
     return user;
   }
 
   public Iterator<User> listAllUsers() {
-    return store.list("user", null, null, User.class).iterator();
+    return jdbc.query(
+            "SELECT * FROM users ORDER BY user_id",
+            (rs, row) ->
+                User.builder()
+                    .userId(rs.getString("user_id"))
+                    .email(rs.getString("email"))
+                    .status(User.Status.valueOf(rs.getString("status")))
+                    .firstName(rs.getString("first_name"))
+                    .lastName(rs.getString("last_name"))
+                    .hashedPassword(rs.getString("hashed_password"))
+                    .build())
+        .iterator();
   }
 
   public void update(User user) {
-    store.put("user", user.getUserId(), user.getEmail(), null, user.getStatus().name(), null, user);
+    jdbc.update(
+        """
+        INSERT INTO users (user_id, email, status, first_name, last_name, hashed_password)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT (user_id) DO UPDATE SET
+          email = EXCLUDED.email,
+          status = EXCLUDED.status,
+          first_name = EXCLUDED.first_name,
+          last_name = EXCLUDED.last_name,
+          hashed_password = EXCLUDED.hashed_password
+        """,
+        user.getUserId(),
+        user.getEmail(),
+        user.getStatus().name(),
+        user.getFirstName(),
+        user.getLastName(),
+        user.getHashedPassword());
   }
 }

@@ -22,10 +22,11 @@ import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Bean;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 @SpringBootTest(classes = PostgresDaosIT.TestApplication.class)
 class PostgresDaosIT {
-  @Autowired private JdbcRecordStore store;
+  @Autowired private JdbcTemplate jdbc;
   @Autowired private UsersDao users;
   @Autowired private OrgDao organizations;
   @Autowired private DashboardDao dashboards;
@@ -34,12 +35,48 @@ class PostgresDaosIT {
   @Autowired private DashboardPanelDao panels;
   @Autowired private DashboardVarDao variables;
   @Autowired private RelationGraphDao graph;
+  @Autowired private UserEntityRelationsDao userRelations;
   @Autowired private PendingJobsDao jobs;
   @Autowired private InfraEntityNodeDao infra;
 
   @BeforeEach
   void resetDatabase() {
-    store.clearAll();
+    jdbc.execute(
+        """
+        TRUNCATE TABLE
+          infra_entity_edges,
+          infra_entity_nodes,
+          pending_jobs,
+          entity_relations,
+          user_entity_relations,
+          token_metadata,
+          federated_sources,
+          dashboard_variables,
+          dashboard_panels,
+          dashboard_rows,
+          dashboard_versions,
+          dashboards,
+          organizations,
+          users
+        """);
+  }
+
+  @Test
+  void createsNormalizedTablesWithoutGenericRecordStorage() {
+    var tables =
+        jdbc.queryForList(
+            """
+            SELECT table_name
+            FROM information_schema.tables
+            WHERE table_schema = current_schema()
+            """,
+            String.class);
+
+    assertTrue(tables.contains("users"));
+    assertTrue(tables.contains("dashboards"));
+    assertTrue(tables.contains("pending_jobs"));
+    assertTrue(tables.contains("infra_entity_edges"));
+    assertFalse(tables.contains("data_records"));
   }
 
   @Test
@@ -56,6 +93,8 @@ class PostgresDaosIT {
     assertEquals(user, users.getWithEmail("ADA@example.com").orElseThrow());
     assertTrue(user.getHashedPassword().startsWith("$2"));
     assertEquals("Analytical Engines", organizations.findById("org-1").orElseThrow().getOrgName());
+    assertEquals(1, jdbc.queryForObject("SELECT count(*) FROM users", Integer.class));
+    assertEquals(1, jdbc.queryForObject("SELECT count(*) FROM organizations", Integer.class));
     assertThrows(
         UserAlreadyExistsException.class,
         () -> users.createIfNotExists("Other", "User", "ada@example.com", "secret"));
@@ -129,6 +168,7 @@ class PostgresDaosIT {
             .getFirst()
             .getExpectedResultType());
     assertEquals("service.name", variables.list("org", "dash", "v1").getFirst().getTag());
+    assertEquals(1, jdbc.queryForObject("SELECT count(*) FROM dashboard_panels", Integer.class));
   }
 
   @Test
@@ -150,6 +190,17 @@ class PostgresDaosIT {
                     OutgoingEdge.of(EntityType.DASHBOARD, RelationType.DASHBOARD_READ)))));
     graph.deleteEntity(org);
     assertFalse(graph.hasRelationBetween(user, org, RelationType.ORG_MEMBER));
+  }
+
+  @Test
+  void persistsUserRelationsWithoutOptionalAttributes() {
+    var edge =
+        new EntityRelationId(EntityType.DASHBOARD, "dashboard", UserRelationType.DASHBOARD_FAVE);
+    userRelations.createRelation(
+        UserEntityRelation.builder().userId("user").edgeId(edge).edgeAttributes(null).build());
+
+    var relation = userRelations.getRelation("user", edge).orElseThrow();
+    assertNull(relation.getEdgeAttributes());
   }
 
   @Test

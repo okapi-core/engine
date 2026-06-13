@@ -4,36 +4,73 @@
  */
 package org.okapi.data.pg;
 
-import static org.okapi.data.pg.PgKeys.key;
-
 import java.util.List;
 import java.util.Optional;
 import org.okapi.data.dao.DashboardVersionDao;
 import org.okapi.data.model.DashboardVersion;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 public final class DashboardVersionDaoPg implements DashboardVersionDao {
-  private final JdbcRecordStore store;
+  private final JdbcTemplate jdbc;
 
-  public DashboardVersionDaoPg(JdbcRecordStore store) {
-    this.store = store;
+  public DashboardVersionDaoPg(JdbcTemplate jdbc) {
+    this.jdbc = jdbc;
   }
 
   public void save(DashboardVersion version) {
-    store.put(
-        "dashboard-version",
-        key(version.getOrgId(), version.getDashboardId(), version.getVersionId()),
+    jdbc.update(
+        """
+        INSERT INTO dashboard_versions
+          (org_id, dashboard_id, version_id, status, created_at, created_by, spec_hash, note)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT (org_id, dashboard_id, version_id) DO UPDATE SET
+          status = EXCLUDED.status,
+          created_at = EXCLUDED.created_at,
+          created_by = EXCLUDED.created_by,
+          spec_hash = EXCLUDED.spec_hash,
+          note = EXCLUDED.note
+        """,
         version.getOrgId(),
         version.getDashboardId(),
+        version.getVersionId(),
         version.getStatus(),
-        null,
-        version);
+        version.getCreatedAt(),
+        version.getCreatedBy(),
+        version.getSpecHash(),
+        version.getNote());
   }
 
   public Optional<DashboardVersion> get(String org, String dashboard, String version) {
-    return store.get("dashboard-version", key(org, dashboard, version), DashboardVersion.class);
+    return jdbc
+        .query(
+            "SELECT * FROM dashboard_versions WHERE org_id = ? AND dashboard_id = ? AND version_id = ?",
+            this::map,
+            org,
+            dashboard,
+            version)
+        .stream()
+        .findFirst();
   }
 
   public List<DashboardVersion> list(String org, String dashboard) {
-    return store.list("dashboard-version", org, dashboard, DashboardVersion.class);
+    return jdbc.query(
+        "SELECT * FROM dashboard_versions WHERE org_id = ? AND dashboard_id = ? ORDER BY version_id",
+        this::map,
+        org,
+        dashboard);
+  }
+
+  private DashboardVersion map(java.sql.ResultSet rs, int row) throws java.sql.SQLException {
+    var createdAt = rs.getLong("created_at");
+    return DashboardVersion.builder()
+        .orgId(rs.getString("org_id"))
+        .dashboardId(rs.getString("dashboard_id"))
+        .versionId(rs.getString("version_id"))
+        .status(rs.getString("status"))
+        .createdAt(rs.wasNull() ? null : createdAt)
+        .createdBy(rs.getString("created_by"))
+        .specHash(rs.getString("spec_hash"))
+        .note(rs.getString("note"))
+        .build();
   }
 }
