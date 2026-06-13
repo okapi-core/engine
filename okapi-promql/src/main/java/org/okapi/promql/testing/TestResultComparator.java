@@ -13,9 +13,11 @@ import org.okapi.promql.eval.VectorData.SeriesWindow;
 import org.okapi.promql.testing.PromQlTestAst.*;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Compares a PromQL {@link ExpressionResult} against the expected results declared in an
@@ -108,9 +110,7 @@ final class TestResultComparator {
       ExpectedValue exp = entry.getValue();
       Float actualValue = actual.get(id);
       if (actualValue == null) {
-        if (!exp.histogram()) {
-          diffs.add(TestExpectationDifference.of(cmd.expression(), "missing series", id.toString(), null));
-        }
+        diffs.add(TestExpectationDifference.of(cmd.expression(), "missing series", id.toString(), null));
         continue;
       }
       if (!floatEquals(exp.value(), actualValue)) {
@@ -184,8 +184,10 @@ final class TestResultComparator {
 
     RangeSpec range = rangeSpec(cmd);
     List<TestExpectationDifference> diffs = new ArrayList<>();
+    Set<SeriesId> actualIds = new HashSet<>();
     for (SeriesWindow window : rv.data()) {
       SeriesId id = window.id();
+      actualIds.add(id);
       List<Float> exp = expected.get(id);
       if (exp == null) {
         diffs.add(TestExpectationDifference.of(cmd.expression(), "unexpected series", null, id.toString()));
@@ -218,6 +220,10 @@ final class TestResultComparator {
         diffs.add(TestExpectationDifference.of(cmd.expression(), "unsupported scan type", null,
             window.scan().getClass().getSimpleName()));
       }
+    }
+    for (SeriesId id : expected.keySet()) {
+      if (!actualIds.contains(id))
+        diffs.add(TestExpectationDifference.of(cmd.expression(), "missing series", id.toString(), null));
     }
     return diffs;
   }
