@@ -62,8 +62,12 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-okapi_oscar}
       POSTGRES_USER: ${POSTGRES_USER:-okapi_oscar_user_admin}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-okapi_oscar_password}
+      OKAPI_WEB_DB_USER: ${OKAPI_WEB_DB_USER:-okapi_web_user}
+      OKAPI_WEB_DB_PASSWORD: ${OKAPI_WEB_DB_PASSWORD:-okapi_web_password}
     ports:
       - "5432:5432"
+    volumes:
+      - "./postgres-init/init.sql:/docker-entrypoint-initdb.d/init.sql:ro"
     healthcheck:
       test:
         [

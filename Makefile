@@ -13,6 +13,9 @@ TEST_CLICKHOUSE_HOST ?= 127.0.0.1
 TEST_CLICKHOUSE_PORT ?= 8123
 TEST_POSTGRES_HOST ?= 127.0.0.1
 TEST_POSTGRES_PORT ?= 5432
+TEST_WEB_POSTGRES_SCHEMA ?= okapi_web
+TEST_WEB_POSTGRES_USER ?= okapi_web_user
+TEST_WEB_POSTGRES_PASSWORD ?= okapi_web_password
 TEST_VAULT_ADDR ?= http://127.0.0.1:8200
 POSTGRES_DB ?= okapi_oscar
 POSTGRES_USER ?= okapi_oscar_user_admin
@@ -23,6 +26,8 @@ TEST_INFRA_ENV = \
 	POSTGRES_DB="$(POSTGRES_DB)" \
 	POSTGRES_USER="$(POSTGRES_USER)" \
 	POSTGRES_PASSWORD="$(POSTGRES_PASSWORD)" \
+	OKAPI_WEB_DB_USER="$(TEST_WEB_POSTGRES_USER)" \
+	OKAPI_WEB_DB_PASSWORD="$(TEST_WEB_POSTGRES_PASSWORD)" \
 	VAULT_ROOT_TOKEN="$(VAULT_ROOT_TOKEN)"
 
 # Local application endpoints
@@ -57,7 +62,7 @@ OKAPI_CLUSTER_ENDPOINT ?= http://okapi-ingester.$(HELM_NS).svc.cluster.local:900
 HELM_CHART_REPO ?= oci://ghcr.io/okapi-core
 HELM_CHART_DIST ?= helm/dist
 
-.PHONY: test-infra test-infra-up test-infra-down
+.PHONY: test-infra test-infra-up test-infra-down init-test-postgres
 
 fe-dist:
 	@python3 build-scripts/fe_dist_copy.py
@@ -150,6 +155,12 @@ ch:
 
 postgres:
 	$(TEST_INFRA_ENV) $(DOCKER_COMPOSE) -f $(TEST_INFRA_COMPOSE) up -d --wait postgres
+	$(MAKE) init-test-postgres
+
+init-test-postgres:
+	$(TEST_INFRA_ENV) $(DOCKER_COMPOSE) -f $(TEST_INFRA_COMPOSE) exec -T postgres \
+		psql -v ON_ERROR_STOP=1 -U $(POSTGRES_USER) -d $(POSTGRES_DB) \
+		-f /docker-entrypoint-initdb.d/init.sql
 
 oscar-vault-dev:
 	@if [ -z "$(OPENAI_API_KEY)" ]; then \
@@ -194,6 +205,7 @@ test-infra-up:
 	fi
 	$(TEST_INFRA_ENV) $(DOCKER_COMPOSE) -f $(TEST_INFRA_COMPOSE) \
 		up -d --wait clickhouse localstack postgres vault
+	$(MAKE) init-test-postgres
 	$(TEST_INFRA_ENV) OPENAI_API_KEY="$(OPENAI_API_KEY)" \
 		$(DOCKER_COMPOSE) -f $(TEST_INFRA_COMPOSE) --profile init run --rm vault-init
 
@@ -240,6 +252,9 @@ test: package test-infra start-okapi-ingester-jar start-okapi-web-jar
 	OKAPI_TEST_LOCALSTACK_ENDPOINT="$(TEST_LOCALSTACK_ENDPOINT)" \
 	OKAPI_TEST_CLICKHOUSE_HOST="$(TEST_CLICKHOUSE_HOST)" \
 	OKAPI_TEST_CLICKHOUSE_PORT="$(TEST_CLICKHOUSE_PORT)" \
+	OKAPI_WEB_DB_URL="jdbc:postgresql://$(TEST_POSTGRES_HOST):$(TEST_POSTGRES_PORT)/$(POSTGRES_DB)?currentSchema=$(TEST_WEB_POSTGRES_SCHEMA)" \
+	OKAPI_WEB_DB_USER="$(TEST_WEB_POSTGRES_USER)" \
+	OKAPI_WEB_DB_PASSWORD="$(TEST_WEB_POSTGRES_PASSWORD)" \
 	OSCAR_DB_URL="jdbc:postgresql://$(TEST_POSTGRES_HOST):$(TEST_POSTGRES_PORT)/okapi_oscar?currentSchema=okapi_oscar" \
 	VAULT_ADDR="$(TEST_VAULT_ADDR)" \
 		mvn test
