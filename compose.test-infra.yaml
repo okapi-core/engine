@@ -35,6 +35,8 @@ services:
   localstack:
     image: localstack/localstack:latest
     container_name: localstack-main
+    environment:
+      LOCALSTACK_AUTH_TOKEN: ${LOCALSTACK_AUTH_TOKEN}
     ports:
       - "4566:4566"
     healthcheck:
