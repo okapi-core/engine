@@ -340,8 +340,8 @@ public class ExpressionVisitor extends PromQLParserBaseVisitor<LogicalExpr> {
   private LogicalExpr literalParam(PromQLParser.LiteralContext lit) {
     String s = lit.getText();
     if (s.startsWith("\"")) return new StringLiteralExpr(stripQuotes(s));
-    if ("nan".equalsIgnoreCase(s)) return new LiteralExpr(Float.NaN);
-    if ("inf".equalsIgnoreCase(s)) return new LiteralExpr(Float.POSITIVE_INFINITY);
+    if ("nan".equalsIgnoreCase(s)) return new LiteralExpr(Double.NaN);
+    if ("inf".equalsIgnoreCase(s)) return new LiteralExpr(Double.POSITIVE_INFINITY);
     if (lit.DURATION() != null)
       return new LiteralExpr(DurationUtil.parseToMillis(s) / 1000.0d);
     return new LiteralExpr(Double.parseDouble(s));
@@ -411,11 +411,11 @@ public class ExpressionVisitor extends PromQLParserBaseVisitor<LogicalExpr> {
   }
 
   private FillSpec buildFillSpec(List<PromQLParser.FillModifierContext> modifiers) {
-    Float left = null;
-    Float right = null;
+    Double left = null;
+    Double right = null;
     for (var modifier : modifiers) {
       String name = modifier.METRIC_NAME().getText().toLowerCase(Locale.ROOT);
-      float value = parseSignedFillLiteral(modifier.signedFillLiteral());
+      double value = parseSignedFillLiteral(modifier.signedFillLiteral());
       switch (name) {
         case "fill" -> {
           left = value;
@@ -429,12 +429,12 @@ public class ExpressionVisitor extends PromQLParserBaseVisitor<LogicalExpr> {
     return new FillSpec(left, right);
   }
 
-  private float parseSignedFillLiteral(PromQLParser.SignedFillLiteralContext ctx) {
+  private double parseSignedFillLiteral(PromQLParser.SignedFillLiteralContext ctx) {
     String value = ctx.getText();
-    if ("nan".equalsIgnoreCase(value)) return Float.NaN;
+    if ("nan".equalsIgnoreCase(value)) return Double.NaN;
     if ("inf".equalsIgnoreCase(value) || "+inf".equalsIgnoreCase(value))
-      return Float.POSITIVE_INFINITY;
-    if ("-inf".equalsIgnoreCase(value)) return Float.NEGATIVE_INFINITY;
-    return Float.parseFloat(value);
+      return Double.POSITIVE_INFINITY;
+    if ("-inf".equalsIgnoreCase(value)) return Double.NEGATIVE_INFINITY;
+    return Double.parseDouble(value);
   }
 }

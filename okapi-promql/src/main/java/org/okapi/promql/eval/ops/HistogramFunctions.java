@@ -600,7 +600,7 @@ public final class HistogramFunctions {
   }
 
   public static InstantVectorResult quantile(
-      float q, RangeVectorResult rv, long rangeMs, EvalContext ctx) {
+      double q, RangeVectorResult rv, long rangeMs, EvalContext ctx) {
     List<SeriesSample> out = new ArrayList<>();
 
     // Group windows by label set (minus 'instance') to merge across instances
@@ -636,14 +636,14 @@ public final class HistogramFunctions {
     return new InstantVectorResult(out);
   }
 
-  static float quantileFromHistogram(double q, HistoScan hs) {
+  static double quantileFromHistogram(double q, HistoScan hs) {
     List<Float> ubs = hs.getUbs();
     List<Integer> counts = hs.getCounts();
-    if (counts == null || counts.isEmpty()) return Float.NaN;
+    if (counts == null || counts.isEmpty()) return Double.NaN;
 
     long total = 0;
     for (int c : counts) total += c;
-    if (total <= 0) return Float.NaN;
+    if (total <= 0) return Double.NaN;
 
     double target = q * total;
     long cum = 0;
@@ -656,23 +656,23 @@ public final class HistogramFunctions {
     if (k == -1) k = counts.size() - 1;
 
     int n = ubs.size();
-    float lower, upper;
+    double lower, upper;
     if (k == 0) {
-      lower = Float.NEGATIVE_INFINITY; upper = ubs.get(0);
+      lower = Double.NEGATIVE_INFINITY; upper = ubs.get(0);
     } else if (k < n) {
       lower = ubs.get(k - 1); upper = ubs.get(k);
     } else {
-      lower = (n >= 1) ? ubs.get(n - 1) : Float.NEGATIVE_INFINITY;
-      upper = Float.POSITIVE_INFINITY;
+      lower = (n >= 1) ? ubs.get(n - 1) : Double.NEGATIVE_INFINITY;
+      upper = Double.POSITIVE_INFINITY;
     }
 
     int inBucket = counts.get(k);
-    if (inBucket <= 0) return Float.isInfinite(upper) ? lower : upper;
+    if (inBucket <= 0) return Double.isInfinite(upper) ? lower : upper;
 
     double pos = (target - cum) / Math.max(inBucket, 1);
-    if (Float.isInfinite(lower)) return upper;
-    if (Float.isInfinite(upper)) return lower;
-    return (float) (lower + pos * (upper - lower));
+    if (Double.isInfinite(lower)) return upper;
+    if (Double.isInfinite(upper)) return lower;
+    return (double) (lower + pos * (upper - lower));
   }
 
   private static void collectPoints(
@@ -680,10 +680,10 @@ public final class HistogramFunctions {
     for (var p : hs.getPoints()) {
       if (!overlaps(p.startMs(), p.endMs(), winStart, winEnd)) continue;
       if (!(p instanceof HistogramSeries.ExplicitHistogramSample explicit)) continue;
-      float[] bounds = explicit.upperBounds();
+      double[] bounds = explicit.upperBounds();
       int[] counts = explicit.counts();
       List<Float> ubs = new ArrayList<>(bounds == null ? 0 : bounds.length);
-      if (bounds != null) for (float b : bounds) ubs.add(b);
+      if (bounds != null) for (double b : bounds) ubs.add((float) b);
       List<Integer> cs = new ArrayList<>(counts == null ? 0 : counts.length);
       if (counts != null) for (int c : counts) cs.add(c);
       out.add(new HistoScan("", explicit.startMs(), explicit.endMs(), ubs, cs));

@@ -22,8 +22,8 @@ import org.okapi.promql.parser.PromQLParser;
 
 /**
  * The @ modifier pins a selector to a fixed Unix timestamp in seconds.
- * We use small timestamps (hundreds of seconds) to avoid float-precision loss when
- * the parser converts the literal to float and NodeEvaluator converts back to ms.
+ * We use small timestamps (hundreds of seconds) to avoid double-precision loss when
+ * the parser converts the literal to double and NodeEvaluator converts back to ms.
  */
 public class AtModifierTest {
 
@@ -35,7 +35,7 @@ public class AtModifierTest {
 
   @Test
   void atModifier_fixesEvalAtSpecifiedTimestamp() throws EvaluationException {
-    // Use small timestamps (in ms) so t/1000 is exactly representable as float.
+    // Use small timestamps (in ms) so t/1000 is exactly representable as double.
     long step = 60_000L;
     long t0 = 60_000L;   // 60 s
     long t1 = 120_000L;  // 120 s

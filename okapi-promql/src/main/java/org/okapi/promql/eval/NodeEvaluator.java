@@ -212,14 +212,14 @@ public final class NodeEvaluator {
     for (SeriesWindow window : rv.data()) {
       if (!(window.scan() instanceof GaugeScan scan)) continue;
       for (long t = ctx.startMs; t <= ctx.endMs; t += ctx.stepMs) {
-        Float value = interpolateGauge(scan, t);
+        Double value = interpolateGauge(scan, t);
         if (value != null) out.add(new SeriesSample(window.id(), new Sample(t, value)));
       }
     }
     return new InstantVectorResult(out);
   }
 
-  private Float interpolateGauge(GaugeScan scan, long target) {
+  private Double interpolateGauge(GaugeScan scan, long target) {
     var ts = scan.getTimestamps();
     var vals = scan.getValues();
     if (ts.isEmpty()) return null;
@@ -230,7 +230,7 @@ public final class NodeEvaluator {
     if (after == ts.size()) return vals.get(vals.size() - 1);
     int before = after - 1;
     double ratio = (double) (target - ts.get(before)) / (ts.get(after) - ts.get(before));
-    return (float) (vals.get(before) + ratio * (vals.get(after) - vals.get(before)));
+    return (double) (vals.get(before) + ratio * (vals.get(after) - vals.get(before)));
   }
 
   private boolean isEmptyScan(Scan scan) {
@@ -292,16 +292,16 @@ public final class NodeEvaluator {
             points.add(
                 sample.isHistogram()
                     ? retime(sample.histogram(), ts)
-                    : new HistogramSeries.FloatSample(ts, ts, (float) sample.value()));
+                    : new HistogramSeries.FloatSample(ts, ts, (double) sample.value()));
           }
           out.add(new SeriesWindow(entry.getKey(), new HistogramSeries("", points)));
           continue;
         }
         List<Long> ts = new ArrayList<>(samples.size());
-        List<Float> vals = new ArrayList<>(samples.size());
+        List<Double> vals = new ArrayList<>(samples.size());
         for (var smp : samples) {
           ts.add(smp.ts() + offset);
-          vals.add((float) smp.value());
+          vals.add((double) smp.value());
         }
         GaugeScan gs =
             GaugeScan.builder()
@@ -382,7 +382,7 @@ public final class NodeEvaluator {
     if (isArithmetic(e.op)) return new ScalarResult(applyArith(a, b, e.op));
     if (isComparison(e.op)) {
       boolean ok = compare(a, b, e.op);
-      return e.boolModifier ? new ScalarResult(ok ? 1f : 0f) : (ok ? new ScalarResult(a) : new ScalarResult(Float.NaN));
+      return e.boolModifier ? new ScalarResult(ok ? 1f : 0f) : (ok ? new ScalarResult(a) : new ScalarResult(Double.NaN));
     }
     throw new EvaluationException("set operators require instant vectors, not scalars");
   }
@@ -461,7 +461,7 @@ public final class NodeEvaluator {
           var lList = leftIdx.get(key);
           var rList = rightIdx.get(key);
           if (rList == null || rList.isEmpty()) {
-            Float fill = fillForMissingRight(e, groupRight);
+            Double fill = fillForMissingRight(e, groupRight);
             if (fill != null) {
               for (var l : lList)
                 combine(e, l, filledSample(l, fill, groupRight ? ms : null), isCmp)
@@ -488,7 +488,7 @@ public final class NodeEvaluator {
             combine(e, lList.get(0), rList.get(0), isCmp).ifPresent(out::add);
           }
         }
-        Float fill = fillForMissingLeft(e, groupRight);
+        Double fill = fillForMissingLeft(e, groupRight);
         if (fill != null) {
           for (var key : rightIdx.keySet()) {
             if (leftIdx.containsKey(key)) continue;
@@ -575,15 +575,15 @@ public final class NodeEvaluator {
     return ok ? Optional.of(l) : Optional.empty();
   }
 
-  private Float fillForMissingLeft(BinaryOpExpr e, boolean groupRight) {
+  private Double fillForMissingLeft(BinaryOpExpr e, boolean groupRight) {
     return groupRight ? e.fillSpec.right() : e.fillSpec.left();
   }
 
-  private Float fillForMissingRight(BinaryOpExpr e, boolean groupRight) {
+  private Double fillForMissingRight(BinaryOpExpr e, boolean groupRight) {
     return groupRight ? e.fillSpec.left() : e.fillSpec.right();
   }
 
-  private SeriesSample filledSample(SeriesSample source, float value, MatchSpec projection) {
+  private SeriesSample filledSample(SeriesSample source, double value, MatchSpec projection) {
     var sample = source.sample();
     return new SeriesSample(
         projection == null ? SeriesIds.derived(source.series()) : projectToMatchLabels(source.series(), projection),
@@ -615,11 +615,11 @@ public final class NodeEvaluator {
     if (op.equals("count_values")) return evalCountValues(e, ctx);
 
     int vecIdx = 0;
-    Float param = null;
+    Double param = null;
     if (Set.of("topk", "bottomk", "quantile", "limitk", "limit_ratio").contains(op)) {
       if (e.args.size() != 2) throw new EvaluationException(op + ": expected two arguments");
       var pRes = TypeChecks.requireScalar(eval(e.args.get(0), ctx), op);
-      param = (float) pRes.value;
+      param = (double) pRes.value;
       vecIdx = 1;
       validateAggregateParam(op, param);
     }
@@ -656,7 +656,7 @@ public final class NodeEvaluator {
         }
         case "min" -> addIfNotEmpty(out, gauges, id, ts, aggregateExtrema(gauges, false));
         case "max" -> addIfNotEmpty(out, gauges, id, ts, aggregateExtrema(gauges, true));
-        case "count" -> out.add(sample(id, ts, (float) list.size()));
+        case "count" -> out.add(sample(id, ts, (double) list.size()));
         case "stddev" -> addIfNotEmpty(out, gauges, id, ts, stddev(gauges));
         case "stdvar" -> addIfNotEmpty(out, gauges, id, ts, stdvar(gauges));
         case "group" -> out.add(sample(id, ts, 1f));
@@ -710,8 +710,8 @@ public final class NodeEvaluator {
     return new InstantVectorResult(out);
   }
 
-  private void validateAggregateParam(String op, float param) {
-    if (Float.isNaN(param) && !op.equals("quantile")) {
+  private void validateAggregateParam(String op, double param) {
+    if (Double.isNaN(param) && !op.equals("quantile")) {
       String name = op.equals("limit_ratio") ? "Ratio" : "Parameter";
       throw new EvaluationException(name + " value is NaN");
     }
@@ -719,7 +719,7 @@ public final class NodeEvaluator {
       throw new EvaluationException("ratio value must be between -1 and 1");
   }
 
-  private int clampCount(float value) {
+  private int clampCount(double value) {
     if (value <= 0f) return 0;
     if (value >= Integer.MAX_VALUE) return Integer.MAX_VALUE;
     return (int) value;
@@ -840,7 +840,7 @@ public final class NodeEvaluator {
       case "last_over_time"    -> RangeStats.last   (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
       case "present_over_time" -> RangeStats.present(TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
       case "quantile_over_time" -> RangeStats.quantile(
-          (float) TypeChecks.requireScalar(eval(e.args.get(0), ctx), e.name).value,
+          (double) TypeChecks.requireScalar(eval(e.args.get(0), ctx), e.name).value,
           TypeChecks.requireRangeVector(eval(e.args.get(1), ctx), e.name),
           rangeOf(e, 1, ctx), ctx, anchorMsOf(e.args.get(1), ctx));
       case "first_over_time"   -> RangeStats.first  (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
@@ -860,8 +860,8 @@ public final class NodeEvaluator {
       case "double_exponential_smoothing" -> RangeFunctions.doubleExponentialSmoothing(
           TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name),
           rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx),
-          (float) TypeChecks.requireScalar(eval(e.args.get(1), ctx), e.name).value,
-          (float) TypeChecks.requireScalar(eval(e.args.get(2), ctx), e.name).value);
+          (double) TypeChecks.requireScalar(eval(e.args.get(1), ctx), e.name).value,
+          (double) TypeChecks.requireScalar(eval(e.args.get(2), ctx), e.name).value);
       // instant-vector functions
       case "abs"   -> InstantFunctions.mapDerivedSamples(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), Math::abs);
       case "ceil"  -> InstantFunctions.mapDerivedSamples(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), Math::ceil);
@@ -910,7 +910,7 @@ public final class NodeEvaluator {
           "asinh", "acosh", "atanh", "rad", "deg" -> evalTrig(e, ctx);
       case "pi" -> {
         requireArgCount(e, 0);
-        yield new ScalarResult((float) FastMath.PI);
+        yield new ScalarResult((double) FastMath.PI);
       }
       case "info" -> evalInfo(e, ctx);
       case "histogram_count" -> HistogramFunctions.count(
@@ -1000,7 +1000,7 @@ public final class NodeEvaluator {
                 ? value
                 : !Double.isFinite(value)
                     ? value
-                    : (float) (Math.floor(Math.nextUp(value / nearest) + 0.5d) * nearest));
+                    : (double) (Math.floor(Math.nextUp(value / nearest) + 0.5d) * nearest));
   }
 
   private InstantVectorResult evalAbsent(FunctionExpr e, EvalContext ctx) {
@@ -1461,34 +1461,34 @@ public final class NodeEvaluator {
     return new SeriesSample(id, new Sample(ts, v));
   }
 
-  private static float aggQuantile(List<SeriesSample> list, float q) {
-    if (list.isEmpty()) return Float.NaN;
-    if (Float.isNaN(q)) return Float.NaN;
-    if (q < 0f) return Float.NEGATIVE_INFINITY;
-    if (q > 1f) return Float.POSITIVE_INFINITY;
-    var arr = new ArrayList<Float>();
-    for (SeriesSample sample : list) arr.add((float) sample.sample().value());
+  private static double aggQuantile(List<SeriesSample> list, double q) {
+    if (list.isEmpty()) return Double.NaN;
+    if (Double.isNaN(q)) return Double.NaN;
+    if (q < 0f) return Double.NEGATIVE_INFINITY;
+    if (q > 1f) return Double.POSITIVE_INFINITY;
+    var arr = new ArrayList<Double>();
+    for (SeriesSample sample : list) arr.add((double) sample.sample().value());
     arr.sort((a, b) -> {
-      if (Float.isNaN(a)) return Float.isNaN(b) ? 0 : -1;
-      if (Float.isNaN(b)) return 1;
-      return Float.compare(a, b);
+      if (Double.isNaN(a)) return Double.isNaN(b) ? 0 : -1;
+      if (Double.isNaN(b)) return 1;
+      return Double.compare(a, b);
     });
     int n = arr.size();
     if (n == 1) return arr.get(0);
     double idx = q * (n - 1);
     int i = (int) Math.floor(idx), j = (int) Math.ceil(idx);
     if (i == j) return arr.get(i);
-    return (float) (arr.get(i) * (1 - (idx - i)) + arr.get(j) * (idx - i));
+    return (double) (arr.get(i) * (1 - (idx - i)) + arr.get(j) * (idx - i));
   }
 
-  private static float stddev(List<SeriesSample> list) {
-    return (float) Math.sqrt(stdvar(list));
+  private static double stddev(List<SeriesSample> list) {
+    return (double) Math.sqrt(stdvar(list));
   }
 
-  private static float stdvar(List<SeriesSample> list) {
-    if (list.isEmpty()) return Float.NaN;
+  private static double stdvar(List<SeriesSample> list) {
+    if (list.isEmpty()) return Double.NaN;
     double mean = list.stream().mapToDouble(s -> s.sample().value()).average().orElse(Double.NaN);
-    return (float) list.stream().mapToDouble(s -> { double d = s.sample().value() - mean; return d * d; }).average().orElse(Double.NaN);
+    return (double) list.stream().mapToDouble(s -> { double d = s.sample().value() - mean; return d * d; }).average().orElse(Double.NaN);
   }
 
   private record JoinKey(Map<String, String> labels, long ts) {

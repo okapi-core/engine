@@ -33,7 +33,7 @@ public class RangeVectorBasicsTest {
                     "missing window for " + metric + "{" + label + "=\"" + value + "\"}"));
   }
 
-  private static void assertHasPointAvg(SeriesWindow w, long ts, float expectedAvg) {
+  private static void assertHasPointAvg(SeriesWindow w, long ts, double expectedAvg) {
     var scan = w.scan();
     if (!(scan instanceof org.okapi.metrics.pojos.results.GaugeScan gs)) {
       throw new AssertionError("expected GaugeScan for series " + w.id());

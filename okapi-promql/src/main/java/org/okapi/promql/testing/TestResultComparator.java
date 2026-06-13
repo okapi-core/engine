@@ -71,7 +71,7 @@ final class TestResultComparator {
           cmd.expression(), "expected scalar result but got series",
           expected.get(0).toString(), String.valueOf(scalar.getValue())));
     }
-    if (!floatEquals((float) exp.value(), (float) scalar.getValue())) {
+    if (!floatEquals((double) exp.value(), (double) scalar.getValue())) {
       return List.of(TestExpectationDifference.of(
           cmd.expression(), "scalar value mismatch",
           String.valueOf(exp.value()), String.valueOf(scalar.getValue())));
@@ -87,18 +87,18 @@ final class TestResultComparator {
       evalTime = DurationParser.toMillis(instant.at().text());
     }
 
-    Map<SeriesId, Float> actual = new HashMap<>();
+    Map<SeriesId, Double> actual = new HashMap<>();
     for (SeriesSample s : iv) {
       if (evalTime != null && s.sample().ts() != evalTime) continue;
-      actual.put(s.series(), (float) s.sample().value());
+      actual.put(s.series(), (double) s.sample().value());
     }
 
-    record ExpectedValue(float value, boolean histogram) {}
+    record ExpectedValue(double value, boolean histogram) {}
     Map<SeriesId, ExpectedValue> expected = new HashMap<>();
     for (ExpectedResult res : cmd.results()) {
       if (res instanceof SeriesResult sr) {
-        List<Float> values = expandExpectedPoints(sr.series().points());
-        float value = values.isEmpty() ? Float.NaN : values.get(0);
+        List<Double> values = expandExpectedPoints(sr.series().points());
+        double value = values.isEmpty() ? Double.NaN : values.get(0);
         expected.put(InMemoryTimeSeriesStore.normalize((SeriesDef) sr.series()),
             new ExpectedValue(value, containsHistogramPoint(sr.series().points())));
       }
@@ -108,7 +108,7 @@ final class TestResultComparator {
     for (var entry : expected.entrySet()) {
       SeriesId id = entry.getKey();
       ExpectedValue exp = entry.getValue();
-      Float actualValue = actual.get(id);
+      Double actualValue = actual.get(id);
       if (actualValue == null) {
         diffs.add(TestExpectationDifference.of(cmd.expression(), "missing series", id.toString(), null));
         continue;
@@ -124,7 +124,7 @@ final class TestResultComparator {
   // ---------- Range from instant (RangeEval → InstantVectorResult) ----------
 
   private List<TestExpectationDifference> compareRangeFromInstant(EvalCmd cmd, InstantVectorResult iv) {
-    Map<SeriesId, List<Float>> expected = new HashMap<>();
+    Map<SeriesId, List<Double>> expected = new HashMap<>();
     for (ExpectedResult res : cmd.results()) {
       if (res instanceof SeriesResult sr) {
         expected.put(InMemoryTimeSeriesStore.normalize((SeriesDef) sr.series()),
@@ -133,22 +133,22 @@ final class TestResultComparator {
     }
 
     RangeSpec range = rangeSpec(cmd);
-    Map<SeriesId, Map<Long, Float>> actualBySeries = new HashMap<>();
+    Map<SeriesId, Map<Long, Double>> actualBySeries = new HashMap<>();
     for (SeriesSample s : iv) {
       actualBySeries.computeIfAbsent(s.series(), k -> new HashMap<>())
-          .put(s.sample().ts(), (float) s.sample().value());
+          .put(s.sample().ts(), (double) s.sample().value());
     }
 
     List<TestExpectationDifference> diffs = new ArrayList<>();
     for (var entry : expected.entrySet()) {
       SeriesId id = entry.getKey();
-      List<Float> exp = entry.getValue();
-      Map<Long, Float> actualSeries = actualBySeries.get(id);
+      List<Double> exp = entry.getValue();
+      Map<Long, Double> actualSeries = actualBySeries.get(id);
       if (actualSeries == null) {
         diffs.add(TestExpectationDifference.of(cmd.expression(), "missing series", id.toString(), null));
         continue;
       }
-      List<Float> actual = trimTrailingMissing(alignRangeValues(actualSeries, range), exp.size());
+      List<Double> actual = trimTrailingMissing(alignRangeValues(actualSeries, range), exp.size());
       if (actual.size() != exp.size()) {
         diffs.add(TestExpectationDifference.of(cmd.expression(), "range vector length mismatch",
             String.valueOf(exp.size()), String.valueOf(actual.size())));
@@ -174,7 +174,7 @@ final class TestResultComparator {
   // ---------- Range vector ----------
 
   private List<TestExpectationDifference> compareRangeVector(EvalCmd cmd, RangeVectorResult rv) {
-    Map<SeriesId, List<Float>> expected = new HashMap<>();
+    Map<SeriesId, List<Double>> expected = new HashMap<>();
     for (ExpectedResult res : cmd.results()) {
       if (res instanceof SeriesResult sr) {
         expected.put(InMemoryTimeSeriesStore.normalize((SeriesDef) sr.series()),
@@ -188,13 +188,13 @@ final class TestResultComparator {
     for (SeriesWindow window : rv.data()) {
       SeriesId id = window.id();
       actualIds.add(id);
-      List<Float> exp = expected.get(id);
+      List<Double> exp = expected.get(id);
       if (exp == null) {
         diffs.add(TestExpectationDifference.of(cmd.expression(), "unexpected series", null, id.toString()));
         continue;
       }
       if (window.scan() instanceof GaugeScan gs) {
-        List<Float> actual = alignRangeValues(gs, range, exp.size());
+        List<Double> actual = alignRangeValues(gs, range, exp.size());
         if (actual.size() != exp.size()) {
           diffs.add(TestExpectationDifference.of(cmd.expression(), "range vector length mismatch",
               String.valueOf(exp.size()), String.valueOf(actual.size())));
@@ -267,17 +267,17 @@ final class TestResultComparator {
   // ---------- Expected-value expansion (comparison semantics) ----------
 
   // MissingPoint → omit, StalePoint → null sentinel for "no value at step"
-  private List<Float> expandExpectedPoints(List<PointExpr> points) {
-    List<Float> out = new ArrayList<>();
+  private List<Double> expandExpectedPoints(List<PointExpr> points) {
+    List<Double> out = new ArrayList<>();
     for (PointExpr p : points) expandExpected(p, out);
     return out;
   }
 
-  private List<Float> expandExpectedPointsForRange(List<PointExpr> points) {
-    List<Float> out = new ArrayList<>();
+  private List<Double> expandExpectedPointsForRange(List<PointExpr> points) {
+    List<Double> out = new ArrayList<>();
     for (PointExpr p : points) {
       if (p instanceof MissingPoint || p instanceof StalePoint) {
-        out.add(Float.NaN);
+        out.add(Double.NaN);
       } else {
         expandExpected(p, out);
       }
@@ -285,19 +285,19 @@ final class TestResultComparator {
     return out;
   }
 
-  private void expandExpected(PointExpr point, List<Float> out) {
+  private void expandExpected(PointExpr point, List<Double> out) {
     switch (point) {
-      case NumberPoint np -> out.add((float) np.value());
-      case NaNPoint ignored -> out.add(Float.NaN);
-      case InfPoint ip -> out.add(ip.negative() ? Float.NEGATIVE_INFINITY : Float.POSITIVE_INFINITY);
+      case NumberPoint np -> out.add((double) np.value());
+      case NaNPoint ignored -> out.add(Double.NaN);
+      case InfPoint ip -> out.add(ip.negative() ? Double.NEGATIVE_INFINITY : Double.POSITIVE_INFINITY);
       case MissingPoint mp -> { /* omit */ }
       case StalePoint st -> out.add(null);
       case RepeatPoint rp -> { for (int i = 0; i <= rp.count(); i++) expandExpected(rp.value(), out); }
       case StepSequencePoint sp -> {
         double start = extractNumber(sp.start()), delta = extractNumber(sp.step());
-        for (int i = 0; i <= sp.count(); i++) out.add((float) (start + delta * i));
+        for (int i = 0; i <= sp.count(); i++) out.add((double) (start + delta * i));
       }
-      case HistogramPoint ignored -> out.add(Float.NaN);
+      case HistogramPoint ignored -> out.add(Double.NaN);
     }
   }
 
@@ -306,12 +306,12 @@ final class TestResultComparator {
   private HistogramVectorResult.HistogramValue extractExpectedHistogramValue(List<PointExpr> points) {
     for (PointExpr p : points) {
       if (p instanceof HistogramPoint hp) {
-        float count = InMemoryTimeSeriesStore.histogramField(hp.value(), "count");
-        float sum = InMemoryTimeSeriesStore.histogramField(hp.value(), "sum");
+        double count = InMemoryTimeSeriesStore.histogramField(hp.value(), "count");
+        double sum = InMemoryTimeSeriesStore.histogramField(hp.value(), "sum");
         return new HistogramVectorResult.HistogramValue(count, sum);
       }
     }
-    return new HistogramVectorResult.HistogramValue(Float.NaN, Float.NaN);
+    return new HistogramVectorResult.HistogramValue(Double.NaN, Double.NaN);
   }
 
   private List<HistogramCounts> expandExpectedHistogramPoints(List<PointExpr> points) {
@@ -334,10 +334,10 @@ final class TestResultComparator {
       case RepeatPoint rp -> { for (int i = 0; i <= rp.count(); i++) expandExpectedHistogramPoint(rp.value(), out); }
       case StepSequencePoint sp -> {
         if (sp.start() instanceof HistogramPoint start && sp.step() instanceof HistogramPoint delta) {
-          float startSum = InMemoryTimeSeriesStore.histogramField(start.value(), "sum");
-          float startCount = InMemoryTimeSeriesStore.histogramField(start.value(), "count");
-          float dSum = InMemoryTimeSeriesStore.histogramField(delta.value(), "sum");
-          float dCount = InMemoryTimeSeriesStore.histogramField(delta.value(), "count");
+          double startSum = InMemoryTimeSeriesStore.histogramField(start.value(), "sum");
+          double startCount = InMemoryTimeSeriesStore.histogramField(start.value(), "count");
+          double dSum = InMemoryTimeSeriesStore.histogramField(delta.value(), "sum");
+          double dCount = InMemoryTimeSeriesStore.histogramField(delta.value(), "count");
           for (int i = 0; i <= sp.count(); i++) {
             out.add(InMemoryTimeSeriesStore.buildHistogramLiteral(
                 startSum + dSum * i, startCount + dCount * i));
@@ -381,38 +381,38 @@ final class TestResultComparator {
 
   // ---------- Range alignment ----------
 
-  private List<Float> alignRangeValues(GaugeScan scan, RangeSpec range) {
+  private List<Double> alignRangeValues(GaugeScan scan, RangeSpec range) {
     return alignRangeValues(scan, range, range.steps);
   }
 
-  private List<Float> alignRangeValues(GaugeScan scan, RangeSpec range, int steps) {
+  private List<Double> alignRangeValues(GaugeScan scan, RangeSpec range, int steps) {
     if (range.stepMs <= 0 || range.steps <= 0) return new ArrayList<>(scan.getValues());
-    Map<Long, Float> byTs = new HashMap<>();
+    Map<Long, Double> byTs = new HashMap<>();
     List<Long> ts = scan.getTimestamps();
-    List<Float> vals = scan.getValues();
+    List<Double> vals = scan.getValues();
     for (int i = 0; i < ts.size(); i++) byTs.put(ts.get(i), vals.get(i));
     return alignRangeValues(byTs, range, steps);
   }
 
-  private List<Float> alignRangeValues(Map<Long, Float> byTs, RangeSpec range) {
+  private List<Double> alignRangeValues(Map<Long, Double> byTs, RangeSpec range) {
     return alignRangeValues(byTs, range, range.steps);
   }
 
-  private List<Float> alignRangeValues(Map<Long, Float> byTs, RangeSpec range, int steps) {
+  private List<Double> alignRangeValues(Map<Long, Double> byTs, RangeSpec range, int steps) {
     if (range.stepMs <= 0 || range.steps <= 0) return new ArrayList<>(byTs.values());
-    List<Float> out = new ArrayList<>();
+    List<Double> out = new ArrayList<>();
     long t = range.startMs;
     for (int i = 0; i < steps; i++) {
-      Float v = byTs.get(t);
-      out.add(v == null || Staleness.isStale(v) ? Float.NaN : v);
+      Double v = byTs.get(t);
+      out.add(v == null || Staleness.isStale(v) ? Double.NaN : v);
       t += range.stepMs;
     }
     return out;
   }
 
-  private List<Float> trimTrailingMissing(List<Float> values, int expectedSize) {
+  private List<Double> trimTrailingMissing(List<Double> values, int expectedSize) {
     int end = values.size();
-    while (end > expectedSize && Float.isNaN(values.get(end - 1))) end--;
+    while (end > expectedSize && Double.isNaN(values.get(end - 1))) end--;
     return end == values.size() ? values : new ArrayList<>(values.subList(0, end));
   }
 
@@ -425,13 +425,13 @@ final class TestResultComparator {
     if (range.stepMs <= 0 || range.steps <= 0) {
       for (var p : hs.getPoints())
         if (p instanceof HistogramSeries.HistogramSample histogram)
-          out.add(new HistogramCounts((float) histogram.sum(), (float) histogram.count()));
+          out.add(new HistogramCounts((double) histogram.sum(), (double) histogram.count()));
       return out;
     }
     Map<Long, HistogramCounts> byTs = new HashMap<>();
     for (var p : hs.getPoints())
       if (p instanceof HistogramSeries.HistogramSample histogram)
-        byTs.put(p.endMs(), new HistogramCounts((float) histogram.sum(), (float) histogram.count()));
+        byTs.put(p.endMs(), new HistogramCounts((double) histogram.sum(), (double) histogram.count()));
     long t = range.startMs;
     for (int i = 0; i < steps; i++) {
       out.add(byTs.get(t));
@@ -483,14 +483,14 @@ final class TestResultComparator {
     throw new IllegalStateException("expected number point");
   }
 
-  static boolean floatEquals(float a, float b) {
-    if (Float.isNaN(a) && Float.isNaN(b)) return true;
-    if (Float.isInfinite(a) || Float.isInfinite(b)) return a == b;
+  static boolean floatEquals(double a, double b) {
+    if (Double.isNaN(a) && Double.isNaN(b)) return true;
+    if (Double.isInfinite(a) || Double.isInfinite(b)) return a == b;
     double diff = Math.abs(a - b);
     double scale = Math.max(Math.abs(a), Math.abs(b));
     return scale == 0.0 ? diff <= DEFAULT_EPSILON : diff <= DEFAULT_EPSILON * scale;
   }
 
   private record RangeSpec(long startMs, long endMs, long stepMs, int steps) {}
-  private record HistogramCounts(float sum, float count) {}
+  private record HistogramCounts(double sum, double count) {}
 }

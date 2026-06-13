@@ -56,9 +56,9 @@ public class HistogramQuantileTest {
     var res = evaluator.evaluate(promql, start, end, step, parser);
     var iv = (InstantVectorResult) res;
 
-    float v1 = org.okapi.promql.extractor.TimeSeriesExtractor.findValue(iv, seriesMerged, t1);
-    float v2 = org.okapi.promql.extractor.TimeSeriesExtractor.findValue(iv, seriesMerged, t2);
-    float v3 = org.okapi.promql.extractor.TimeSeriesExtractor.findValue(iv, seriesMerged, t3);
+    double v1 = org.okapi.promql.extractor.TimeSeriesExtractor.findValue(iv, seriesMerged, t1);
+    double v2 = org.okapi.promql.extractor.TimeSeriesExtractor.findValue(iv, seriesMerged, t2);
+    double v3 = org.okapi.promql.extractor.TimeSeriesExtractor.findValue(iv, seriesMerged, t3);
 
     assertEquals(400f, v1, 2f); // allow small tolerance due to interpolation choices
     assertEquals(400f, v2, 2f);
@@ -94,7 +94,7 @@ public class HistogramQuantileTest {
             t1,
             step,
             new PromQLParser(new CommonTokenStream(new PromQLLexer(CharStreams.fromString(q0)))));
-    float v0 = TimeSeriesExtractor.findValue((InstantVectorResult) res0, seriesMerged, t1);
+    double v0 = TimeSeriesExtractor.findValue((InstantVectorResult) res0, seriesMerged, t1);
     assertEquals(100f, v0, 0.001f);
 
     // q = 1.0 -> expect ~ last finite lower bound (500)
@@ -106,7 +106,7 @@ public class HistogramQuantileTest {
             t1,
             step,
             new PromQLParser(new CommonTokenStream(new PromQLLexer(CharStreams.fromString(q1)))));
-    float v1 = TimeSeriesExtractor.findValue((InstantVectorResult) res1, seriesMerged, t1);
+    double v1 = TimeSeriesExtractor.findValue((InstantVectorResult) res1, seriesMerged, t1);
     assertEquals(500f, v1, 0.001f);
   }
 }

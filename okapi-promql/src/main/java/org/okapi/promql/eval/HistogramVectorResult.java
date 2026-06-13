@@ -9,7 +9,7 @@ import java.util.Objects;
 import org.okapi.promql.eval.VectorData.SeriesId;
 
 public final class HistogramVectorResult implements ExpressionResult {
-  public record HistogramValue(float count, float sum) {}
+  public record HistogramValue(double count, double sum) {}
 
   public record HistogramSample(long ts, HistogramValue value) {}
 

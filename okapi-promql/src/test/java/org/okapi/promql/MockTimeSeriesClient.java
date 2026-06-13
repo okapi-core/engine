@@ -13,13 +13,13 @@ import org.okapi.promql.eval.ts.TsClient;
 
 public final class MockTimeSeriesClient implements TsClient {
 
-  // Backing store: (metric,tags) -> timestamp -> float value (value means:
+  // Backing store: (metric,tags) -> timestamp -> double value (value means:
   //  - for gauges: the gauge value at timestamp
   //  - for counters: the count observed over the bucket starting at timestamp)
-  private final Map<Key, NavigableMap<Long, Float>> store = new HashMap<>();
+  private final Map<Key, NavigableMap<Long, Double>> store = new HashMap<>();
   private final Map<Key, HistoScan> histoStore = new HashMap<>();
 
-  public void put(String metric, Map<String, String> tags, long ts, float value) {
+  public void put(String metric, Map<String, String> tags, long ts, double value) {
     var key = new Key(metric, tags);
     var series = store.computeIfAbsent(key, k -> new TreeMap<>());
     series.put(ts, value);
@@ -52,7 +52,7 @@ public final class MockTimeSeriesClient implements TsClient {
     if (series == null) {
       return GaugeScan.builder().universalPath("").timestamps(List.of()).values(List.of()).build();
     }
-    NavigableMap<Long, Float> sub = series.subMap(startMs, true, endMs, true);
+    NavigableMap<Long, Double> sub = series.subMap(startMs, true, endMs, true);
     if (name != null && name.endsWith("_counter")) {
       // Build SumScan
       List<Long> ts = new ArrayList<>(sub.size());
@@ -73,7 +73,7 @@ public final class MockTimeSeriesClient implements TsClient {
     } else {
       // Build GaugeScan
       List<Long> ts = new ArrayList<>(sub.size());
-      List<Float> vals = new ArrayList<>(sub.size());
+      List<Double> vals = new ArrayList<>(sub.size());
       for (var e : sub.entrySet()) {
         ts.add(e.getKey());
         vals.add(e.getValue());

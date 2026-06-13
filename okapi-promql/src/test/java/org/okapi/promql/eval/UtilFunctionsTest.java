@@ -51,7 +51,7 @@ public class UtilFunctionsTest {
     var ev = new ExpressionEvaluator(cm.client, cm.discovery, Executors.newFixedThreadPool(2), new MockStatsMerger());
     // timestamp() replaces value with sample's unix timestamp in seconds
     var iv = (InstantVectorResult) eval(ev, "timestamp(avg_over_time(cpu_usage[2m]))", cm.t2, cm.t2, cm.step);
-    float expected = cm.t2 / 1000f;
+    double expected = cm.t2 / 1000f;
     assertEquals(expected, findValue(iv, new SeriesId("", new Labels(cm.cpuUsageApiI1Tags)), cm.t2), 1e-4);
     assertEquals(expected, findValue(iv, new SeriesId("", new Labels(cm.cpuUsageApiI2Tags)), cm.t2), 1e-4);
   }

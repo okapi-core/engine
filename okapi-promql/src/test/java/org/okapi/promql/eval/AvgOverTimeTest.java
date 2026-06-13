@@ -75,9 +75,9 @@ public class AvgOverTimeTest {
     // t2 window: includes t1, t2 => avg(20, 30) = 25
     // t3 window: includes t2, t3 => avg(30, 40) = 35
     var strippedSeries = new SeriesId("", new Labels(tags));
-    float v1 = findValue(iv, strippedSeries, t1);
-    float v2 = findValue(iv, strippedSeries, t2);
-    float v3 = findValue(iv, strippedSeries, t3);
+    double v1 = findValue(iv, strippedSeries, t1);
+    double v2 = findValue(iv, strippedSeries, t2);
+    double v3 = findValue(iv, strippedSeries, t3);
 
     assertEquals(15f, v1, 1e-4);
     assertEquals(25f, v2, 1e-4);

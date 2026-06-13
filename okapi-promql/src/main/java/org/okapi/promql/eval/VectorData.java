@@ -26,7 +26,7 @@ public class VectorData {
     }
 
     public Sample(long ts, long sourceTs, HistogramSeries.HistogramSample histogram) {
-      this(ts, sourceTs, Float.NaN, histogram);
+      this(ts, sourceTs, Double.NaN, histogram);
     }
 
     public boolean isHistogram() {

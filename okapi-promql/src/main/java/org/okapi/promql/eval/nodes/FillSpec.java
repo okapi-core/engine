@@ -4,7 +4,7 @@
  */
 package org.okapi.promql.eval.nodes;
 
-public record FillSpec(Float left, Float right) {
+public record FillSpec(Double left, Double right) {
   public static FillSpec none() {
     return new FillSpec(null, null);
   }

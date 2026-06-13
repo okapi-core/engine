@@ -10,16 +10,16 @@ import org.okapi.metrics.pojos.results.GaugeScan;
 
 public final class Staleness {
   // Distinguish stale markers from regular NaN values.
-  private static final int STALE_BITS = 0x7fc00001;
+  private static final long STALE_BITS = 0x7ff0000000000002L;
 
   private Staleness() {}
 
-  public static float staleFloat() {
-    return Float.intBitsToFloat(STALE_BITS);
+  public static double staleDouble() {
+    return Double.longBitsToDouble(STALE_BITS);
   }
 
-  public static boolean isStale(float value) {
-    return Float.isNaN(value) && Float.floatToRawIntBits(value) == STALE_BITS;
+  public static boolean isStale(double value) {
+    return Double.isNaN(value) && Double.doubleToRawLongBits(value) == STALE_BITS;
   }
 
   public static GaugeScan withoutStaleSamples(GaugeScan scan) {
@@ -46,18 +46,18 @@ public final class Staleness {
 
   private static final class ListBuilder {
     private final ArrayList<Long> timestamps;
-    private final ArrayList<Float> values;
+    private final ArrayList<Double> values;
 
     private ListBuilder(int capacity) {
       timestamps = new ArrayList<>(capacity);
       values = new ArrayList<>(capacity);
     }
 
-    private void addAll(java.util.List<Long> sourceTimestamps, java.util.List<Float> sourceValues, int end) {
+    private void addAll(java.util.List<Long> sourceTimestamps, java.util.List<Double> sourceValues, int end) {
       for (int i = 0; i < end; i++) add(sourceTimestamps.get(i), sourceValues.get(i));
     }
 
-    private void add(long timestamp, float value) {
+    private void add(long timestamp, double value) {
       timestamps.add(timestamp);
       values.add(value);
     }

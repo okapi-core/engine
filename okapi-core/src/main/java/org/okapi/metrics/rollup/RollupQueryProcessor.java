@@ -60,7 +60,7 @@ public class RollupQueryProcessor implements QueryProcessor {
     int nLeft = scanLeft.getValues().size();
     int nRight = scanRight.getValues().size();
     int i = 0, j = 0;
-    var sums = new ArrayList<Float>(Math.max(nLeft, nRight));
+    var sums = new ArrayList<Double>(Math.max(nLeft, nRight));
     var timestamps = new ArrayList<Long>(Math.max(nLeft, nRight));
     while (i < nLeft && j < nRight) {
       long leftTs = scanLeft.getTimestamps().get(i);
@@ -112,8 +112,8 @@ public class RollupQueryProcessor implements QueryProcessor {
     values.replaceAll(
         (s) -> {
           return switch (transform) {
-            case LOG -> (float) Math.log(s);
-            case SIGMOID -> (float) (1 / (1 + Math.exp(-s)));
+            case LOG -> Math.log(s);
+            case SIGMOID -> 1 / (1 + Math.exp(-s));
             default -> throw new IllegalArgumentException("Unknown transform: " + transform);
           };
         });
@@ -130,7 +130,7 @@ public class RollupQueryProcessor implements QueryProcessor {
       TsReader rollupSeries,
       QueryRecords.Slice slice,
       Duration windowSize,
-      BiFunction<Float, Integer, Float> valueComputeFn) {
+      BiFunction<Double, Integer, Double> valueComputeFn) {
     var scanResult =
         rollupSeries.scanGauge(
             slice.series(), slice.from(), slice.to(), slice.aggregation(), slice.resolution());
@@ -144,13 +144,13 @@ public class RollupQueryProcessor implements QueryProcessor {
     var end = discretizeAndBack(slice.to(), slice.resolution());
     var inc = getIncrement(slice.resolution());
     var resultTs = new ArrayList<Long>();
-    var resultVals = new ArrayList<Float>();
+    var resultVals = new ArrayList<Double>();
     // winStart and winEnd are indices in timestamps array such that they represent the largest
     // window of size <= windowSize
     // and the timestamp at winEnd is the largest timestamp that is <= ts
     var winStart = 0;
     var winEnd = 0;
-    var movingSum = 0.f;
+    var movingSum = 0.d;
     var count = 0;
     // iterate over all discretized timestamp positions for which this value would be calculated
     //
@@ -188,7 +188,7 @@ public class RollupQueryProcessor implements QueryProcessor {
             slice.series(), slice.from(), slice.to(), slice.aggregation(), slice.resolution());
     var ts = scaledResult.getTimestamps();
     var values = scaledResult.getValues();
-    var derivatives = new ArrayList<Float>();
+    var derivatives = new ArrayList<Double>();
     var times = new ArrayList<Long>();
     for (int i = 1; i < ts.size(); i++) {
       var diff = ts.get(i) - ts.get(i - 1);
