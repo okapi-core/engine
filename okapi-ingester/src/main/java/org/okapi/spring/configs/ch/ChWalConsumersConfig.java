@@ -5,6 +5,10 @@
 package org.okapi.spring.configs.ch;
 
 import java.util.List;
+import org.okapi.logs.ch.ChLogsWalConsumer;
+import org.okapi.logs.ch.ChLogsWalConsumerDriver;
+import org.okapi.logs.ch.OtelLogsToChRowsConverter;
+import org.okapi.logs.core.LogsEventEmitter;
 import org.okapi.metrics.ch.ChMetricsQueryProcessor;
 import org.okapi.metrics.ch.ChMetricsWalConsumer;
 import org.okapi.metrics.ch.ChMetricsWalConsumerDriver;
@@ -46,8 +50,28 @@ public class ChWalConsumersConfig {
   @Bean
   public ChWalConsumerCommonDriver chWalConsumerCommonDriver(
       @Autowired ChMetricsWalConsumerDriver metricsDriver,
-      @Autowired ChTracesWalConsumerDriver tracesDriver) {
-    return new ChWalConsumerCommonDriver(List.of(metricsDriver, tracesDriver));
+      @Autowired ChTracesWalConsumerDriver tracesDriver,
+      @Autowired ChLogsWalConsumerDriver logsDriver) {
+    return new ChWalConsumerCommonDriver(List.of(metricsDriver, tracesDriver, logsDriver));
+  }
+
+  @Bean
+  public OtelLogsToChRowsConverter otelLogsToChRowsConverter() {
+    return new OtelLogsToChRowsConverter();
+  }
+
+  @Bean
+  public ChLogsWalConsumer chLogsWalConsumer(
+      @Autowired LogsEventEmitter eventEmitter,
+      @Autowired ChWriter writer,
+      @Autowired ChWalConsumerCfg walCfg,
+      @Autowired OtelLogsToChRowsConverter converter) {
+    return new ChLogsWalConsumer(walCfg.getBatchSize(), writer, eventEmitter, converter);
+  }
+
+  @Bean
+  public ChLogsWalConsumerDriver chLogsWalConsumerDriver(@Autowired ChLogsWalConsumer walConsumer) {
+    return new ChLogsWalConsumerDriver(walConsumer);
   }
 
   @Bean
