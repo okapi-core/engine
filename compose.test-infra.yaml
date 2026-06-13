@@ -107,7 +107,7 @@ services:
     environment:
       VAULT_ADDR: http://vault:8200
       VAULT_TOKEN: ${VAULT_ROOT_TOKEN:-0d94159a1b7e9c8f563e4e9e383185dc402ef70e}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:?OPENAI_API_KEY is required}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     entrypoint:
       - /bin/sh
       - -ec

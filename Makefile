@@ -3,6 +3,8 @@ ch_dir = ${HOME}/.okapi-data
 FE_SETUP ?= fe-setup.json
 REPO = ghcr.io/okapi-core
 OKAPI_TEST_NET = okapi-test-network
+DOCKER_COMPOSE ?= docker compose
+TEST_INFRA_COMPOSE ?= compose.test-infra.yaml
 
 HELM ?= helm
 HELM_NS ?= okapi
@@ -32,6 +34,12 @@ POSTGRES_DB ?= okapi_oscar
 POSTGRES_USER ?= okapi_oscar_user_admin
 POSTGRES_PASSWORD ?= okapi_oscar_password
 VAULT_ROOT_TOKEN ?= 0d94159a1b7e9c8f563e4e9e383185dc402ef70e
+TEST_INFRA_ENV = \
+	OKAPI_CH_DIR="$(ch_dir)" \
+	POSTGRES_DB="$(POSTGRES_DB)" \
+	POSTGRES_USER="$(POSTGRES_USER)" \
+	POSTGRES_PASSWORD="$(POSTGRES_PASSWORD)" \
+	VAULT_ROOT_TOKEN="$(VAULT_ROOT_TOKEN)"
 
 fe-dist:
 	@python3 build-scripts/fe_dist_copy.py
@@ -63,22 +71,14 @@ DOCKER_RM := sh stop_and_remove_container.sh
 DOCKER_STOP := docker stop
 
 localstack:
-	localstack stop || true
-	$(DOCKER_RM) localstack-main
-	docker run --name localstack-main \
-	--network $(OKAPI_TEST_NET) \
-	-p 4566:4566 -d \
-	localstack/localstack:latest
+	$(TEST_INFRA_ENV) $(DOCKER_COMPOSE) -f $(TEST_INFRA_COMPOSE) up -d --wait localstack
 
 tables:
 	java -cp okapi-data-ddb/target/okapi-data-ddb-0.0.1-SNAPSHOT.jar  org.okapi.data.CreateDynamoDBTables $(ENV:ENV=test)
 	java -cp okapi-data-ddb/target/okapi-data-ddb-0.0.1-SNAPSHOT.jar  org.okapi.data.CreateS3Bucket  $(ENV:ENV=test)
 
 stop-test-infra:
-	$(DOCKER_RM) localstack-main
-	$(DOCKER_RM) okapi-clickhouse
-	$(DOCKER_RM) okapi-postgres
-	$(DOCKER_RM) okapi-vault-dev
+	$(TEST_INFRA_ENV) $(DOCKER_COMPOSE) -f $(TEST_INFRA_COMPOSE) down --remove-orphans
 
 localstack-k8s:
 	kubectl apply -n okapi -f okapi-ingester/local-stack-yamls/localstack.yml
@@ -130,47 +130,19 @@ run-zk:
 	$(DOCKER_CMD) zookeeper --network $(OKAPI_TEST_NET) -p 2181:2181 zookeeper:latest
 
 ch:
-	$(DOCKER_RM) okapi-clickhouse
-	$(DOCKER_CMD) \
-	okapi-clickhouse \
-	--network $(OKAPI_TEST_NET) \
-	-p 8123:8123 \
-	-p 9000:9000 \
-	-e CLICKHOUSE_PASSWORD=okapi_testing_password \
-	--ulimit nofile=262144:262144 \
-	-v "$(ch_dir)/ch_data:/var/lib/clickhouse/" \
-	-v "$(ch_dir)/ch_logs:/var/log/clickhouse-server/" \
-	clickhouse/clickhouse-server
+	$(TEST_INFRA_ENV) $(DOCKER_COMPOSE) -f $(TEST_INFRA_COMPOSE) up -d --wait clickhouse
 
-postgres: testnetwork
-	$(DOCKER_RM) okapi-postgres
-	$(DOCKER_CMD) \
-	okapi-postgres \
-	--network $(OKAPI_TEST_NET) \
-	-p 5432:5432 \
-	-e POSTGRES_DB=$(POSTGRES_DB) \
-	-e POSTGRES_USER=$(POSTGRES_USER) \
-	-e POSTGRES_PASSWORD=$(POSTGRES_PASSWORD) \
-	-v ./postgres-init/init.sql:/docker-entrypoint-initdb.d/init.sql \
-	postgres:16
+postgres:
+	$(TEST_INFRA_ENV) $(DOCKER_COMPOSE) -f $(TEST_INFRA_COMPOSE) up -d --wait postgres
 
 oscar-vault-dev:
 	@if [ -z "$(OPENAI_API_KEY)" ]; then \
 		echo "OPENAI_API_KEY is not set"; \
 		exit 1; \
 	fi
-	$(DOCKER_RM) okapi-vault-dev
-	$(DOCKER_CMD) \
-	okapi-vault-dev \
-	--network $(OKAPI_TEST_NET) \
-	-p 8200:8200 \
-	-e VAULT_DEV_ROOT_TOKEN_ID=$(VAULT_ROOT_TOKEN) \
-	hashicorp/vault:1.15 \
-	server -dev -dev-root-token-id=$(VAULT_ROOT_TOKEN)
-	@echo "Waiting for Vault..."
-	@sleep 2
-	docker exec -e VAULT_ADDR=http://127.0.0.1:8200 -e VAULT_TOKEN=$(VAULT_ROOT_TOKEN) okapi-vault-dev vault secrets enable -path=secret kv-v2 || true
-	docker exec -e VAULT_ADDR=http://127.0.0.1:8200 -e VAULT_TOKEN=$(VAULT_ROOT_TOKEN) okapi-vault-dev vault kv put secret/openai value="$(OPENAI_API_KEY)"
+	$(TEST_INFRA_ENV) $(DOCKER_COMPOSE) -f $(TEST_INFRA_COMPOSE) up -d --wait vault
+	$(TEST_INFRA_ENV) OPENAI_API_KEY="$(OPENAI_API_KEY)" \
+		$(DOCKER_COMPOSE) -f $(TEST_INFRA_COMPOSE) --profile init run --rm vault-init
 
 test-secret:
 	java -jar okapi-ops/target/okapi-ops-0.0.1-SNAPSHOT.jar create-secrets \
@@ -179,6 +151,9 @@ test-secret:
 
 
 migrate: package-ops
+	$(MAKE) migrate-test-datastores
+
+migrate-test-datastores:
 	java -jar okapi-ops/target/okapi-ops-0.0.1-SNAPSHOT.jar ddb-migrate --region us-west-2 --endpoint http://localhost:4566
 	java -jar okapi-ops/target/okapi-ops-0.0.1-SNAPSHOT.jar ch-migrate --host localhost --port 8123 --user default --password okapi_testing_password
 
@@ -196,7 +171,20 @@ test-data: test-users test-spans test-metrics
 promql-testdata:
 	scripts/promql/update-promqltestdata.sh
 
-test-infra: testnetwork localstack ch migrate test-secret oscar-vault-dev postgres
+test-infra-up:
+	@if [ -z "$(OPENAI_API_KEY)" ]; then \
+		echo "OPENAI_API_KEY is not set"; \
+		exit 1; \
+	fi
+	$(TEST_INFRA_ENV) $(DOCKER_COMPOSE) -f $(TEST_INFRA_COMPOSE) \
+		up -d --wait clickhouse localstack postgres vault
+	$(TEST_INFRA_ENV) OPENAI_API_KEY="$(OPENAI_API_KEY)" \
+		$(DOCKER_COMPOSE) -f $(TEST_INFRA_COMPOSE) --profile init run --rm vault-init
+
+test-infra: package-ops
+	$(MAKE) test-infra-up
+	$(MAKE) migrate-test-datastores
+	$(MAKE) test-secret
 
 run-ingester:
 	java -jar okapi-ingester/target/okapi-ingester-0.0.1-SNAPSHOT.jar &
