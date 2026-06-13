@@ -421,11 +421,13 @@ public final class RangeFunctions {
     HistogramSeries.HistogramSample first = null;
     HistogramSeries.HistogramSample previous = null;
     HistogramSeries.HistogramSample increase = null;
+    int sampleCount = 0;
     for (var point : series.getPoints()) {
       if (point.endMs() <= start || point.endMs() > end) continue;
       if (!(point instanceof HistogramSeries.HistogramSample histogram)) continue;
       if (first == null) {
         first = previous = histogram;
+        sampleCount = 1;
         continue;
       }
       var delta =
@@ -434,8 +436,18 @@ public final class RangeFunctions {
               : HistogramSeries.subtract(histogram, previous);
       increase = increase == null ? delta : HistogramSeries.add(increase, delta);
       previous = histogram;
+      sampleCount++;
     }
-    return increase;
+    if (increase == null) return null;
+    double sampledInterval = previous.endMs() - first.endMs();
+    double averageInterval = sampledInterval / (sampleCount - 1);
+    double durationToStart = first.endMs() - start;
+    double durationToEnd = end - previous.endMs();
+    double extrapolationThreshold = averageInterval * 1.1d;
+    if (durationToStart >= extrapolationThreshold) durationToStart = averageInterval / 2d;
+    if (durationToEnd >= extrapolationThreshold) durationToEnd = averageInterval / 2d;
+    return HistogramSeries.scale(
+        increase, (sampledInterval + durationToStart + durationToEnd) / sampledInterval);
   }
 
   private static boolean hasHistograms(HistogramSeries series) {
