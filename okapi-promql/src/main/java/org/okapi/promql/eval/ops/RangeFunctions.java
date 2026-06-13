@@ -30,14 +30,25 @@ public final class RangeFunctions {
     EvalContext ctx = rangeCtx.query();
     List<SeriesSample> out = new ArrayList<>();
     for (SeriesWindow w : rv.data()) {
-      if (!(w.scan() instanceof SumScan) && !(w.scan() instanceof GaugeScan)) {
+      if (w.scan() instanceof HistogramSeries histogramSeries && hasHistograms(histogramSeries)) {
+        for (long t = ctx.startMs; t <= ctx.endMs; t += ctx.stepMs) {
+          long anchor = anchorMs >= 0 ? anchorMs : t;
+          var histogram = histogramIncreaseInWindow(histogramSeries, anchor - rangeMs, anchor);
+          if (histogram != null)
+            out.add(
+                new SeriesSample(
+                    SeriesIds.derived(w.id()),
+                    new Sample(t, t, HistogramSeries.scale(histogram, 1000d / rangeMs))));
+        }
         continue;
       }
+      GaugeScan floatScan = floatScan(w.scan());
+      if (!(w.scan() instanceof SumScan) && floatScan == null) continue;
       for (long t = ctx.startMs; t <= ctx.endMs; t += ctx.stepMs) {
         long anchor = anchorMs >= 0 ? anchorMs : t;
         float inc = w.scan() instanceof SumScan ss
             ? sumInWindow(ss, anchor - rangeMs, anchor)
-            : counterIncrease((GaugeScan) w.scan(), rangeCtx, anchor);
+            : counterIncrease(floatScan, rangeCtx, anchor);
         float v = (rangeMs > 0) ? inc / (rangeMs / 1000f) : Float.NaN;
         out.add(new SeriesSample(SeriesIds.derived(w.id()), new Sample(t, v)));
       }
@@ -76,12 +87,24 @@ public final class RangeFunctions {
     EvalContext ctx = rangeCtx.query();
     List<SeriesSample> out = new ArrayList<>();
     for (SeriesWindow w : rv.data()) {
-      if (!(w.scan() instanceof SumScan) && !(w.scan() instanceof GaugeScan)) continue;
+      if (w.scan() instanceof HistogramSeries histogramSeries && hasHistograms(histogramSeries)) {
+        for (long t = ctx.startMs; t <= ctx.endMs; t += ctx.stepMs) {
+          long anchor = anchorMs >= 0 ? anchorMs : t;
+          var histogram = histogramIncreaseInWindow(histogramSeries, anchor - rangeMs, anchor);
+          if (histogram != null)
+            out.add(
+                new SeriesSample(
+                    SeriesIds.derived(w.id()), new Sample(t, t, histogram)));
+        }
+        continue;
+      }
+      GaugeScan floatScan = floatScan(w.scan());
+      if (!(w.scan() instanceof SumScan) && floatScan == null) continue;
       for (long t = ctx.startMs; t <= ctx.endMs; t += ctx.stepMs) {
         long anchor = anchorMs >= 0 ? anchorMs : t;
         float v = w.scan() instanceof SumScan ss
             ? sumInWindow(ss, anchor - rangeMs, anchor)
-            : counterIncrease((GaugeScan) w.scan(), rangeCtx, anchor);
+            : counterIncrease(floatScan, rangeCtx, anchor);
         out.add(new SeriesSample(SeriesIds.derived(w.id()), new Sample(t, v)));
       }
     }
@@ -391,6 +414,32 @@ public final class RangeFunctions {
             ? current
             : HistogramSeries.subtract(current, previous);
     return HistogramSeries.scale(delta, 1d / seconds);
+  }
+
+  private static HistogramSeries.HistogramSample histogramIncreaseInWindow(
+      HistogramSeries series, long start, long end) {
+    HistogramSeries.HistogramSample first = null;
+    HistogramSeries.HistogramSample previous = null;
+    HistogramSeries.HistogramSample increase = null;
+    for (var point : series.getPoints()) {
+      if (point.endMs() <= start || point.endMs() > end) continue;
+      if (!(point instanceof HistogramSeries.HistogramSample histogram)) continue;
+      if (first == null) {
+        first = previous = histogram;
+        continue;
+      }
+      var delta =
+          HistogramSeries.isReset(previous, histogram)
+              ? histogram
+              : HistogramSeries.subtract(histogram, previous);
+      increase = increase == null ? delta : HistogramSeries.add(increase, delta);
+      previous = histogram;
+    }
+    return increase;
+  }
+
+  private static boolean hasHistograms(HistogramSeries series) {
+    return series.getPoints().stream().anyMatch(HistogramSeries.HistogramSample.class::isInstance);
   }
 
   private static float deltaInWindow(GaugeScan gs, long start, long end) {
