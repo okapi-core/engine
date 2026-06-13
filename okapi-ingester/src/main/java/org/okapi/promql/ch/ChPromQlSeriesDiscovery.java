@@ -63,12 +63,10 @@ public class ChPromQlSeriesDiscovery implements SeriesDiscovery {
     return out;
   }
 
-  private static boolean matches(Map<String, String> labels, List<LabelMatcher> matchers) {
+  static boolean matches(Map<String, String> labels, List<LabelMatcher> matchers) {
     if (matchers == null || matchers.isEmpty()) return true;
     for (var matcher : matchers) {
-      String name = matcher.name();
-      if (!labels.containsKey(name)) return false;
-      String value = labels.get(name);
+      String value = labels.getOrDefault(matcher.name(), "");
       String matchArg = matcher.value();
       boolean ok =
           switch (matcher.op()) {
