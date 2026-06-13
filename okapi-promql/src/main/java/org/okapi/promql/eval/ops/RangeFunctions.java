@@ -151,6 +151,29 @@ public final class RangeFunctions {
     return new InstantVectorResult(out);
   }
 
+  public static InstantVectorResult doubleExponentialSmoothing(
+      RangeVectorResult rv,
+      long rangeMs,
+      EvalContext ctx,
+      long anchorMs,
+      float smoothingFactor,
+      float trendFactor) {
+    List<SeriesSample> out = new ArrayList<>();
+    for (SeriesWindow window : rv.data()) {
+      GaugeScan scan = floatScan(window.scan());
+      if (scan == null) continue;
+      scan = Staleness.withoutStaleSamples(scan);
+      for (long t = ctx.startMs; t <= ctx.endMs; t += ctx.stepMs) {
+        long anchor = anchorMs >= 0 ? anchorMs : t;
+        Float value =
+            smoothInWindow(scan, anchor - rangeMs, anchor, smoothingFactor, trendFactor);
+        if (value != null)
+          out.add(new SeriesSample(SeriesIds.derived(window.id()), new Sample(t, value)));
+      }
+    }
+    return new InstantVectorResult(out);
+  }
+
   // --- window computations ---
 
   private static float sumInWindow(SumScan ss, long start, long end) {
@@ -392,6 +415,32 @@ public final class RangeFunctions {
     double covariance = n * sumXY - sumX * sumY;
     double variance = n * sumXX - sumX * sumX;
     return (float) (covariance / variance);
+  }
+
+  private static Float smoothInWindow(
+      GaugeScan scan, long start, long end, float smoothingFactor, float trendFactor) {
+    var timestamps = scan.getTimestamps();
+    var values = scan.getValues();
+    Float level = null;
+    float trend = 0;
+    boolean initializedTrend = false;
+    for (int i = 0; i < timestamps.size(); i++) {
+      long timestamp = timestamps.get(i);
+      if (timestamp <= start || timestamp > end) continue;
+      float value = values.get(i);
+      if (level == null) {
+        level = value;
+        continue;
+      }
+      if (!initializedTrend) {
+        trend = value - level;
+        initializedTrend = true;
+      }
+      float previousLevel = level;
+      level = smoothingFactor * value + (1 - smoothingFactor) * (level + trend);
+      trend = trendFactor * (level - previousLevel) + (1 - trendFactor) * trend;
+    }
+    return level;
   }
 
   private static GaugeScan floatScan(Scan scan) {

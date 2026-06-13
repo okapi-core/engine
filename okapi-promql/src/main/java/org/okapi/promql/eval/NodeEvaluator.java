@@ -737,6 +737,11 @@ public final class NodeEvaluator {
           TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name),
           rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx),
           TypeChecks.requireScalar(eval(e.args.get(1), ctx), e.name).value);
+      case "double_exponential_smoothing" -> RangeFunctions.doubleExponentialSmoothing(
+          TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name),
+          rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx),
+          TypeChecks.requireScalar(eval(e.args.get(1), ctx), e.name).value,
+          TypeChecks.requireScalar(eval(e.args.get(2), ctx), e.name).value);
       // instant-vector functions
       case "abs"   -> InstantFunctions.mapDerivedSamples(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), Math::abs);
       case "ceil"  -> InstantFunctions.mapDerivedSamples(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), v -> (float) Math.ceil(v));
