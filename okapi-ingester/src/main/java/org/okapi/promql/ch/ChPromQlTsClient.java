@@ -61,10 +61,10 @@ public class ChPromQlTsClient implements TsClient {
         GET_METRIC_EVENT_TYPE_EXACT_MATCH,
         ChMetricEventTypeQueryTemplate.builder()
             .table(ChConstants.TBL_METRIC_EVENTS_META)
-            .metric(metric)
+            .metric(ChSqlEscaper.escapeLiteral(metric))
             .startMs(startMs)
             .endMs(endMs)
-            .tags(tags)
+            .tags(ChSqlEscaper.escapeTags(tags))
             .build(),
         output);
     var query = output.toString();
@@ -83,10 +83,10 @@ public class ChPromQlTsClient implements TsClient {
         GET_GAUGE_RAW_SAMPLES_EXACT_MATCH,
         ChGetGaugeRawQueryTemplate.builder()
             .table(ChConstants.TBL_GAUGES)
-            .metric(metric)
+            .metric(ChSqlEscaper.escapeLiteral(metric))
             .startMs(startMs)
             .endMs(endMs)
-            .tags(tags)
+            .tags(ChSqlEscaper.escapeTags(tags))
             .build(),
         output);
     var query = output.toString();
@@ -116,8 +116,8 @@ public class ChPromQlTsClient implements TsClient {
         GET_SUM_SAMPLES_EXACT_MATCH,
         ChGetSumQueryTemplate.builder()
             .table(ChConstants.TBL_SUM)
-            .metric(metric)
-            .tags(tags)
+            .metric(ChSqlEscaper.escapeLiteral(metric))
+            .tags(ChSqlEscaper.escapeTags(tags))
             .sumsType(type)
             .ts(startMs)
             .te(endMs)
@@ -173,8 +173,8 @@ public class ChPromQlTsClient implements TsClient {
         GET_HISTO_SAMPLES_EXACT_MATCH,
         ChGetHistoQueryTemplate.builder()
             .table(ChConstants.TBL_HISTOS)
-            .metric(metric)
-            .tags(tags)
+            .metric(ChSqlEscaper.escapeLiteral(metric))
+            .tags(ChSqlEscaper.escapeTags(tags))
             .histoType(type)
             .ts(startMs)
             .te(endMs)

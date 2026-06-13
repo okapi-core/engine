@@ -31,7 +31,7 @@ public class ChPromQlSeriesDiscovery implements SeriesDiscovery {
         ChTemplateFiles.GET_METRIC_EVENTS_SERIES,
         ChSeriesDiscoveryQueryTemplate.builder()
             .table(ChConstants.TBL_METRIC_EVENTS_META)
-            .metric(metricOrNull)
+            .metric(ChSqlEscaper.escapeLiteral(metricOrNull))
             .startMs(start)
             .endMs(end)
             .build(),

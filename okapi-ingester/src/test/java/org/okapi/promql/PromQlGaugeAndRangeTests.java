@@ -31,9 +31,12 @@ import org.okapi.ch.CreateChTablesSpec;
 import org.okapi.metrics.ch.ChConstants;
 import org.okapi.metrics.ch.ChMetricsIngester;
 import org.okapi.metrics.ch.ChMetricsWalConsumerDriver;
+import org.okapi.metrics.pojos.results.GaugeScan;
 import org.okapi.promql.eval.InstantVectorResult;
 import org.okapi.promql.eval.VectorData;
+import org.okapi.promql.eval.ts.RESOLUTION;
 import org.okapi.promql.query.PromQlQueryProcessor;
+import org.okapi.promql.runtime.TsClientFactory;
 import org.okapi.testmodules.guice.TestChMetricsModule;
 
 public class PromQlGaugeAndRangeTests {
@@ -102,6 +105,33 @@ public class PromQlGaugeAndRangeTests {
     var result = promql.queryRange(Constants.DEFAULT_TENANT, metric, 500L, 500L, 500L);
     assertNotNull(result);
     assertFalse(((InstantVectorResult) result).toMatrix().isEmpty());
+  }
+
+  @Test
+  void promQlTsClientEscapesLabelKeysAndValues() throws Exception {
+    var ingester = injector.getInstance(ChMetricsIngester.class);
+    var driver = injector.getInstance(ChMetricsWalConsumerDriver.class);
+    var clientFactory = injector.getInstance(TsClientFactory.class);
+
+    var metric = "escaped_gauge";
+    var tags =
+        Map.of(
+            "owner'group",
+            "O'Reilly\\ops",
+            "test-session",
+            testSession);
+
+    ingester.ingestOtelProtobuf(
+        buildGaugeRequest("svc-escaped", metric, tags, List.of(1_000L), List.of(7.0)));
+    driver.onTick();
+
+    var scan =
+        (GaugeScan)
+            clientFactory
+                .getClient(Constants.DEFAULT_TENANT)
+                .orElseThrow()
+                .get(metric, tags, RESOLUTION.SECONDLY, 1_000L, 1_000L);
+    assertEquals(List.of(7.0f), scan.getValues());
   }
 
   @Test
