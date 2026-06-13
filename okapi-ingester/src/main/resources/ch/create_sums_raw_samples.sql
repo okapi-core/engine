@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS okapi_metrics.sums_raw_samples (
     tags Map(String, String),
     ts_start DateTime64(3, 'UTC'),
     ts_end DateTime64(3, 'UTC'),
-    value Int64,
+    value Float64,
     unit LowCardinality(String),
     sums_type Enum('DELTA' = 1, 'CUMULATIVE' = 2),
     minute UInt8 DEFAULT toStartOfMinute(ts_start),
