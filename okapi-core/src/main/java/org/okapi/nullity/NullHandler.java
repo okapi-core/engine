@@ -1,7 +1,5 @@
 package org.okapi.nullity;
 
-import org.apache.logging.log4j.util.Strings;
-
 public class NullHandler {
   public static <T> T ifNullThen(T obj, T default_) {
     if (obj == null) {
@@ -10,6 +8,6 @@ public class NullHandler {
   }
 
   public static String ifNullThenEmpty(String s) {
-    return (s == null) ? Strings.EMPTY : s;
+    return (s == null) ? "" : s;
   }
 }
