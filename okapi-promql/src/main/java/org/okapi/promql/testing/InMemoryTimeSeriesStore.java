@@ -141,6 +141,16 @@ final class InMemoryTimeSeriesStore {
         case RepeatPoint rp -> { for (int i = 0; i <= rp.count(); i++) expandSeriesPoint(rp.value(), out); }
         case StepSequencePoint sp -> {
           if (sp.start() instanceof HistogramPoint start && sp.step() instanceof HistogramPoint delta) {
+            if (!hasHistogramStructure(start.value()) && !hasHistogramStructure(delta.value())) {
+              float startSum = histogramField(start.value(), "sum");
+              float startCount = histogramField(start.value(), "count");
+              float dSum = histogramField(delta.value(), "sum");
+              float dCount = histogramField(delta.value(), "count");
+              for (int i = 0; i <= sp.count(); i++) {
+                out.add(new HistogramPoint(buildHistogramLiteral(startSum + dSum * i, startCount + dCount * i)));
+              }
+              break;
+            }
             NativeHistogramSample current = toNativeHistogramSample(0L, start.value());
             NativeHistogramSample increment = toNativeHistogramSample(0L, delta.value());
             for (int i = 0; i <= sp.count(); i++) {
@@ -289,6 +299,11 @@ final class InMemoryTimeSeriesStore {
     List<Double> result = new ArrayList<>(values.length);
     for (double value : values) result.add(value);
     return result;
+  }
+
+  private static boolean hasHistogramStructure(HistogramLiteral histogram) {
+    return histogram.fields().keySet().stream()
+        .anyMatch(key -> !key.equals("sum") && !key.equals("count"));
   }
 
   private static double extractNumber(PointExpr point) {
