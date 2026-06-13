@@ -14,5 +14,6 @@ public sealed interface LogicalExpr
         OffsetExpr,
         RangeSelectorExpr,
         SelectorExpr,
+        SmoothedExpr,
         StringLiteralExpr,
         SubqueryExpr {}

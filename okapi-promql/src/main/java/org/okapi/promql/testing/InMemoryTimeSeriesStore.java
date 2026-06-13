@@ -7,6 +7,7 @@ package org.okapi.promql.testing;
 import org.okapi.metrics.pojos.results.GaugeScan;
 import org.okapi.metrics.pojos.results.Scan;
 import org.okapi.promql.eval.HistogramSeries;
+import org.okapi.promql.eval.HistogramSeries.NativeHistogramSample;
 import org.okapi.promql.eval.Staleness;
 import org.okapi.promql.eval.VectorData.Labels;
 import org.okapi.promql.eval.VectorData.SeriesId;
@@ -79,13 +80,11 @@ final class InMemoryTimeSeriesStore {
     }
 
     private HistogramSeries buildHistogramSeries(IngestedSeries series, long startMs, long endMs) {
-      List<HistogramSeries.HistogramPoint> points = new ArrayList<>();
+      List<NativeHistogramSample> points = new ArrayList<>();
       long ts = series.startMs();
       for (HistogramLiteral literal : expandHistogramPoints(series.points())) {
         if (ts >= startMs && ts <= endMs && literal != null) {
-          float sum = histogramField(literal, "sum");
-          float count = histogramField(literal, "count");
-          points.add(new HistogramSeries.HistogramPoint(ts, ts, null, null, sum, count));
+          points.add(toNativeHistogramSample(ts, literal));
         }
         ts += series.stepMs();
       }
@@ -107,7 +106,7 @@ final class InMemoryTimeSeriesStore {
         case InfPoint ip -> out.add(ip.negative() ? Float.NEGATIVE_INFINITY : Float.POSITIVE_INFINITY);
         case MissingPoint ignored -> out.add(null);
         case StalePoint ignored -> out.add(Staleness.staleFloat());
-        case RepeatPoint rp -> { for (int i = 0; i < rp.count(); i++) expandIngestedPoint(rp.value(), out); }
+        case RepeatPoint rp -> { for (int i = 0; i <= rp.count(); i++) expandIngestedPoint(rp.value(), out); }
         case StepSequencePoint sp -> {
           double start = extractNumber(sp.start()), delta = extractNumber(sp.step());
           for (int i = 0; i <= sp.count(); i++) out.add((float) (start + delta * i));
@@ -127,7 +126,7 @@ final class InMemoryTimeSeriesStore {
         case HistogramPoint hp -> out.add(hp.value());
         case MissingPoint mp -> out.add(null);
         case StalePoint st -> out.add(null);
-        case RepeatPoint rp -> { for (int i = 0; i < rp.count(); i++) expandHistogramPoint(rp.value(), out); }
+        case RepeatPoint rp -> { for (int i = 0; i <= rp.count(); i++) expandHistogramPoint(rp.value(), out); }
         case StepSequencePoint sp -> {
           if (sp.start() instanceof HistogramPoint start && sp.step() instanceof HistogramPoint delta) {
             float startSum = histogramField(start.value(), "sum"), startCount = histogramField(start.value(), "count");
@@ -198,6 +197,41 @@ final class InMemoryTimeSeriesStore {
     HistogramValue v = literal.fields().get(key);
     if (v instanceof HistogramNumber n) return (float) n.value();
     return Float.NaN;
+  }
+
+  private static NativeHistogramSample toNativeHistogramSample(long ts, HistogramLiteral literal) {
+    return new NativeHistogramSample(
+        ts,
+        ts,
+        (int) histogramField(literal, "schema"),
+        histogramDoubleField(literal, "z_bucket_w"),
+        histogramDoubleField(literal, "z_bucket"),
+        (int) histogramField(literal, "offset"),
+        histogramBuckets(literal, "buckets"),
+        (int) histogramField(literal, "n_offset"),
+        histogramBuckets(literal, "n_buckets"),
+        histogramBuckets(literal, "custom_values"),
+        histogramDoubleField(literal, "sum"),
+        histogramDoubleField(literal, "count"),
+        histogramIdentifier(literal, "counter_reset_hint"));
+  }
+
+  private static double[] histogramBuckets(HistogramLiteral literal, String key) {
+    HistogramValue value = literal.fields().get(key);
+    if (!(value instanceof HistogramNumberList list)) return new double[0];
+    double[] buckets = new double[list.values().size()];
+    for (int i = 0; i < buckets.length; i++) buckets[i] = list.values().get(i);
+    return buckets;
+  }
+
+  private static double histogramDoubleField(HistogramLiteral literal, String key) {
+    HistogramValue value = literal.fields().get(key);
+    return value instanceof HistogramNumber number ? number.value() : 0d;
+  }
+
+  private static String histogramIdentifier(HistogramLiteral literal, String key) {
+    HistogramValue value = literal.fields().get(key);
+    return value instanceof HistogramIdentifier identifier ? identifier.value() : null;
   }
 
   static HistogramLiteral buildHistogramLiteral(float sum, float count) {

@@ -96,6 +96,7 @@ public final class PromQlTestDataTokenizer {
     KEYWORDS.put("stale", TokenType.KEYWORD_STALE);
     KEYWORDS.put("NaN", TokenType.KEYWORD_NAN);
     KEYWORDS.put("Inf", TokenType.KEYWORD_INF);
+    KEYWORDS.put("inf", TokenType.KEYWORD_INF);
   }
 
   private final String input;

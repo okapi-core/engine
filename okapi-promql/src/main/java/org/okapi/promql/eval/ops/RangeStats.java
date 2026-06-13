@@ -7,6 +7,7 @@ package org.okapi.promql.eval.ops;
 import org.okapi.metrics.pojos.results.GaugeScan;
 import org.okapi.promql.eval.EvalContext;
 import org.okapi.promql.eval.InstantVectorResult;
+import org.okapi.promql.eval.RangeEvalContext;
 import org.okapi.promql.eval.RangeVectorResult;
 import org.okapi.promql.eval.VectorData.*;
 
@@ -158,29 +159,52 @@ public final class RangeStats {
     });
   }
 
-  public static InstantVectorResult changes(RangeVectorResult rv, long rangeMs, EvalContext ctx, long anchorMs) {
-    return mapWindows(rv, rangeMs, ctx, anchorMs, (ts, vals, winStart, t) -> {
+  public static InstantVectorResult changes(RangeVectorResult rv, RangeEvalContext rangeCtx, long anchorMs) {
+    return mapWindows(rv, rangeCtx.rangeMs(), rangeCtx.query(), anchorMs, (ts, vals, winStart, t) -> {
       float count = 0; Float prev = null;
-      for (int i = 0; i < ts.size(); i++) {
-        if (ts.get(i) <= winStart || ts.get(i) > t) continue;
-        if (prev != null && Float.compare(vals.get(i), prev) != 0) count++;
-        prev = vals.get(i);
+      for (Point point : pointsInWindow(ts, vals, rangeCtx, t)) {
+        if (prev != null && Float.compare(point.value(), prev) != 0) count++;
+        prev = point.value();
       }
       return count;
     });
   }
 
-  public static InstantVectorResult resets(RangeVectorResult rv, long rangeMs, EvalContext ctx, long anchorMs) {
-    return mapWindows(rv, rangeMs, ctx, anchorMs, (ts, vals, winStart, t) -> {
+  public static InstantVectorResult resets(RangeVectorResult rv, RangeEvalContext rangeCtx, long anchorMs) {
+    return mapWindows(rv, rangeCtx.rangeMs(), rangeCtx.query(), anchorMs, (ts, vals, winStart, t) -> {
       float count = 0; Float prev = null;
-      for (int i = 0; i < ts.size(); i++) {
-        if (ts.get(i) <= winStart || ts.get(i) > t) continue;
-        if (prev != null && vals.get(i) < prev) count++;
-        prev = vals.get(i);
+      for (Point point : pointsInWindow(ts, vals, rangeCtx, t)) {
+        if (prev != null && point.value() < prev) count++;
+        prev = point.value();
       }
       return count;
     });
   }
+
+  private static List<Point> pointsInWindow(
+      List<Long> ts, List<Float> vals, RangeEvalContext rangeCtx, long anchor) {
+    if (rangeCtx.mode() != org.okapi.promql.eval.nodes.ExtendedVectorMode.ANCHORED) {
+      List<Point> points = new ArrayList<>();
+      for (int i = 0; i < ts.size(); i++) {
+        if (rangeCtx.includes(ts.get(i), anchor)) points.add(new Point(ts.get(i), vals.get(i)));
+      }
+      return points;
+    }
+
+    long start = rangeCtx.windowStart(anchor);
+    int first = 0;
+    while (first < ts.size() && ts.get(first) <= start) first++;
+    first = Math.max(0, first - 1);
+    List<Point> points = new ArrayList<>();
+    for (int i = first; i < ts.size() && ts.get(i) <= anchor; i++) {
+      long timestamp = ts.get(i);
+      if (timestamp < start) points.add(new Point(start, vals.get(i)));
+      else points.add(new Point(timestamp, vals.get(i)));
+    }
+    return points;
+  }
+
+  private record Point(long ts, float value) {}
 
   public static InstantVectorResult quantile(
       float q, RangeVectorResult rv, long rangeMs, EvalContext ctx, long anchorMs) {

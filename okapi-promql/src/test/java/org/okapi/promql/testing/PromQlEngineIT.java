@@ -32,7 +32,7 @@ class PromQlEngineIT {
 
   @Test
   void testRun_SingleSuite() throws Exception {
-    var suite = "name_label_dropping.test";
+    var suite = "literals_iso.test";
     List<Path> scripts = discoverTestScripts();
     assertTrue(!scripts.isEmpty(), "no promql test scripts discovered");
     for (Path script : scripts) {

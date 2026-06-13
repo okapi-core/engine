@@ -102,6 +102,11 @@ public class ExpressionVisitor extends PromQLParserBaseVisitor<LogicalExpr> {
   }
 
   @Override
+  public LogicalExpr visitVecOpSmoothed(PromQLParser.VecOpSmoothedContext ctx) {
+    return new SmoothedExpr(visit(ctx.vectorOperation()));
+  }
+
+  @Override
   public LogicalExpr visitVecOpvec(PromQLParser.VecOpvecContext ctx) {
     return visit(ctx.vector());
   }
@@ -116,8 +121,9 @@ public class ExpressionVisitor extends PromQLParserBaseVisitor<LogicalExpr> {
   @Override
   public LogicalExpr visitVecLiteral(PromQLParser.VecLiteralContext ctx) {
     String lit = ctx.literal().getText();
-    if (lit.startsWith("\""))
-      return new LiteralExpr(0f); // strings not yet surfaced as string results
+    if (lit.startsWith("\"")) return new StringLiteralExpr(stripQuotes(lit));
+    if ("nan".equalsIgnoreCase(lit)) return new LiteralExpr(Float.NaN);
+    if ("inf".equalsIgnoreCase(lit)) return new LiteralExpr(Float.POSITIVE_INFINITY);
     if (isDurationLiteral(lit)) {
       long ms = DurationUtil.parseToMillis(lit);
       return new LiteralExpr((float) (ms / 1000.0d));
@@ -135,7 +141,7 @@ public class ExpressionVisitor extends PromQLParserBaseVisitor<LogicalExpr> {
     var ms = ctx.matrixSelector();
     var sel = buildInstantSelector(ms.instantSelector());
     DurationExpr range = parseTimeRange(ms.timeRange());
-    return new RangeSelectorExpr((SelectorExpr) sel, range, null);
+    return new RangeSelectorExpr((SelectorExpr) sel, range, null, extendedVectorMode(ms));
   }
 
   @Override
@@ -148,7 +154,7 @@ public class ExpressionVisitor extends PromQLParserBaseVisitor<LogicalExpr> {
       var ms = ctx.offset().matrixSelector();
       var base = (SelectorExpr) buildInstantSelector(ms.instantSelector());
       DurationExpr range = parseTimeRange(ms.timeRange());
-      return new RangeSelectorExpr(base, range, offset);
+      return new RangeSelectorExpr(base, range, offset, extendedVectorMode(ms));
     }
   }
 
@@ -276,12 +282,19 @@ public class ExpressionVisitor extends PromQLParserBaseVisitor<LogicalExpr> {
       return new SelectorExpr(se.metricOrNull, se.matchers, se.atTsMs, offset);
     }
     if (expr instanceof RangeSelectorExpr rse) {
-      return new RangeSelectorExpr(rse.base, rse.range, offset);
+      return new RangeSelectorExpr(rse.base, rse.range, offset, rse.mode);
     }
     if (expr instanceof SubqueryExpr sq) {
       return new SubqueryExpr(sq.inner, sq.range, sq.step, offset);
     }
     throw new IllegalArgumentException("offset modifier can only apply to selectors");
+  }
+
+  private ExtendedVectorMode extendedVectorMode(PromQLParser.MatrixSelectorContext ctx) {
+    if (ctx.extendedVectorModifier() == null) return ExtendedVectorMode.NONE;
+    return ctx.extendedVectorModifier().ANCHORED() != null
+        ? ExtendedVectorMode.ANCHORED
+        : ExtendedVectorMode.SMOOTHED;
   }
 
   private boolean isDurationLiteral(String lit) {
@@ -308,6 +321,8 @@ public class ExpressionVisitor extends PromQLParserBaseVisitor<LogicalExpr> {
   private LogicalExpr literalParam(PromQLParser.LiteralContext lit) {
     String s = lit.getText();
     if (s.startsWith("\"")) return new StringLiteralExpr(stripQuotes(s));
+    if ("nan".equalsIgnoreCase(s)) return new LiteralExpr(Float.NaN);
+    if ("inf".equalsIgnoreCase(s)) return new LiteralExpr(Float.POSITIVE_INFINITY);
     return new LiteralExpr(Float.parseFloat(s));
   }
 

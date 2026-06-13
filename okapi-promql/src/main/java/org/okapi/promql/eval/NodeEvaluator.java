@@ -33,6 +33,7 @@ public final class NodeEvaluator {
       case SelectorExpr e -> evalSelector(e, ctx);
       case InstantizeExpr e -> evalInstantize(e, ctx);
       case RangeSelectorExpr e -> evalRangeSelector(e, ctx);
+      case SmoothedExpr e -> evalSmoothed(e, ctx);
       case BinaryOpExpr e -> evalBinaryOp(e, ctx);
       case AggregateExpr e -> evalAggregate(e, ctx);
       case FunctionExpr e -> evalFunction(e, ctx);
@@ -77,9 +78,19 @@ public final class NodeEvaluator {
 
     List<SeriesSample> out = new ArrayList<>();
     for (SeriesWindow w : rv.data()) {
-      if (!(w.scan() instanceof GaugeScan gs)) continue;
-      var tsList = gs.getTimestamps();
-      var valList = gs.getValues();
+      if (w.scan() instanceof GaugeScan gs) {
+        appendGaugeSamples(w.id(), gs, inner, ctx, out);
+      } else if (w.scan() instanceof HistogramSeries hs) {
+        appendHistogramSamples(w.id(), hs, inner, ctx, out);
+      }
+    }
+    return new InstantVectorResult(out);
+  }
+
+  private void appendGaugeSamples(
+      SeriesId id, GaugeScan scan, LogicalExpr inner, EvalContext ctx, List<SeriesSample> out) {
+      var tsList = scan.getTimestamps();
+      var valList = scan.getValues();
       int n = tsList.size();
       int idx = 0;
       for (long t = ctx.startMs; t <= ctx.endMs; t += ctx.stepMs) {
@@ -91,10 +102,24 @@ public final class NodeEvaluator {
         if (n == 0) continue;
         long ptsTs = tsList.get(idx);
         if (ptsTs <= effT && ptsTs > winStart)
-          out.add(new SeriesSample(w.id(), new Sample(t, ptsTs, valList.get(idx))));
+          out.add(new SeriesSample(id, new Sample(t, ptsTs, valList.get(idx))));
       }
+  }
+
+  private void appendHistogramSamples(
+      SeriesId id, HistogramSeries series, LogicalExpr inner, EvalContext ctx, List<SeriesSample> out) {
+    var points = series.getPoints();
+    int n = points.size();
+    int idx = 0;
+    for (long t = ctx.startMs; t <= ctx.endMs; t += ctx.stepMs) {
+      long effT = effectiveStepTime(inner, t, ctx);
+      long winStart = effT - STALENESS_MS;
+      while (idx + 1 < n && points.get(idx + 1).endMs() <= effT) idx++;
+      if (n == 0) continue;
+      var point = points.get(idx);
+      if (point.endMs() <= effT && point.endMs() > winStart)
+        out.add(new SeriesSample(id, new Sample(t, point.endMs(), point)));
     }
-    return new InstantVectorResult(out);
   }
 
   private LogicalExpr resolveSelectorOffset(LogicalExpr inner, EvalContext ctx) {
@@ -121,6 +146,12 @@ public final class NodeEvaluator {
     if (range < 0) throw new EvaluationException("range selector duration must not be negative");
     long start = ctx.startMs - range + 1;
     long end = ctx.endMs;
+    if (e.mode == ExtendedVectorMode.ANCHORED) {
+      start = Math.max(0L, start - STALENESS_MS);
+    } else if (e.mode == ExtendedVectorMode.SMOOTHED) {
+      start = Math.max(0L, start - STALENESS_MS);
+      end += STALENESS_MS;
+    }
     Long offset = e.offset == null ? null : e.offset.evalMs(ctx);
     if (offset != null) {
       start -= offset;
@@ -157,6 +188,39 @@ public final class NodeEvaluator {
       }
     }
     return new RangeVectorResult(shifted);
+  }
+
+  private ExpressionResult evalSmoothed(SmoothedExpr e, EvalContext ctx) {
+    if (!(e.inner() instanceof InstantizeExpr instantize)
+        || !(instantize.inner instanceof SelectorExpr selector)) {
+      throw new EvaluationException("smoothed modifier can only be used with an instant selector");
+    }
+    var fetchCtx =
+        ctx.withWindow(Math.max(0L, ctx.startMs - STALENESS_MS), ctx.endMs + STALENESS_MS);
+    var rv = (RangeVectorResult) evalSelector(selector, fetchCtx);
+    List<SeriesSample> out = new ArrayList<>();
+    for (SeriesWindow window : rv.data()) {
+      if (!(window.scan() instanceof GaugeScan scan)) continue;
+      for (long t = ctx.startMs; t <= ctx.endMs; t += ctx.stepMs) {
+        Float value = interpolateGauge(scan, t);
+        if (value != null) out.add(new SeriesSample(window.id(), new Sample(t, value)));
+      }
+    }
+    return new InstantVectorResult(out);
+  }
+
+  private Float interpolateGauge(GaugeScan scan, long target) {
+    var ts = scan.getTimestamps();
+    var vals = scan.getValues();
+    if (ts.isEmpty()) return null;
+    int after = 0;
+    while (after < ts.size() && ts.get(after) < target) after++;
+    if (after < ts.size() && ts.get(after) == target) return vals.get(after);
+    if (after == 0) return vals.get(0);
+    if (after == ts.size()) return vals.get(vals.size() - 1);
+    int before = after - 1;
+    double ratio = (double) (target - ts.get(before)) / (ts.get(after) - ts.get(before));
+    return (float) (vals.get(before) + ratio * (vals.get(after) - vals.get(before)));
   }
 
   private boolean isEmptyScan(Scan scan) {
@@ -404,14 +468,26 @@ public final class NodeEvaluator {
   private ExpressionResult evalAggregate(AggregateExpr e, EvalContext ctx)
       throws EvaluationException {
     if (e.args.isEmpty()) throw new EvaluationException("aggregation requires arguments");
+    List<SeriesSample> out = new ArrayList<>();
+    for (long t = ctx.startMs; t <= ctx.endMs; t += ctx.stepMs) {
+      out.addAll(evalAggregateAt(e, ctx.withWindow(t, t)).data());
+    }
+    return new InstantVectorResult(out);
+  }
+
+  private InstantVectorResult evalAggregateAt(AggregateExpr e, EvalContext ctx)
+      throws EvaluationException {
     String op = e.op.toLowerCase(Locale.ROOT);
+    if (op.equals("count_values")) return evalCountValues(e, ctx);
 
     int vecIdx = 0;
     Float param = null;
-    if (op.equals("topk") || op.equals("bottomk") || op.equals("quantile")) {
+    if (Set.of("topk", "bottomk", "quantile", "limitk", "limit_ratio").contains(op)) {
+      if (e.args.size() != 2) throw new EvaluationException(op + ": expected two arguments");
       var pRes = TypeChecks.requireScalar(eval(e.args.get(0), ctx), op);
       param = pRes.value;
       vecIdx = 1;
+      validateAggregateParam(op, param);
     }
 
     var iv = TypeChecks.requireInstantVector(eval(e.args.get(vecIdx), ctx), op);
@@ -430,43 +506,168 @@ public final class NodeEvaluator {
       String metric = labels.remove("__name__");
       boolean dropMetricName = list.stream().anyMatch(s -> s.series().dropMetricName());
       var id = new SeriesId(metric == null ? "" : metric, new Labels(labels), dropMetricName);
+      var gauges = list.stream().filter(s -> !s.sample().isHistogram()).toList();
 
       switch (op) {
-        case "sum" -> out.add(sample(id, ts, (float) list.stream().mapToDouble(s -> s.sample().value()).sum()));
-        case "avg" -> out.add(sample(id, ts, (float) list.stream().mapToDouble(s -> s.sample().value()).average().orElse(Double.NaN)));
-        case "min" -> out.add(sample(id, ts, (float) list.stream().mapToDouble(s -> s.sample().value()).min().orElse(Double.NaN)));
-        case "max" -> out.add(sample(id, ts, (float) list.stream().mapToDouble(s -> s.sample().value()).max().orElse(Double.NaN)));
+        case "sum" -> addIfNotEmpty(out, gauges, id, ts, (float) gauges.stream().mapToDouble(s -> s.sample().value()).sum());
+        case "avg" -> addIfNotEmpty(out, gauges, id, ts, (float) gauges.stream().mapToDouble(s -> s.sample().value()).average().orElse(Double.NaN));
+        case "min" -> addIfNotEmpty(out, gauges, id, ts, aggregateExtrema(gauges, false));
+        case "max" -> addIfNotEmpty(out, gauges, id, ts, aggregateExtrema(gauges, true));
         case "count" -> out.add(sample(id, ts, (float) list.size()));
-        case "stddev" -> out.add(sample(id, ts, stddev(list)));
-        case "stdvar" -> out.add(sample(id, ts, stdvar(list)));
+        case "stddev" -> addIfNotEmpty(out, gauges, id, ts, stddev(gauges));
+        case "stdvar" -> addIfNotEmpty(out, gauges, id, ts, stdvar(gauges));
         case "group" -> out.add(sample(id, ts, 1f));
         case "topk" -> {
-          int k = Math.max(0, Math.round(param));
-          list.sort((a, b) -> Float.compare(b.sample().value(), a.sample().value()));
-          out.addAll(list.subList(0, Math.min(k, list.size())));
+          int k = clampCount(param);
+          var ranked = new ArrayList<>(gauges);
+          ranked.sort((a, b) -> compareRanked(a, b, true));
+          out.addAll(ranked.subList(0, Math.min(k, ranked.size())));
         }
         case "bottomk" -> {
-          int k = Math.max(0, Math.round(param));
-          list.sort(Comparator.comparingDouble(s -> s.sample().value()));
+          int k = clampCount(param);
+          var ranked = new ArrayList<>(gauges);
+          ranked.sort((a, b) -> compareRanked(a, b, false));
+          out.addAll(ranked.subList(0, Math.min(k, ranked.size())));
+        }
+        case "limitk" -> {
+          int k = clampCount(param);
+          list.sort(Comparator.comparingInt(s -> s.series().hashCode()));
           out.addAll(list.subList(0, Math.min(k, list.size())));
         }
-        case "quantile" -> out.add(sample(id, ts, aggQuantile(list, param)));
+        case "limit_ratio" -> {
+          double ratio = Math.abs(param);
+          boolean invert = param < 0;
+          for (SeriesSample candidate : list) {
+            double normalizedHash = Integer.toUnsignedLong(candidate.series().hashCode()) / 4294967296d;
+            if ((normalizedHash < ratio) != invert) out.add(candidate);
+          }
+        }
+        case "quantile" -> addIfNotEmpty(out, gauges, id, ts, aggQuantile(gauges, param));
         default -> throw new EvaluationException("aggregation not implemented: " + e.op);
       }
     }
     return new InstantVectorResult(out);
   }
 
+  private InstantVectorResult evalCountValues(AggregateExpr e, EvalContext ctx) {
+    if (e.args.size() != 2 || !(e.args.get(0) instanceof StringLiteralExpr labelArg))
+      throw new EvaluationException("count_values: expected a string label name and an instant-vector");
+    if (!labelArg.value.matches("[a-zA-Z_][a-zA-Z0-9_]*"))
+      throw new EvaluationException("invalid label name \"" + labelArg.value + "\"");
+    var iv = TypeChecks.requireInstantVector(eval(e.args.get(1), ctx), e.op);
+    Map<GroupKey, Integer> counts = new LinkedHashMap<>();
+    for (SeriesSample sample : iv.data()) {
+      Map<String, String> labels = new HashMap<>(groupKey(e.isBy, e.groupLabels, sample.series()).labels());
+      labels.put(labelArg.value, formatPromValue(sample.sample()));
+      counts.merge(new GroupKey(labels), 1, Integer::sum);
+    }
+    List<SeriesSample> out = new ArrayList<>(counts.size());
+    for (var entry : counts.entrySet())
+      out.add(sample(new SeriesId("", new Labels(entry.getKey().labels())), ctx.startMs, entry.getValue()));
+    return new InstantVectorResult(out);
+  }
+
+  private void validateAggregateParam(String op, float param) {
+    if (Float.isNaN(param) && !op.equals("quantile")) {
+      String name = op.equals("limit_ratio") ? "Ratio" : "Parameter";
+      throw new EvaluationException(name + " value is NaN");
+    }
+    if (op.equals("limit_ratio") && (param < -1f || param > 1f))
+      throw new EvaluationException("ratio value must be between -1 and 1");
+  }
+
+  private int clampCount(float value) {
+    if (value <= 0f) return 0;
+    if (value >= Integer.MAX_VALUE) return Integer.MAX_VALUE;
+    return (int) value;
+  }
+
+  private int compareRanked(SeriesSample left, SeriesSample right, boolean descending) {
+    float a = left.sample().value(), b = right.sample().value();
+    if (Float.isNaN(a)) return Float.isNaN(b) ? 0 : 1;
+    if (Float.isNaN(b)) return -1;
+    return descending ? Float.compare(b, a) : Float.compare(a, b);
+  }
+
+  private String formatPromFloat(float value) {
+    if (!Float.isFinite(value)) return Float.toString(value);
+    if (value == Math.rint(value)) return Long.toString((long) value);
+    return Float.toString(value);
+  }
+
+  private String formatPromValue(Sample sample) {
+    return sample.isHistogram() ? formatPromHistogram(sample.histogram()) : formatPromFloat(sample.value());
+  }
+
+  private String formatPromHistogram(HistogramSeries.HistogramSample histogram) {
+    if (!(histogram instanceof HistogramSeries.NativeHistogramSample nativeHistogram)) {
+      return "{count:" + formatPromDouble(histogram.count()) + ", sum:" + formatPromDouble(histogram.sum()) + "}";
+    }
+    List<String> buckets = new ArrayList<>();
+    double base = Math.pow(2d, Math.pow(2d, -nativeHistogram.schema()));
+    double[] negative = nativeHistogram.negativeBuckets();
+    for (int i = negative.length - 1; i >= 0; i--) {
+      int bucket = nativeHistogram.negativeOffset() + i;
+      double lower = -Math.pow(base, bucket);
+      double upper = -Math.pow(base, bucket - 1);
+      buckets.add("[" + formatPromDouble(lower) + "," + formatPromDouble(upper) + "):" + formatPromDouble(negative[i]));
+    }
+    if (nativeHistogram.zeroCount() != 0) {
+      buckets.add(
+          "["
+              + formatPromDouble(-nativeHistogram.zeroThreshold())
+              + ","
+              + formatPromDouble(nativeHistogram.zeroThreshold())
+              + "]:"
+              + formatPromDouble(nativeHistogram.zeroCount()));
+    }
+    double[] positive = nativeHistogram.positiveBuckets();
+    for (int i = 0; i < positive.length; i++) {
+      int bucket = nativeHistogram.positiveOffset() + i;
+      double lower = Math.pow(base, bucket - 1);
+      double upper = Math.pow(base, bucket);
+      buckets.add("(" + formatPromDouble(lower) + "," + formatPromDouble(upper) + "]:" + formatPromDouble(positive[i]));
+    }
+    String suffix = buckets.isEmpty() ? "" : ", " + String.join(", ", buckets);
+    return "{count:"
+        + formatPromDouble(nativeHistogram.count())
+        + ", sum:"
+        + formatPromDouble(nativeHistogram.sum())
+        + suffix
+        + "}";
+  }
+
+  private String formatPromDouble(double value) {
+    if (value == Math.rint(value)) return Long.toString((long) value);
+    return Double.toString(value);
+  }
+
+  private void addIfNotEmpty(
+      List<SeriesSample> out, List<SeriesSample> samples, SeriesId id, long ts, float value) {
+    if (!samples.isEmpty()) out.add(sample(id, ts, value));
+  }
+
+  private float aggregateExtrema(List<SeriesSample> samples, boolean max) {
+    float result = Float.NaN;
+    for (SeriesSample sample : samples) {
+      float value = sample.sample().value();
+      if (Float.isNaN(value)) continue;
+      if (Float.isNaN(result) || (max ? value > result : value < result)) result = value;
+    }
+    return result;
+  }
+
   // ---------- Function ----------
 
   private ExpressionResult evalFunction(FunctionExpr e, EvalContext ctx)
       throws EvaluationException {
+    validateExtendedVectorMode(e);
     return switch (e.name.toLowerCase(Locale.ROOT)) {
       // counter transforms (range-vector → instant-vector)
-      case "rate"     -> RangeFunctions.rate    (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
+      case "rate"     -> RangeFunctions.rate    (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeEvalContextOf(e.args.get(0), ctx), anchorMsOf(e.args.get(0), ctx));
       case "irate"    -> RangeFunctions.irate   (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
-      case "increase" -> RangeFunctions.increase(TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
-      case "delta"    -> RangeFunctions.delta   (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
+      case "increase" -> RangeFunctions.increase(TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeEvalContextOf(e.args.get(0), ctx), anchorMsOf(e.args.get(0), ctx));
+      case "delta"    -> RangeFunctions.delta   (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeEvalContextOf(e.args.get(0), ctx), anchorMsOf(e.args.get(0), ctx));
       case "idelta"   -> RangeFunctions.idelta  (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
       case "deriv"    -> RangeFunctions.deriv   (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
       // window stats (range-vector → instant-vector)
@@ -485,8 +686,8 @@ public final class NodeEvaluator {
       case "stddev_over_time"  -> RangeStats.stddev (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
       case "stdvar_over_time"  -> RangeStats.stdvar (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
       case "mad_over_time"     -> RangeStats.mad    (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
-      case "changes"           -> RangeStats.changes(TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
-      case "resets"            -> RangeStats.resets (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
+      case "changes"           -> RangeStats.changes(TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeEvalContextOf(e.args.get(0), ctx), anchorMsOf(e.args.get(0), ctx));
+      case "resets"            -> RangeStats.resets (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeEvalContextOf(e.args.get(0), ctx), anchorMsOf(e.args.get(0), ctx));
       case "predict_linear" -> RangeFunctions.predictLinear(
           TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name),
           rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx),
@@ -495,7 +696,7 @@ public final class NodeEvaluator {
       case "abs"   -> InstantFunctions.mapDerivedSamples(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), Math::abs);
       case "ceil"  -> InstantFunctions.mapDerivedSamples(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), v -> (float) Math.ceil(v));
       case "floor" -> InstantFunctions.mapDerivedSamples(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), v -> (float) Math.floor(v));
-      case "round" -> InstantFunctions.mapDerivedSamples(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), v -> (float) Math.rint(v));
+      case "round" -> evalRound(e, ctx);
       case "clamp" -> InstantFunctions.clamp(
           TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name),
           TypeChecks.requireScalar(eval(e.args.get(1), ctx), e.name).value,
@@ -564,6 +765,19 @@ public final class NodeEvaluator {
     requireArgCount(e, 1);
     return TrigFunctions.apply(
         e.name, TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name));
+  }
+
+  private InstantVectorResult evalRound(FunctionExpr e, EvalContext ctx) {
+    if (e.args.size() < 1 || e.args.size() > 2)
+      throw new EvaluationException("round: expected one or two arguments");
+    float nearest =
+        e.args.size() == 2 ? TypeChecks.requireScalar(eval(e.args.get(1), ctx), e.name).value : 1f;
+    return InstantFunctions.mapDerivedSamples(
+        TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name),
+        value ->
+            nearest == 0f
+                ? value
+                : (float) (Math.floor(Math.nextUp(value / nearest) + 0.5d) * nearest));
   }
 
   private void requireArgCount(FunctionExpr e, int expected) {
@@ -740,6 +954,42 @@ public final class NodeEvaluator {
     throw new EvaluationException(fnName + ": arg[" + argIdx + "] must be a range selector or subquery");
   }
 
+  private RangeEvalContext rangeEvalContextOf(LogicalExpr expr, EvalContext ctx) {
+    if (expr instanceof RangeSelectorExpr range) {
+      return new RangeEvalContext(ctx, range.range.evalMs(ctx), range.mode);
+    }
+    if (expr instanceof SubqueryExpr subquery) {
+      return new RangeEvalContext(ctx, subquery.range.evalMs(ctx), ExtendedVectorMode.NONE);
+    }
+    if (expr instanceof AtExpr at) return rangeEvalContextOf(at.inner, ctx);
+    if (expr instanceof OffsetExpr offset) return rangeEvalContextOf(offset.inner, ctx);
+    throw new EvaluationException("expected range selector");
+  }
+
+  private void validateExtendedVectorMode(FunctionExpr e) {
+    if (e.args.isEmpty()) return;
+    ExtendedVectorMode mode = extendedVectorModeOf(e.args.get(0));
+    String function = e.name.toLowerCase(Locale.ROOT);
+    if (mode == ExtendedVectorMode.SMOOTHED
+        && !Set.of("delta", "increase", "rate").contains(function)) {
+      throw new EvaluationException(
+          "smoothed modifier can only be used with: delta, increase, rate - not with " + function);
+    }
+    if (mode == ExtendedVectorMode.ANCHORED
+        && !Set.of("changes", "delta", "increase", "rate", "resets").contains(function)) {
+      throw new EvaluationException(
+          "anchored modifier can only be used with: changes, delta, increase, rate, resets - not with "
+              + function);
+    }
+  }
+
+  private ExtendedVectorMode extendedVectorModeOf(LogicalExpr expr) {
+    if (expr instanceof RangeSelectorExpr range) return range.mode;
+    if (expr instanceof AtExpr at) return extendedVectorModeOf(at.inner);
+    if (expr instanceof OffsetExpr offset) return extendedVectorModeOf(offset.inner);
+    return ExtendedVectorMode.NONE;
+  }
+
   // Returns the @ anchor in ms if the expression is wrapped in AtExpr, else -1.
   private long anchorMsOf(LogicalExpr expr, EvalContext ctx) {
     if (expr instanceof AtExpr at) {
@@ -908,7 +1158,16 @@ public final class NodeEvaluator {
 
   private static float aggQuantile(List<SeriesSample> list, float q) {
     if (list.isEmpty()) return Float.NaN;
-    var arr = list.stream().map(s -> s.sample().value()).sorted().toList();
+    if (Float.isNaN(q)) return Float.NaN;
+    if (q < 0f) return Float.NEGATIVE_INFINITY;
+    if (q > 1f) return Float.POSITIVE_INFINITY;
+    var arr = new ArrayList<Float>();
+    for (SeriesSample sample : list) arr.add(sample.sample().value());
+    arr.sort((a, b) -> {
+      if (Float.isNaN(a)) return Float.isNaN(b) ? 0 : -1;
+      if (Float.isNaN(b)) return 1;
+      return Float.compare(a, b);
+    });
     int n = arr.size();
     if (n == 1) return arr.get(0);
     double idx = q * (n - 1);

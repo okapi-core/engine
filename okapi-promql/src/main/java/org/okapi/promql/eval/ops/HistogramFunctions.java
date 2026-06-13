@@ -96,13 +96,14 @@ public final class HistogramFunctions {
       HistogramSeries hs, long winStart, long winEnd, List<HistoScan> out) {
     for (var p : hs.getPoints()) {
       if (!overlaps(p.startMs(), p.endMs(), winStart, winEnd)) continue;
-      float[] bounds = p.upperBounds();
-      int[] counts = p.counts();
+      if (!(p instanceof HistogramSeries.ExplicitHistogramSample explicit)) continue;
+      float[] bounds = explicit.upperBounds();
+      int[] counts = explicit.counts();
       List<Float> ubs = new ArrayList<>(bounds == null ? 0 : bounds.length);
       if (bounds != null) for (float b : bounds) ubs.add(b);
       List<Integer> cs = new ArrayList<>(counts == null ? 0 : counts.length);
       if (counts != null) for (int c : counts) cs.add(c);
-      out.add(new HistoScan("", p.startMs(), p.endMs(), ubs, cs));
+      out.add(new HistoScan("", explicit.startMs(), explicit.endMs(), ubs, cs));
     }
   }
 

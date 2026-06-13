@@ -76,7 +76,7 @@ public final class PromQlTestDataParser {
         break;
       }
       series.add(parseSeriesDefLine());
-      expect(TokenType.NEWLINE, "expected newline after series line");
+      expectLineEnd("expected newline after series line");
       if (isBlockEnd()) {
         break;
       }
@@ -137,7 +137,7 @@ public final class PromQlTestDataParser {
       } else {
         results.add(new SeriesResult(parseSeriesDefLine()));
       }
-      expect(TokenType.NEWLINE, "expected newline after eval line");
+      expectLineEnd("expected newline after eval line");
       if (isBlockEnd()) {
         break;
       }
@@ -265,6 +265,15 @@ public final class PromQlTestDataParser {
       PointExpr step = parsePointBase();
       int count = parseRepeatCount();
       return new StepSequencePoint(base, step, count);
+    }
+    if (check(TokenType.MINUS) && isAdjacent(previous(), peek())) {
+      next();
+      PointExpr step = parsePointBase();
+      if (!(step instanceof NumberPoint number)) {
+        throw error(previous(), "expected numeric step after '-'");
+      }
+      int count = parseRepeatCount();
+      return new StepSequencePoint(base, new NumberPoint(-number.value()), count);
     }
     if (isRepeatToken(peek())) {
       int count = parseRepeatCount();
@@ -504,6 +513,10 @@ public final class PromQlTestDataParser {
     return !value.isEmpty();
   }
 
+  private boolean isAdjacent(Token left, Token right) {
+    return left.line() == right.line() && left.column() + left.lexeme().length() == right.column();
+  }
+
   private boolean isCommandStart(Token token) {
     return switch (token.type()) {
       case KEYWORD_CLEAR,
@@ -566,6 +579,11 @@ public final class PromQlTestDataParser {
     if (check(type)) {
       return next();
     }
+    throw error(peek(), message);
+  }
+
+  private void expectLineEnd(String message) {
+    if (match(TokenType.NEWLINE) || check(TokenType.EOF)) return;
     throw error(peek(), message);
   }
 

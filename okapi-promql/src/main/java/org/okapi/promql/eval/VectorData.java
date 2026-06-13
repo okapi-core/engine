@@ -16,9 +16,21 @@ public class VectorData {
     }
   }
 
-  public record Sample(long ts, long sourceTs, float value) {
+  public record Sample(long ts, long sourceTs, float value, HistogramSeries.HistogramSample histogram) {
     public Sample(long ts, float value) {
-      this(ts, ts, value);
+      this(ts, ts, value, null);
+    }
+
+    public Sample(long ts, long sourceTs, float value) {
+      this(ts, sourceTs, value, null);
+    }
+
+    public Sample(long ts, long sourceTs, HistogramSeries.HistogramSample histogram) {
+      this(ts, sourceTs, Float.NaN, histogram);
+    }
+
+    public boolean isHistogram() {
+      return histogram != null;
     }
   }
 

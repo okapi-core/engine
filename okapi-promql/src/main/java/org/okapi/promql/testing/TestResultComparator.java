@@ -271,7 +271,7 @@ final class TestResultComparator {
       case InfPoint ip -> out.add(ip.negative() ? Float.NEGATIVE_INFINITY : Float.POSITIVE_INFINITY);
       case MissingPoint mp -> { /* omit */ }
       case StalePoint st -> out.add(null);
-      case RepeatPoint rp -> { for (int i = 0; i < rp.count(); i++) expandExpected(rp.value(), out); }
+      case RepeatPoint rp -> { for (int i = 0; i <= rp.count(); i++) expandExpected(rp.value(), out); }
       case StepSequencePoint sp -> {
         double start = extractNumber(sp.start()), delta = extractNumber(sp.step());
         for (int i = 0; i <= sp.count(); i++) out.add((float) (start + delta * i));
@@ -310,7 +310,7 @@ final class TestResultComparator {
       case HistogramPoint hp -> out.add(hp.value());
       case MissingPoint mp -> out.add(null);
       case StalePoint st -> out.add(null);
-      case RepeatPoint rp -> { for (int i = 0; i < rp.count(); i++) expandExpectedHistogramPoint(rp.value(), out); }
+      case RepeatPoint rp -> { for (int i = 0; i <= rp.count(); i++) expandExpectedHistogramPoint(rp.value(), out); }
       case StepSequencePoint sp -> {
         if (sp.start() instanceof HistogramPoint start && sp.step() instanceof HistogramPoint delta) {
           float startSum = InMemoryTimeSeriesStore.histogramField(start.value(), "sum");
@@ -396,11 +396,11 @@ final class TestResultComparator {
   private List<HistogramCounts> alignHistogramValues(HistogramSeries hs, RangeSpec range, int steps) {
     List<HistogramCounts> out = new ArrayList<>();
     if (range.stepMs <= 0 || range.steps <= 0) {
-      for (var p : hs.getPoints()) out.add(new HistogramCounts(p.sum(), p.count()));
+      for (var p : hs.getPoints()) out.add(new HistogramCounts((float) p.sum(), (float) p.count()));
       return out;
     }
     Map<Long, HistogramCounts> byTs = new HashMap<>();
-    for (var p : hs.getPoints()) byTs.put(p.endMs(), new HistogramCounts(p.sum(), p.count()));
+    for (var p : hs.getPoints()) byTs.put(p.endMs(), new HistogramCounts((float) p.sum(), (float) p.count()));
     long t = range.startMs;
     for (int i = 0; i < steps; i++) {
       out.add(byTs.get(t));

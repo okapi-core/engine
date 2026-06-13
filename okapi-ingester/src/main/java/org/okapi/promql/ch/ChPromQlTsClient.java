@@ -18,6 +18,8 @@ import org.okapi.metrics.pojos.results.GaugeScan;
 import org.okapi.metrics.pojos.results.Scan;
 import org.okapi.metrics.pojos.results.SumScan;
 import org.okapi.promql.eval.HistogramSeries;
+import org.okapi.promql.eval.HistogramSeries.ExplicitHistogramSample;
+import org.okapi.promql.eval.HistogramSeries.Temporality;
 import org.okapi.promql.eval.ts.RESOLUTION;
 import org.okapi.promql.eval.ts.TsClient;
 
@@ -155,7 +157,7 @@ public class ChPromQlTsClient implements TsClient {
     return new HistogramSeries(metric, toDeltaHistos(cumulative));
   }
 
-  private List<HistogramSeries.HistogramPoint> scanHistoSamples(
+  private List<ExplicitHistogramSample> scanHistoSamples(
       String metric, Map<String, String> tags, long startMs, long endMs, String type) {
     TemplateOutput output = new StringOutput();
     templateEngine.render(
@@ -171,22 +173,28 @@ public class ChPromQlTsClient implements TsClient {
         output);
     var query = output.toString();
     List<GenericRecord> records = client.queryAll(query);
-    var points = new ArrayList<HistogramSeries.HistogramPoint>(records.size());
+    var points = new ArrayList<ExplicitHistogramSample>(records.size());
     for (var record : records) {
       float[] buckets = readFloatArray(record, "buckets");
       int[] counts = readIntArray(record, "counts");
       points.add(
-          new HistogramSeries.HistogramPoint(
-              record.getLong("ts_start_ms"), record.getLong("ts_end_ms"), buckets, counts));
+          new ExplicitHistogramSample(
+              record.getLong("ts_start_ms"),
+              record.getLong("ts_end_ms"),
+              Temporality.valueOf(type),
+              buckets,
+              counts,
+              Float.NaN,
+              totalCount(counts)));
     }
-    points.sort(Comparator.comparingLong(HistogramSeries.HistogramPoint::endMs));
+    points.sort(Comparator.comparingLong(ExplicitHistogramSample::endMs));
     return points;
   }
 
-  private List<HistogramSeries.HistogramPoint> toDeltaHistos(
-      List<HistogramSeries.HistogramPoint> cumulative) {
-    var out = new ArrayList<HistogramSeries.HistogramPoint>(cumulative.size());
-    HistogramSeries.HistogramPoint prev = null;
+  private List<ExplicitHistogramSample> toDeltaHistos(
+      List<ExplicitHistogramSample> cumulative) {
+    var out = new ArrayList<ExplicitHistogramSample>(cumulative.size());
+    ExplicitHistogramSample prev = null;
     for (var p : cumulative) {
       int[] counts = p.counts();
       if (prev != null && counts != null && prev.counts() != null) {
@@ -198,7 +206,14 @@ public class ChPromQlTsClient implements TsClient {
             delta[i] = d < 0 ? counts[i] : d;
           }
           out.add(
-              new HistogramSeries.HistogramPoint(p.startMs(), p.endMs(), p.upperBounds(), delta));
+              new ExplicitHistogramSample(
+                  p.startMs(),
+                  p.endMs(),
+                  Temporality.DELTA,
+                  p.upperBounds(),
+                  delta,
+                  Float.NaN,
+                  totalCount(delta)));
         } else {
           out.add(p);
         }
@@ -240,6 +255,12 @@ public class ChPromQlTsClient implements TsClient {
       }
       return arr;
     }
+  }
+
+  private static int totalCount(int[] counts) {
+    int total = 0;
+    for (int count : counts) total += count;
+    return total;
   }
 
   private static int clampToInt(long value) {
