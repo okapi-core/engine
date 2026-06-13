@@ -27,6 +27,8 @@ public class ChPromQlTsClient implements TsClient {
       "get_gauge_raw_samples_exact_match.jte";
   private static final String GET_HISTO_SAMPLES_EXACT_MATCH =
       "get_histo_samples_exact_match.jte";
+  private static final String GET_EXPONENTIAL_HISTO_SAMPLES_EXACT_MATCH =
+      "get_exponential_histo_samples_exact_match.jte";
   private static final String GET_SUM_SAMPLES_EXACT_MATCH =
       "get_sum_samples_exact_match.jte";
   private static final String GET_METRIC_EVENT_TYPE_EXACT_MATCH =
@@ -162,14 +164,19 @@ public class ChPromQlTsClient implements TsClient {
   private Scan getHistogramSeries(
       String metric, Map<String, String> tags, String unit, long startMs, long endMs) {
     var delta = scanHistoSamples(metric, tags, unit, startMs, endMs, "DELTA");
-    if (!delta.isEmpty()) {
-      return new HistogramSeries(metric, delta);
-    }
+    var exponentialDelta =
+        scanExponentialHistoSamples(metric, tags, unit, startMs, endMs, "DELTA");
+    ensureSingleHistogramRepresentation(delta, exponentialDelta);
+    if (!delta.isEmpty()) return new HistogramSeries(metric, delta);
+    if (!exponentialDelta.isEmpty()) return new HistogramSeries(metric, exponentialDelta);
     var cumulative = scanHistoSamples(metric, tags, unit, startMs, endMs, "CUMULATIVE");
-    if (cumulative.isEmpty()) {
-      return new HistogramSeries(metric, List.of());
-    }
-    return new HistogramSeries(metric, toDeltaHistos(cumulative));
+    var exponentialCumulative =
+        scanExponentialHistoSamples(metric, tags, unit, startMs, endMs, "CUMULATIVE");
+    ensureSingleHistogramRepresentation(cumulative, exponentialCumulative);
+    if (!cumulative.isEmpty()) return new HistogramSeries(metric, toDeltaHistos(cumulative));
+    if (!exponentialCumulative.isEmpty())
+      return new HistogramSeries(metric, toDeltaHistos(exponentialCumulative));
+    return new HistogramSeries(metric, List.of());
   }
 
   private List<NativeHistogramSample> scanHistoSamples(
@@ -222,6 +229,78 @@ public class ChPromQlTsClient implements TsClient {
         sum,
         count,
         "gauge");
+  }
+
+  private List<NativeHistogramSample> scanExponentialHistoSamples(
+      String metric, Map<String, String> tags, String unit, long startMs, long endMs, String type) {
+    TemplateOutput output = new StringOutput();
+    templateEngine.render(
+        GET_EXPONENTIAL_HISTO_SAMPLES_EXACT_MATCH,
+        ChGetExponentialHistoQueryTemplate.builder()
+            .table(ChConstants.TBL_EXPONENTIAL_HISTOS)
+            .metric(ChSqlEscaper.escapeLiteral(metric))
+            .tags(ChSqlEscaper.escapeTags(tags))
+            .unit(ChSqlEscaper.escapeLiteral(unit))
+            .histoType(type)
+            .ts(startMs)
+            .te(endMs)
+            .build(),
+        output);
+    List<GenericRecord> records = client.queryAll(output.toString());
+    var points = new ArrayList<NativeHistogramSample>(records.size());
+    for (var record : records) {
+      points.add(
+          nativeExponentialHistogram(
+              record.getLong("ts_start_ms"),
+              record.getLong("ts_end_ms"),
+              record.getInteger("scale"),
+              record.getDouble("zero_threshold"),
+              record.getLong("zero_count"),
+              record.getInteger("positive_offset"),
+              readDoubleArray(record, "positive_counts"),
+              record.getInteger("negative_offset"),
+              readDoubleArray(record, "negative_counts"),
+              record.hasValue("sum") ? record.getDouble("sum") : Double.NaN,
+              record.getLong("count")));
+    }
+    points.sort(Comparator.comparingLong(NativeHistogramSample::endMs));
+    return points;
+  }
+
+  static NativeHistogramSample nativeExponentialHistogram(
+      long startMs,
+      long endMs,
+      int scale,
+      double zeroThreshold,
+      double zeroCount,
+      int positiveOffset,
+      double[] positiveCounts,
+      int negativeOffset,
+      double[] negativeCounts,
+      double sum,
+      double count) {
+    return new NativeHistogramSample(
+        startMs,
+        endMs,
+        scale,
+        zeroThreshold,
+        zeroCount,
+        positiveOffset,
+        positiveCounts,
+        negativeOffset,
+        negativeCounts,
+        new double[0],
+        sum,
+        count,
+        "gauge");
+  }
+
+  static void ensureSingleHistogramRepresentation(
+      List<NativeHistogramSample> explicit, List<NativeHistogramSample> exponential) {
+    if (!explicit.isEmpty() && !exponential.isEmpty()) {
+      throw new IllegalStateException(
+          "series contains both explicit and exponential histogram representations");
+    }
   }
 
   static List<NativeHistogramSample> toDeltaHistos(List<NativeHistogramSample> cumulative) {

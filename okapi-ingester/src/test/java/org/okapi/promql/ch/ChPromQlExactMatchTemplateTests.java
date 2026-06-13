@@ -45,6 +45,18 @@ class ChPromQlExactMatchTemplateTests {
                 .build()));
     assertExactMatch(
         engine.render(
+            "get_exponential_histo_samples_exact_match.jte",
+            ChGetExponentialHistoQueryTemplate.builder()
+                .table("exponential_histograms")
+                .metric("latency")
+                .tags(tags)
+                .unit("seconds")
+                .histoType("DELTA")
+                .ts(1)
+                .te(2)
+                .build()));
+    assertExactMatch(
+        engine.render(
             "get_sum_samples_exact_match.jte",
             ChGetSumQueryTemplate.builder()
                 .table("sums")
