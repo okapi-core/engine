@@ -55,3 +55,9 @@ helm/dist/**/*.tgz
 **/*.pyc
 okapi-cp/**/*.tar.gz
 okapi-cp/**/*.whl
+
+## PromQL lexer gen
+okapi-promql/gen/*.java
+okapi-promql/gen/*.interp
+okapi-promql/gen/*.tokens
+okapi-promql/gen/*

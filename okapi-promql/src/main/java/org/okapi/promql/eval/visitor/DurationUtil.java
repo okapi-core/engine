@@ -35,33 +35,41 @@ public final class DurationUtil {
           .longValueExact();
     }
 
-    long n = 0;
-    int i = 0, len = s.length();
-    while (i < len && Character.isDigit(s.charAt(i))) {
-      n = n * 10 + (s.charAt(i++) - '0');
+    long totalMs = 0L;
+    int i = 0;
+    while (i < s.length()) {
+      int start = i;
+      while (i < s.length()
+          && (Character.isDigit(s.charAt(i)) || s.charAt(i) == '.')) {
+        i++;
+      }
+      if (start == i) {
+        throw new IllegalArgumentException("Bad duration: " + dur);
+      }
+      double value = Double.parseDouble(s.substring(start, i));
+      if (i >= s.length()) {
+        throw new IllegalArgumentException("Bad duration: " + dur);
+      }
+      if (s.startsWith("ms", i)) {
+        totalMs += Math.round(value);
+        i += 2;
+        continue;
+      }
+      char unit = Character.toLowerCase(s.charAt(i++));
+      totalMs += Math.round(value * unitMultiplier(unit));
     }
-    if (i >= len) {
-      // String had digits only (caught above), or invalid form like "123 " (trimmed already)
-      throw new IllegalArgumentException("Bad duration: " + dur);
-    }
+    return totalMs;
+  }
 
-    // Handle units
-    char u = Character.toLowerCase(s.charAt(i));
-    switch (u) {
-      case 's':
-        return n * 1000L;
-      case 'm':
-        return n * 60_000L;
-      case 'h':
-        return n * 3_600_000L;
-      case 'd':
-        return n * 86_400_000L;
-      case 'w':
-        return n * 7L * 86_400_000L;
-      case 'y':
-        return n * 365L * 86_400_000L;
-      default:
-        throw new IllegalArgumentException("Unsupported unit: " + u + " in " + dur);
-    }
+  private static long unitMultiplier(char unit) {
+    return switch (unit) {
+      case 's' -> 1000L;
+      case 'm' -> 60_000L;
+      case 'h' -> 3_600_000L;
+      case 'd' -> 86_400_000L;
+      case 'w' -> 7L * 86_400_000L;
+      case 'y' -> 365L * 86_400_000L;
+      default -> throw new IllegalArgumentException("Unsupported unit: " + unit);
+    };
   }
 }

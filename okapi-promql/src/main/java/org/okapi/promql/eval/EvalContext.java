@@ -19,7 +19,7 @@ public final class EvalContext {
   public final TsClient client;
   public final SeriesDiscovery discovery;
   public final ExecutorService exec;
-  public final StatisticsMerger statisticsMerger;
+  public final MetricTypeResolver metricTypeResolver;
 
   public EvalContext(
       long startMs,
@@ -29,8 +29,19 @@ public final class EvalContext {
       RESOLUTION res,
       TsClient client,
       SeriesDiscovery discovery,
+      ExecutorService exec) {
+    this(startMs, endMs, stepMs, res, client, discovery, exec, null);
+  }
+
+  public EvalContext(
+      long startMs,
+      long endMs,
+      long stepMs,
+      RESOLUTION res,
+      TsClient client,
+      SeriesDiscovery discovery,
       ExecutorService exec,
-      StatisticsMerger statisticsMerger) {
+      MetricTypeResolver metricTypeResolver) {
     this.startMs = startMs;
     this.endMs = endMs;
     this.stepMs = stepMs;
@@ -39,11 +50,6 @@ public final class EvalContext {
     this.client = client;
     this.discovery = discovery;
     this.exec = exec;
-    this.statisticsMerger = statisticsMerger;
-  }
-
-  public EvalContext withWindow(long newStartMs, long newEndMs) {
-    return new EvalContext(
-        newStartMs, newEndMs, stepMs, nowMs, resolution, client, discovery, exec, statisticsMerger);
+    this.metricTypeResolver = metricTypeResolver;
   }
 }
