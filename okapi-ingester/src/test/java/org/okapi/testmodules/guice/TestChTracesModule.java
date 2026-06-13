@@ -140,7 +140,12 @@ public class TestChTracesModule extends AbstractModule {
 
   private Client getChClient() {
     return new Client.Builder()
-        .addEndpoint(Protocol.HTTP, "localhost", 8123, false)
+        .addEndpoint(
+            Protocol.HTTP,
+            System.getenv().getOrDefault("OKAPI_TEST_CLICKHOUSE_HOST", "127.0.0.1"),
+            Integer.parseInt(
+                System.getenv().getOrDefault("OKAPI_TEST_CLICKHOUSE_PORT", "8123")),
+            false)
         .setUsername("default")
         .setPassword("okapi_testing_password")
         .build();

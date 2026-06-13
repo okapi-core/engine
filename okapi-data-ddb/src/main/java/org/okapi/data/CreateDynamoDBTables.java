@@ -41,7 +41,8 @@ public class CreateDynamoDBTables {
 
   public static void main(String[] args) {
     var env = args[0];
-    String endpoint = "http://localhost:4566";
+    String endpoint =
+        System.getenv().getOrDefault("OKAPI_AWS_ENDPOINT", "http://127.0.0.1:4566");
     if (env.equals("prod")) {
       endpoint = "https://dynamodb.eu-west-2.amazonaws.com";
     }

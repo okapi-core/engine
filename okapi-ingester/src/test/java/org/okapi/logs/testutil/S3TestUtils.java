@@ -16,7 +16,11 @@ public final class S3TestUtils {
 
   public static S3Client createS3Client() {
     return S3Client.builder()
-        .endpointOverride(URI.create("http://localhost:4566"))
+        .endpointOverride(
+            URI.create(
+                System.getenv()
+                    .getOrDefault(
+                        "OKAPI_TEST_LOCALSTACK_ENDPOINT", "http://127.0.0.1:4566")))
         .region(Region.EU_WEST_2)
         .forcePathStyle(true)
         .overrideConfiguration(ClientOverrideConfiguration.builder().build())

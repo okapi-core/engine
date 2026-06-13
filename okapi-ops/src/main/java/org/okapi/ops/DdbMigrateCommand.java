@@ -12,7 +12,7 @@ import picocli.CommandLine.Option;
 @Command(
     name = "ddb-migrate",
     description = "Create DynamoDB tables.",
-    header = "Example: okapi-ops ddb-migrate --env local --endpoint http://localhost:4566")
+    header = "Example: okapi-ops ddb-migrate --env local --endpoint http://127.0.0.1:4566")
 public class DdbMigrateCommand implements Callable<Integer> {
   @Option(names = "--endpoint", description = "DynamoDB endpoint override.", required = true)
   private String endpoint;

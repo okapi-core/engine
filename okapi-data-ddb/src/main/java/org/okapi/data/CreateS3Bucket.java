@@ -4,6 +4,7 @@
  */
 package org.okapi.data;
 
+import java.net.URI;
 import lombok.extern.slf4j.Slf4j;
 import software.amazon.awssdk.auth.credentials.EnvironmentVariableCredentialsProvider;
 import software.amazon.awssdk.awscore.exception.AwsServiceException;
@@ -11,8 +12,6 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3Configuration;
 import software.amazon.awssdk.services.s3.model.CreateBucketRequest;
-
-import java.net.URI;
 
 @Slf4j
 public class CreateS3Bucket {
@@ -49,12 +48,13 @@ public class CreateS3Bucket {
   public static void main(String[] args) {
     var env = args[0];
     var bucket = args[1];
-    String endpoint = "http://localhost:4566";
+    String endpoint =
+        System.getenv().getOrDefault("OKAPI_AWS_ENDPOINT", "http://127.0.0.1:4566");
 
     if (env.equals("prod")) {
       endpoint = "https://s3.eu-west-2.amazonaws.com";
     }
-//    var s3Client = getS3Client(endpoint, "eu-west-2");
-//    createS3Bucket(s3Client, bucket);
+    // var s3Client = getS3Client(endpoint, "eu-west-2");
+    // createS3Bucket(s3Client, bucket);
   }
 }

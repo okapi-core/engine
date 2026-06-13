@@ -4,8 +4,8 @@ spring:
     converters:
       preferred-json-mapper: gson
 
-clusterEndpoint: http://localhost:9009
-oscarEndpoint: http://localhost:9002
+clusterEndpoint: ${OKAPI_CLUSTER_ENDPOINT:http://127.0.0.1:9009}
+oscarEndpoint: ${OKAPI_OSCAR_ENDPOINT:http://127.0.0.1:9002}
 cookies:
   secure: false
 
@@ -25,12 +25,12 @@ okapi:
   aws:
     creds: env
     region: us-west-2
-    endpoint: http://localhost:4566
+    endpoint: ${OKAPI_AWS_ENDPOINT:http://127.0.0.1:4566}
 
   federation:
     agent:
       http:
-        endpoint: http://localhost:9002
+        endpoint: ${OKAPI_OSCAR_ENDPOINT:http://127.0.0.1:9002}
 
     polling-task:
       initial-delay-ms: 1000

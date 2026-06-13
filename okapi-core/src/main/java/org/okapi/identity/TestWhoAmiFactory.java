@@ -6,7 +6,7 @@ package org.okapi.identity;
 
 public class TestWhoAmiFactory {
 
-  public static final WhoAmI DEFAULT = makeWhoAmI("default-whoami", "localhost", 8080);
+  public static final WhoAmI DEFAULT = makeWhoAmI("default-whoami", "127.0.0.1", 8080);
 
   public static WhoAmI makeWhoAmI(String nodeId, String ip, int port) {
     return new WhoAmI() {

@@ -16,6 +16,9 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.s3.S3Client;
 
 public class OkapiTestUtils {
+  private static final String LOCALSTACK_ENDPOINT =
+      System.getenv().getOrDefault("OKAPI_TEST_LOCALSTACK_ENDPOINT", "http://127.0.0.1:4566");
+
 
   public static List<Float> genRandom(float base, float scale, int n) {
     var l = new ArrayList<Float>();
@@ -158,7 +161,7 @@ public class OkapiTestUtils {
 
   public static S3Client getLocalstackS3Client() {
     return S3Client.builder()
-        .endpointOverride(URI.create("http://localhost:4566"))
+        .endpointOverride(URI.create(LOCALSTACK_ENDPOINT))
         .forcePathStyle(true)
         .region(software.amazon.awssdk.regions.Region.US_EAST_1)
         .credentialsProvider(
@@ -169,7 +172,7 @@ public class OkapiTestUtils {
 
   public static DynamoDbClient getLocalStackDynamoDbClient() {
     return DynamoDbClient.builder()
-        .endpointOverride(URI.create("http://localhost:4566"))
+        .endpointOverride(URI.create(LOCALSTACK_ENDPOINT))
         .region(software.amazon.awssdk.regions.Region.US_EAST_1)
         .credentialsProvider(
             software.amazon.awssdk.auth.credentials.StaticCredentialsProvider.create(

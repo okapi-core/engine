@@ -26,7 +26,7 @@ okapi:
   metrics:
     consumptionType: wal        # Set to kafka to consume ClickHouse metric events from Kafka
     kafka:
-      bootstrapServers: localhost:9092
+      bootstrapServers: ${OKAPI_KAFKA_BOOTSTRAP_SERVERS:127.0.0.1:9092}
       topic: metrics-topic
       groupId: okapi-metrics-clickhouse
       pollTimeoutMs: 100

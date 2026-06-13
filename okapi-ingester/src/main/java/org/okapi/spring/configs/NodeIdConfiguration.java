@@ -24,7 +24,7 @@ public class NodeIdConfiguration {
   @Profile("test")
   public IpSupplier ipSupplier() {
     String ip = System.getenv("HOSTNAME");
-    ip = (ip == null) ? "localhost" : ip;
+    ip = (ip == null) ? "127.0.0.1" : ip;
     return new FixedIpSupplier(ip);
   }
 

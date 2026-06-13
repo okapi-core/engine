@@ -14,9 +14,9 @@ import picocli.CommandLine.Option;
 @Command(
     name = "ch-migrate",
     description = "Create ClickHouse database/tables.",
-    header = "Example: okapi-ops ch-migrate --host localhost --port 8123")
+    header = "Example: okapi-ops ch-migrate --host 127.0.0.1 --port 8123")
 public class ChMigrateCommand implements Callable<Integer> {
-  @Option(names = "--host", description = "ClickHouse host.", defaultValue = "localhost")
+  @Option(names = "--host", description = "ClickHouse host.", defaultValue = "127.0.0.1")
   private String host;
 
   @Option(names = "--port", description = "ClickHouse HTTP port.", defaultValue = "9000")

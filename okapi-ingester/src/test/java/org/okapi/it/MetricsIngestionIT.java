@@ -62,8 +62,6 @@ import org.springframework.web.client.RestClient;
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @TestPropertySource(
     properties = {
-      "okapi.clickhouse.host=localhost",
-      "okapi.clickhouse.port=8123",
       "okapi.clickhouse.userName=default",
       "okapi.clickhouse.password=okapi_testing_password",
       "okapi.clickhouse.secure=false",
@@ -87,6 +85,12 @@ public class MetricsIngestionIT {
   @DynamicPropertySource
   static void dynamicProps(DynamicPropertyRegistry registry) throws Exception {
     chWalRoot = Files.createTempDirectory("okapi-ch-wal");
+    registry.add(
+        "okapi.clickhouse.host",
+        () -> System.getenv().getOrDefault("OKAPI_TEST_CLICKHOUSE_HOST", "127.0.0.1"));
+    registry.add(
+        "okapi.clickhouse.port",
+        () -> System.getenv().getOrDefault("OKAPI_TEST_CLICKHOUSE_PORT", "8123"));
     registry.add("okapi.clickhouse.chMetricsWal", () -> chWalRoot.resolve("metrics").toString());
     registry.add("okapi.clickhouse.chLogsWal", () -> chWalRoot.resolve("logs").toString());
     registry.add("okapi.clickhouse.chTracesWal", () -> chWalRoot.resolve("traces").toString());

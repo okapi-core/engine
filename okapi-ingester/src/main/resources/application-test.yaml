@@ -17,7 +17,7 @@ okapi:
     namespace: "okapi-test-server"
   aws:
     region: "eu-west-2"
-    endpoint: "http://localhost:4566"
+    endpoint: "${OKAPI_TEST_LOCALSTACK_ENDPOINT:http://127.0.0.1:4566}"
   kafka:
     executors:
       metricsPoolSize: 1
@@ -37,15 +37,15 @@ okapi:
       logs:
         maxPollRecords: 10
         maxPollIntervalMs: 300000
-        bootstrapServers: "localhost:9092"
+        bootstrapServers: "${OKAPI_TEST_KAFKA_BOOTSTRAP_SERVERS:127.0.0.1:9092}"
       metrics:
         maxPollRecords: 10
         maxPollIntervalMs: 300000
-        bootstrapServers: "localhost:9092"
+        bootstrapServers: "${OKAPI_TEST_KAFKA_BOOTSTRAP_SERVERS:127.0.0.1:9092}"
       traces:
         maxPollRecords: 10
         maxPollIntervalMs: 300000
-        bootstrapServers: "localhost:9092"
+        bootstrapServers: "${OKAPI_TEST_KAFKA_BOOTSTRAP_SERVERS:127.0.0.1:9092}"
   logs:
     expectedInsertions: 1000
     maxPageWindowMs: 600_000
@@ -99,6 +99,6 @@ okapi:
     upload:
       uploadDelayMs: 100
   zk:
-    connectString: "localhost:2181"
+    connectString: "${OKAPI_TEST_ZOOKEEPER_CONNECT_STRING:127.0.0.1:2181}"
     backoffMillis: 1000
     retries: 2

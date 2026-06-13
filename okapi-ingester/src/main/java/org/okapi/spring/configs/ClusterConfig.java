@@ -45,7 +45,8 @@ public class ClusterConfig {
   @Bean
   @Profile("test")
   public IpSupplier ipSupplier() {
-    return new FixedIpSupplier("localhost");
+    return new FixedIpSupplier(
+        System.getenv().getOrDefault("OKAPI_NODE_IP", "127.0.0.1"));
   }
 
   @Bean

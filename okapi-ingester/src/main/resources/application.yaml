@@ -3,8 +3,8 @@ server:
 okapi:
   clickhouse:
     migrateOnStartup: false
-    host: localhost
-    port: 8123
+    host: ${OKAPI_CLICKHOUSE_HOST:127.0.0.1}
+    port: ${OKAPI_CLICKHOUSE_PORT:8123}
     username: default
     password: okapi_testing_password
     chMetricsWalCfg:

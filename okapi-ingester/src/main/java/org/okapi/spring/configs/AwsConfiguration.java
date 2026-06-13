@@ -61,10 +61,8 @@ public class AwsConfiguration {
     if (awsCfg.getEndpoint() != null && !awsCfg.getEndpoint().isBlank()) {
       log.info("Using custom S3 endpoint: {}", awsCfg.getEndpoint());
       client.endpointOverride(URI.create(awsCfg.getEndpoint()));
-      if (awsCfg.getEndpoint().startsWith("http://localhost")) {
-        log.info("Using path style access");
-        client.forcePathStyle(true);
-      }
+      log.info("Using path style access for custom S3 endpoint");
+      client.forcePathStyle(true);
     }
     return client.build();
   }

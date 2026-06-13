@@ -35,7 +35,7 @@ okapi:
       enabled: true
       max-messages: 20
     cluster:
-      endpoint: http://localhost:9009
+      endpoint: ${OKAPI_CLUSTER_ENDPOINT:http://127.0.0.1:9009}
 
     inference:
       nthreads: 5
@@ -45,7 +45,7 @@ spring:
       mode: always
       schema-locations: classpath:db/schema-postgresql.sql
   datasource:
-    url: ${OSCAR_DB_URL:jdbc:postgresql://localhost:5432/okapi_oscar?currentSchema=okapi_oscar}
+    url: ${OSCAR_DB_URL:jdbc:postgresql://127.0.0.1:5432/okapi_oscar?currentSchema=okapi_oscar}
     username: ${OSCAR_DB_USER:okapi_oscar_user}
     password: ${OSCAR_DB_PASSWORD:okapi_oscar_password}
     driver-class-name: org.postgresql.Driver

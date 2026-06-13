@@ -7,7 +7,8 @@ package org.okapi.web.tools;
 public class GetTempToken {
   public static final String RESERVED_TEST_USER = "test_user@okapiapp.io";
   public static final String RESERVED_TEST_PASSWORD = "Test@1234___";
-  public static final String TEST_ENDPOINT = "http://localhost:9001";
+  public static final String TEST_ENDPOINT =
+      System.getenv().getOrDefault("OKAPI_WEB_ENDPOINT", "http://127.0.0.1:9001");
 
   public static void main(String[] args) {
     var endpoint = args.length > 0 ? args[0] : TEST_ENDPOINT;

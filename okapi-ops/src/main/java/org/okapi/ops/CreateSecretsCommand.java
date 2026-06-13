@@ -20,7 +20,7 @@ import java.util.concurrent.Callable;
 @Command(
     name = "create-secrets",
     description = "Create Secrets required by okapi",
-    header = "Example: okapi-ops create-secrets --env local --endpoint http://localhost:4566")
+    header = "Example: okapi-ops create-secrets --env local --endpoint http://127.0.0.1:4566")
 public class CreateSecretsCommand implements Callable<Integer> {
   private static final String SECRET_NAME = "/okapi/secrets";
   private static final String DESCRIPTION = "Okapi test secrets";

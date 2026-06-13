@@ -5,7 +5,7 @@ okapi:
     sealedPageCap: 20
     sealedPageTtlMs: 5000
     s3:
-      endpoint: http://localhost:4566
+      endpoint: ${OKAPI_AWS_ENDPOINT:http://127.0.0.1:4566}
       region: eu-west-2
       uploadGraceMs: 300000 # 5 min grace period
       bucket: c199eb35-okapi-logs-bucket
@@ -18,7 +18,7 @@ okapi:
     idxExpiryDuration: 3600000 # 1hr expiry duration for an index file
   swim:
     svcName: okapi-logs
-    ips: localhost
+    ips: ${OKAPI_NODE_IP:127.0.0.1}
     ports: 8080-8081
     k8s:
       svcName: okapi-logs

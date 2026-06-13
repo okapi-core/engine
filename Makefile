@@ -5,6 +5,16 @@ REPO = ghcr.io/okapi-core
 OKAPI_TEST_NET = okapi-test-infra-network
 DOCKER_COMPOSE ?= docker compose
 TEST_INFRA_COMPOSE ?= compose.test-infra.yaml
+TEST_LOCALSTACK_ENDPOINT ?= http://127.0.0.1:4566
+TEST_CLICKHOUSE_HOST ?= 127.0.0.1
+TEST_CLICKHOUSE_PORT ?= 8123
+TEST_POSTGRES_HOST ?= 127.0.0.1
+TEST_POSTGRES_PORT ?= 5432
+TEST_VAULT_ADDR ?= http://127.0.0.1:8200
+OKAPI_WEB_HOST ?= 127.0.0.1
+OKAPI_WEB_PORT ?= 9001
+OKAPI_INGESTER_HOST ?= 127.0.0.1
+OKAPI_INGESTER_PORT ?= 9009
 
 HELM ?= helm
 HELM_NS ?= okapi
@@ -146,7 +156,7 @@ oscar-vault-dev:
 
 test-secret:
 	java -jar okapi-ops/target/okapi-ops-0.0.1-SNAPSHOT.jar create-secrets \
-	--endpoint http://localhost:4566 \
+	--endpoint $(TEST_LOCALSTACK_ENDPOINT) \
 	--region us-west-2
 
 
@@ -154,17 +164,17 @@ migrate: package-ops
 	$(MAKE) migrate-test-datastores
 
 migrate-test-datastores:
-	java -jar okapi-ops/target/okapi-ops-0.0.1-SNAPSHOT.jar ddb-migrate --region us-west-2 --endpoint http://localhost:4566
-	java -jar okapi-ops/target/okapi-ops-0.0.1-SNAPSHOT.jar ch-migrate --host localhost --port 8123 --user default --password okapi_testing_password
+	java -jar okapi-ops/target/okapi-ops-0.0.1-SNAPSHOT.jar ddb-migrate --region us-west-2 --endpoint $(TEST_LOCALSTACK_ENDPOINT)
+	java -jar okapi-ops/target/okapi-ops-0.0.1-SNAPSHOT.jar ch-migrate --host $(TEST_CLICKHOUSE_HOST) --port $(TEST_CLICKHOUSE_PORT) --user default --password okapi_testing_password
 
 test-users:
-	java -jar okapi-datagen/target/okapi-datagen-0.0.1-SNAPSHOT.jar users-gen --host http://localhost --port 9001
+	java -jar okapi-datagen/target/okapi-datagen-0.0.1-SNAPSHOT.jar users-gen --host http://$(OKAPI_WEB_HOST) --port $(OKAPI_WEB_PORT)
 
 test-spans:
-	java -jar okapi-datagen/target/okapi-datagen-0.0.1-SNAPSHOT.jar astro-spans-gen --host http://localhost --port 9009
+	java -jar okapi-datagen/target/okapi-datagen-0.0.1-SNAPSHOT.jar astro-spans-gen --host http://$(OKAPI_INGESTER_HOST) --port $(OKAPI_INGESTER_PORT)
 
 test-metrics:
-	java -jar okapi-datagen/target/okapi-datagen-0.0.1-SNAPSHOT.jar astro-metrics-gen --host http://localhost --port 9009 --file data-gen/astro-metrics-config.json
+	java -jar okapi-datagen/target/okapi-datagen-0.0.1-SNAPSHOT.jar astro-metrics-gen --host http://$(OKAPI_INGESTER_HOST) --port $(OKAPI_INGESTER_PORT) --file data-gen/astro-metrics-config.json
 
 test-data: test-users test-spans test-metrics
 
@@ -221,7 +231,12 @@ test-run-web:
 test-run: test-run-ingester test-run-web
 
 test: package test-infra start-okapi-ingester-jar start-okapi-web-jar
-	mvn test
+	OKAPI_TEST_LOCALSTACK_ENDPOINT="$(TEST_LOCALSTACK_ENDPOINT)" \
+	OKAPI_TEST_CLICKHOUSE_HOST="$(TEST_CLICKHOUSE_HOST)" \
+	OKAPI_TEST_CLICKHOUSE_PORT="$(TEST_CLICKHOUSE_PORT)" \
+	OSCAR_DB_URL="jdbc:postgresql://$(TEST_POSTGRES_HOST):$(TEST_POSTGRES_PORT)/okapi_oscar?currentSchema=okapi_oscar" \
+	VAULT_ADDR="$(TEST_VAULT_ADDR)" \
+		mvn test
 
 publish-docker:
 	docker push $(REPO)/okapi-web:$(TAG)
@@ -242,15 +257,11 @@ copy-ch-sql:
 	cp -r ./okapi-ingester/src/main/resources/ch/*.sql ./okapi-ops/src/main/resources/ch/
 
 start-oscar-jar:
-	export POSTGRES_HOST=localhost
-	export POSTGRES_PORT=5432
-	export OSCAR_DB_URL='jdbc:postgresql://${POSTGRES_HOST}:${POSTGRES_PORT}/okapi_oscar'
-	export OSCAR_DB_USER=okapi_oscar_user
-	export OSCAR_DB_PASSWORD=okapi_oscar_password
-	export OKAPI_INGESTER_HOST='localhost'
-	export OKAPI_INGESTER_PORT=9009
-	java -jar ./okapi-oscar/target/okapi-oscar-0.0.1-SNAPSHOT.jar \
-		--okapi.oscar.cluster-endpoint=http://${OKAPI_INGESTER_HOST}:${OKAPI_INGESTER_PORT} \
+	OSCAR_DB_URL="jdbc:postgresql://$(TEST_POSTGRES_HOST):$(TEST_POSTGRES_PORT)/okapi_oscar?currentSchema=okapi_oscar" \
+	OSCAR_DB_USER="okapi_oscar_user" \
+	OSCAR_DB_PASSWORD="okapi_oscar_password" \
+	OKAPI_CLUSTER_ENDPOINT="http://$(OKAPI_INGESTER_HOST):$(OKAPI_INGESTER_PORT)" \
+		java -jar ./okapi-oscar/target/okapi-oscar-0.0.1-SNAPSHOT.jar \
 		--okapi.oscar.vault.address='' \
 		--okapi.oscar.openai.api-key-path=env://OPENAI_API_KEY &
 
@@ -265,9 +276,12 @@ test-all: package run-ingester
 	mvn test -Dmaven.test.failure.ignore=true
 
 start-okapi-web-jar: package
-	java -jar ./okapi-web/target/okapi-web-0.0.1-SNAPSHOT.jar &
+	OKAPI_AWS_ENDPOINT="$(TEST_LOCALSTACK_ENDPOINT)" \
+		java -jar ./okapi-web/target/okapi-web-0.0.1-SNAPSHOT.jar &
 
 start-okapi-ingester-jar: package
-	java -jar ./okapi-ingester/target/okapi-ingester-0.0.1-SNAPSHOT.jar &
+	OKAPI_CLICKHOUSE_HOST="$(TEST_CLICKHOUSE_HOST)" \
+	OKAPI_CLICKHOUSE_PORT="$(TEST_CLICKHOUSE_PORT)" \
+		java -jar ./okapi-ingester/target/okapi-ingester-0.0.1-SNAPSHOT.jar &
 
 test-env: package test-infra start-okapi-ingester-jar start-oscar-jar start-okapi-web-jar test-data
