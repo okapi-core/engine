@@ -4,17 +4,16 @@
  */
 package org.okapi.metrics.stats;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
-import java.util.stream.Stream;
 import org.apache.datasketches.kll.KllFloatsSketch;
 import org.apache.datasketches.memory.Memory;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.provider.Arguments;
 import org.okapi.metrics.common.MetricsContext;
 
-@Disabled
+import java.util.stream.Stream;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 public class RolledUpStatisticsTest {
 
   public static Stream<Arguments> fuzzyTestDataConfigs() {

@@ -29,7 +29,7 @@ public class RolledUpStatistics implements UpdatableStatistics {
     this.floatsQuantiles = quantilesFloatsAPI;
   }
 
-  public void fromBytearray(byte[] bytes) {
+  public void fromBytearray(byte[] bytes, QuantileRestorer restorer) {
     if (bytes.length < 8) {
       throw new IllegalArgumentException("Not enough bytes to deserialize Statistics");
     }
@@ -45,15 +45,13 @@ public class RolledUpStatistics implements UpdatableStatistics {
 
     KllFloatsSketch quantiles;
     try {
-      var restorer = new KllSketchRestorer();
       quantiles = restorer.restoreQuantiles(quantileBytes);
     } catch (Exception e) {
       throw new RuntimeException("Failed to restore quantiles", e);
     }
-
-    var stats = new RolledUpStatistics(quantiles);
-    stats.sum = sum;
-    stats.count = count;
+    this.sum = sum;
+    this.count = count;
+    this.floatsQuantiles = quantiles;
   }
 
   private RolledUpStatistics() {}
@@ -63,7 +61,7 @@ public class RolledUpStatistics implements UpdatableStatistics {
     if (bytes.length < 8) {
       throw new IllegalArgumentException("Not enough bytes to deserialize Statistics");
     }
-    stats.fromBytearray(bytes);
+    stats.fromBytearray(bytes, quantileRestorer);
     return stats;
   }
 
