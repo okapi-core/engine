@@ -36,6 +36,45 @@ public final class HistogramFunctions {
     return mapHistograms(vector, HistogramFunctions::variance);
   }
 
+  public static InstantVectorResult fraction(
+      double lower, double upper, InstantVectorResult vector) {
+    List<SeriesSample> out = new ArrayList<>();
+    Map<ClassicBucketKey, List<ClassicBucket>> classicBuckets = new LinkedHashMap<>();
+    for (var seriesSample : vector.data()) {
+      if (seriesSample.sample().isHistogram()) {
+        var histogram = seriesSample.sample().histogram();
+        if (!(histogram instanceof HistogramSeries.NativeHistogramSample nativeHistogram)) continue;
+        out.add(
+            new SeriesSample(
+                SeriesIds.derived(seriesSample.series()),
+                new Sample(
+                    seriesSample.sample().ts(),
+                    seriesSample.sample().sourceTs(),
+                    fraction(lower, upper, nativeHistogram))));
+        continue;
+      }
+      String bound = seriesSample.series().labels().tags().get("le");
+      if (bound == null) continue;
+      Map<String, String> labels = new HashMap<>(seriesSample.series().labels().tags());
+      labels.remove("le");
+      var key = new ClassicBucketKey(labels, seriesSample.sample().ts());
+      classicBuckets
+          .computeIfAbsent(key, ignored -> new ArrayList<>())
+          .add(new ClassicBucket(parseBound(bound), seriesSample.sample().value()));
+    }
+    for (var entry : classicBuckets.entrySet()) {
+      var buckets = entry.getValue();
+      buckets.sort(Comparator.comparingDouble(ClassicBucket::upperBound));
+      double[] bounds = buckets.stream().mapToDouble(ClassicBucket::upperBound).toArray();
+      double[] cumulative = buckets.stream().mapToDouble(ClassicBucket::cumulativeCount).toArray();
+      out.add(
+          new SeriesSample(
+              new SeriesId("", new Labels(entry.getKey().labels())),
+              new Sample(entry.getKey().timestamp(), fraction(lower, upper, bounds, cumulative))));
+    }
+    return new InstantVectorResult(out);
+  }
+
   private static InstantVectorResult mapHistograms(
       InstantVectorResult vector,
       java.util.function.ToDoubleFunction<HistogramSeries.HistogramSample> function) {
@@ -68,6 +107,61 @@ public final class HistogramFunctions {
     }
     return variance / count;
   }
+
+  private static double fraction(
+      double lower, double upper, HistogramSeries.NativeHistogramSample histogram) {
+    double[] customValues = histogram.customValues();
+    double[] bucketCounts = histogram.positiveBuckets();
+    if (customValues.length == 0) return Double.NaN;
+    double[] bounds = Arrays.copyOf(customValues, customValues.length + 1);
+    bounds[bounds.length - 1] = Double.POSITIVE_INFINITY;
+    double[] cumulative = new double[bucketCounts.length];
+    double count = 0d;
+    for (int i = 0; i < bucketCounts.length; i++) {
+      count += bucketCounts[i];
+      cumulative[i] = count;
+    }
+    return fraction(lower, upper, bounds, cumulative);
+  }
+
+  private static double fraction(double lower, double upper, double[] bounds, double[] cumulative) {
+    if (Double.isNaN(lower) || Double.isNaN(upper)) return Double.NaN;
+    if (lower >= upper || cumulative.length == 0) return 0d;
+    double total = cumulative[cumulative.length - 1];
+    if (total == 0d) return Double.NaN;
+    return (cumulativeAt(upper, bounds, cumulative) - cumulativeAt(lower, bounds, cumulative)) / total;
+  }
+
+  private static double cumulativeAt(double value, double[] bounds, double[] cumulative) {
+    if (value == Double.NEGATIVE_INFINITY) return 0d;
+    if (value == Double.POSITIVE_INFINITY) return cumulative[cumulative.length - 1];
+    double previousCount = 0d;
+    double lowerBound = bounds.length > 0 && bounds[0] > 0d ? 0d : Double.NEGATIVE_INFINITY;
+    for (int i = 0; i < cumulative.length; i++) {
+      double upperBound = i < bounds.length ? bounds[i] : Double.POSITIVE_INFINITY;
+      if (value <= upperBound) {
+        if (Double.isInfinite(lowerBound)) return value < upperBound ? 0d : cumulative[i];
+        if (Double.isInfinite(upperBound)) return previousCount;
+        double position = (value - lowerBound) / (upperBound - lowerBound);
+        position = Math.max(0d, Math.min(1d, position));
+        return previousCount + position * (cumulative[i] - previousCount);
+      }
+      previousCount = cumulative[i];
+      lowerBound = upperBound;
+    }
+    return previousCount;
+  }
+
+  private static double parseBound(String value) {
+    if (value.equalsIgnoreCase("+Inf") || value.equalsIgnoreCase("Inf"))
+      return Double.POSITIVE_INFINITY;
+    if (value.equalsIgnoreCase("-Inf")) return Double.NEGATIVE_INFINITY;
+    return Double.parseDouble(value);
+  }
+
+  private record ClassicBucketKey(Map<String, String> labels, long timestamp) {}
+
+  private record ClassicBucket(double upperBound, double cumulativeCount) {}
 
   private static double customBucketVariance(double[] bounds, double[] counts, double mean) {
     double variance = 0d;
