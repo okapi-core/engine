@@ -24,6 +24,15 @@ import org.okapi.promql.eval.ts.RESOLUTION;
 import org.okapi.promql.eval.ts.TsClient;
 
 public class ChPromQlTsClient implements TsClient {
+  private static final String GET_GAUGE_RAW_SAMPLES_EXACT_MATCH =
+      "get_gauge_raw_samples_exact_match.jte";
+  private static final String GET_HISTO_SAMPLES_EXACT_MATCH =
+      "get_histo_samples_exact_match.jte";
+  private static final String GET_SUM_SAMPLES_EXACT_MATCH =
+      "get_sum_samples_exact_match.jte";
+  private static final String GET_METRIC_EVENT_TYPE_EXACT_MATCH =
+      "get_metric_event_type_exact_match.jte";
+
   private final Client client;
   private final ChMetricTemplateEngine templateEngine;
 
@@ -49,7 +58,7 @@ public class ChPromQlTsClient implements TsClient {
       String metric, Map<String, String> tags, long startMs, long endMs) {
     TemplateOutput output = new StringOutput();
     templateEngine.render(
-        ChTemplateFiles.GET_METRIC_EVENT_TYPE,
+        GET_METRIC_EVENT_TYPE_EXACT_MATCH,
         ChMetricEventTypeQueryTemplate.builder()
             .table(ChConstants.TBL_METRIC_EVENTS_META)
             .metric(metric)
@@ -71,7 +80,7 @@ public class ChPromQlTsClient implements TsClient {
       String metric, Map<String, String> tags, long startMs, long endMs) {
     TemplateOutput output = new StringOutput();
     templateEngine.render(
-        ChTemplateFiles.GET_GAUGE_RAW_SAMPLES,
+        GET_GAUGE_RAW_SAMPLES_EXACT_MATCH,
         ChGetGaugeRawQueryTemplate.builder()
             .table(ChConstants.TBL_GAUGES)
             .metric(metric)
@@ -104,7 +113,7 @@ public class ChPromQlTsClient implements TsClient {
       String metric, Map<String, String> tags, long startMs, long endMs, String type) {
     TemplateOutput output = new StringOutput();
     templateEngine.render(
-        ChTemplateFiles.GET_SUM_SAMPLES,
+        GET_SUM_SAMPLES_EXACT_MATCH,
         ChGetSumQueryTemplate.builder()
             .table(ChConstants.TBL_SUM)
             .metric(metric)
@@ -161,7 +170,7 @@ public class ChPromQlTsClient implements TsClient {
       String metric, Map<String, String> tags, long startMs, long endMs, String type) {
     TemplateOutput output = new StringOutput();
     templateEngine.render(
-        ChTemplateFiles.GET_HISTO_SAMPLES,
+        GET_HISTO_SAMPLES_EXACT_MATCH,
         ChGetHistoQueryTemplate.builder()
             .table(ChConstants.TBL_HISTOS)
             .metric(metric)
