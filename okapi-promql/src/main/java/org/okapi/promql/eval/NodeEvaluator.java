@@ -57,7 +57,7 @@ public final class NodeEvaluator {
       throws EvaluationException {
     // Expand fetch window to include the staleness lookback so the selector retrieves
     // data points that pre-date startMs but still fall within the 5-minute staleness window.
-    var fetchCtx = ctx.withWindow(ctx.startMs - STALENESS_MS, ctx.endMs);
+    var fetchCtx = ctx.withWindow(Math.max(0L, ctx.startMs - STALENESS_MS), ctx.endMs);
     var res = eval(e.inner, fetchCtx);
     if (!(res instanceof RangeVectorResult rv)) return res;
 

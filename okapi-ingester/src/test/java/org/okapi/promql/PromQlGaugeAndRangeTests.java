@@ -82,6 +82,29 @@ public class PromQlGaugeAndRangeTests {
   }
 
   @Test
+  void instantGaugeQueryAtNearEpochTimestampDoesNotOverflow() throws Exception {
+    // Regression: evalInstantize subtracted STALENESS_MS (300_000 ms) from startMs without
+    // clamping, producing a negative timestamp that ClickHouse rejected with DECIMAL_OVERFLOW.
+    var ingester = injector.getInstance(ChMetricsIngester.class);
+    var driver = injector.getInstance(ChMetricsWalConsumerDriver.class);
+    var promql = injector.getInstance(PromQlQueryProcessor.class);
+
+    var resource = "svc-epoch-" + UUID.randomUUID();
+    var metric = "epoch_gauge";
+    var tags = Map.of("env", "dev", "test-session", testSession);
+
+    // ts=500 ms is far below STALENESS_MS (300_000 ms); without the clamp,
+    // startMs - STALENESS_MS = -299_500 would be sent to ClickHouse.
+    ingester.ingestOtelProtobuf(
+        buildGaugeRequest(resource, metric, tags, List.of(500L), List.of(9.0)));
+    driver.onTick();
+
+    var result = promql.queryRange(Constants.DEFAULT_TENANT, metric, 500L, 500L, 500L);
+    assertNotNull(result);
+    assertFalse(((InstantVectorResult) result).toMatrix().isEmpty());
+  }
+
+  @Test
   void queryRangeWithRangeFunctionProducesExpectedValues() throws Exception {
     var ingester = injector.getInstance(ChMetricsIngester.class);
     var driver = injector.getInstance(ChMetricsWalConsumerDriver.class);
