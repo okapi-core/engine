@@ -16,8 +16,6 @@ import org.okapi.promql.eval.exceptions.EvaluationException;
 
 /** Pure functions over histogram range vectors. */
 public final class HistogramFunctions {
-  private static final int CUSTOM_BUCKET_SCHEMA = -53;
-
   private HistogramFunctions() {}
 
   public static InstantVectorResult count(InstantVectorResult vector) {
@@ -292,13 +290,14 @@ public final class HistogramFunctions {
   }
 
   private static boolean hasCustomBuckets(HistogramSeries.NativeHistogramSample histogram) {
-    return histogram.schema() == CUSTOM_BUCKET_SCHEMA;
+    return histogram.schema() == HistogramSeries.CUSTOM_BUCKET_SCHEMA;
   }
 
   private static HistogramSeries.NativeHistogramSample trim(
       HistogramSeries.NativeHistogramSample histogram, double cutoff, boolean keepLower) {
     if (keepLower && cutoff == Double.NEGATIVE_INFINITY
         || !keepLower && cutoff == Double.POSITIVE_INFINITY) return histogram;
+    if (hasCustomBuckets(histogram)) return trimCustomBuckets(histogram, cutoff, keepLower);
     double base = Math.pow(2d, Math.pow(2d, -histogram.schema()));
     BucketTrim positive =
         trimBuckets(
@@ -344,6 +343,41 @@ public final class HistogramFunctions {
         histogram.counterResetHint());
   }
 
+  private static HistogramSeries.NativeHistogramSample trimCustomBuckets(
+      HistogramSeries.NativeHistogramSample histogram, double cutoff, boolean keepLower) {
+    double[] bounds = histogram.customValues();
+    BucketTrim buckets =
+        trimBuckets(
+            histogram.positiveOffset(),
+            histogram.positiveBuckets(),
+            index ->
+                new NativeBucket(
+                    index == 0 && bounds.length > 0 && bounds[0] > 0d
+                        ? 0d
+                        : index == 0 ? Double.NEGATIVE_INFINITY : bounds[index - 1],
+                    index < bounds.length ? bounds[index] : Double.POSITIVE_INFINITY,
+                    0d,
+                    false),
+            cutoff,
+            keepLower,
+            keepLower,
+            !keepLower);
+    return new HistogramSeries.NativeHistogramSample(
+        histogram.startMs(),
+        histogram.endMs(),
+        histogram.schema(),
+        0d,
+        0d,
+        buckets.offset(),
+        buckets.buckets(),
+        0,
+        new double[0],
+        bounds,
+        buckets.sum(),
+        buckets.count(),
+        histogram.counterResetHint());
+  }
+
   private static BucketTrim trimBuckets(
       int offset,
       double[] counts,
@@ -380,7 +414,11 @@ public final class HistogramFunctions {
     double upper = Math.min(bucket.upper(), keepLower ? Double.POSITIVE_INFINITY : cutoff);
     if (lower >= upper) return 0d;
     double count = selectedCount(bucket, cutoff, keepLower);
-    if (!bucket.exponential()) return count * (lower + upper) / 2d;
+    if (!bucket.exponential()) {
+      if (Double.isInfinite(lower)) return count * upper;
+      if (Double.isInfinite(upper)) return count * lower;
+      return count * (lower + upper) / 2d;
+    }
     if (upper <= 0d) return -count * Math.sqrt((-lower) * (-upper));
     return count * Math.sqrt(lower * upper);
   }
@@ -390,6 +428,12 @@ public final class HistogramFunctions {
     double overlapUpper = Math.min(upper, bucket.upper());
     if (overlapLower >= overlapUpper) return 0d;
     if (overlapLower <= bucket.lower() && overlapUpper >= bucket.upper()) return bucket.count();
+    if (!bucket.exponential() && Double.isInfinite(bucket.lower())) {
+      return overlapLower == Double.NEGATIVE_INFINITY ? bucket.count() : 0d;
+    }
+    if (!bucket.exponential() && Double.isInfinite(bucket.upper())) {
+      return overlapUpper == Double.POSITIVE_INFINITY ? bucket.count() : 0d;
+    }
     double positionLower = bucketPosition(bucket, overlapLower);
     double positionUpper = bucketPosition(bucket, overlapUpper);
     return bucket.count() * (positionUpper - positionLower);

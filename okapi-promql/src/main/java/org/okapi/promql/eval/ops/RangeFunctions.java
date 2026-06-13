@@ -434,6 +434,7 @@ public final class RangeFunctions {
           HistogramSeries.isReset(previous, histogram)
               ? histogram
               : HistogramSeries.subtract(histogram, previous);
+      if (increase != null && !HistogramSeries.compatibleRepresentation(increase, delta)) return null;
       increase = increase == null ? delta : HistogramSeries.add(increase, delta);
       previous = histogram;
       sampleCount++;

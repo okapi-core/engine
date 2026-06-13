@@ -371,11 +371,17 @@ public final class RangeStats {
         if (hasHistograms) {
           HistogramSeries.HistogramSample histogram = null;
           for (var sample : samples) {
+            if (histogram != null
+                && !HistogramSeries.compatibleRepresentation(histogram, sample.histogram())) {
+              histogram = null;
+              break;
+            }
             histogram =
                 histogram == null
                     ? sample.histogram()
                     : HistogramSeries.add(histogram, sample.histogram());
           }
+          if (histogram == null) continue;
           if (average) histogram = HistogramSeries.scale(histogram, 1d / samples.size());
           out.add(
               new SeriesSample(

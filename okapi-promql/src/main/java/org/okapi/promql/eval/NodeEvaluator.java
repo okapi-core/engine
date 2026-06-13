@@ -794,6 +794,10 @@ public final class NodeEvaluator {
       List<SeriesSample> out, List<SeriesSample> samples, SeriesId id, long ts, boolean average) {
     HistogramSeries.HistogramSample histogram = null;
     for (var sample : samples) {
+      if (histogram != null
+          && !HistogramSeries.compatibleRepresentation(histogram, sample.sample().histogram())) {
+        return;
+      }
       histogram =
           histogram == null
               ? sample.sample().histogram()

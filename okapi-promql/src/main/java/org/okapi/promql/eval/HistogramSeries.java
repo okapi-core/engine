@@ -14,6 +14,7 @@ import org.okapi.metrics.pojos.results.Scan;
 
 /** Time-indexed Prometheus samples for a series that may contain histograms. */
 public final class HistogramSeries extends Scan {
+  public static final int CUSTOM_BUCKET_SCHEMA = -53;
 
   public enum Temporality {
     DELTA,
@@ -116,6 +117,16 @@ public final class HistogramSeries extends Scan {
     return false;
   }
 
+  public static boolean compatibleRepresentation(HistogramSample left, HistogramSample right) {
+    if (left instanceof ExplicitHistogramSample && right instanceof ExplicitHistogramSample) {
+      return true;
+    }
+    if (left instanceof NativeHistogramSample a && right instanceof NativeHistogramSample b) {
+      return isCustomBuckets(a) == isCustomBuckets(b);
+    }
+    return false;
+  }
+
   public static HistogramSample add(HistogramSample left, HistogramSample right) {
     if (left instanceof ExplicitHistogramSample a && right instanceof ExplicitHistogramSample b) {
       return new ExplicitHistogramSample(
@@ -176,6 +187,7 @@ public final class HistogramSeries extends Scan {
       return b.count() < a.count() || decreased(a.counts(), b.counts());
     }
     if (previous instanceof NativeHistogramSample a && current instanceof NativeHistogramSample b) {
+      if (isCustomBuckets(a) || isCustomBuckets(b)) return customBucketsReset(a, b);
       return a.schema() != b.schema()
           || b.count() < a.count()
           || b.zeroCount() < a.zeroCount()
@@ -210,6 +222,9 @@ public final class HistogramSeries extends Scan {
 
   private static NativeHistogramSample combine(
       NativeHistogramSample left, NativeHistogramSample right, boolean subtract) {
+    if (isCustomBuckets(left) || isCustomBuckets(right)) {
+      return combineCustomBuckets(left, right, subtract);
+    }
     int schema = Math.min(left.schema(), right.schema());
     BucketSpan positive =
         combine(
@@ -236,6 +251,96 @@ public final class HistogramSeries extends Scan {
         subtract ? left.sum() - right.sum() : left.sum() + right.sum(),
         subtract ? left.count() - right.count() : left.count() + right.count(),
         "gauge");
+  }
+
+  private static NativeHistogramSample combineCustomBuckets(
+      NativeHistogramSample left, NativeHistogramSample right, boolean subtract) {
+    requireCustomBuckets(left);
+    requireCustomBuckets(right);
+    double[] bounds = intersect(left.customValues(), right.customValues());
+    BucketSpan leftBuckets = rebinCustomBuckets(left, bounds);
+    BucketSpan rightBuckets = rebinCustomBuckets(right, bounds);
+    BucketSpan buckets = combine(leftBuckets, rightBuckets, subtract);
+    NativeHistogramSample template = subtract ? left : right;
+    return new NativeHistogramSample(
+        template.startMs(),
+        template.endMs(),
+        CUSTOM_BUCKET_SCHEMA,
+        0d,
+        0d,
+        buckets.offset(),
+        buckets.buckets(),
+        0,
+        new double[0],
+        bounds,
+        subtract ? left.sum() - right.sum() : left.sum() + right.sum(),
+        subtract ? left.count() - right.count() : left.count() + right.count(),
+        "gauge");
+  }
+
+  private static boolean customBucketsReset(
+      NativeHistogramSample previous, NativeHistogramSample current) {
+    if (!isCustomBuckets(previous) || !isCustomBuckets(current)) return true;
+    if (current.count() < previous.count()) return true;
+    double[] bounds = intersect(previous.customValues(), current.customValues());
+    return decreased(rebinCustomBuckets(previous, bounds), rebinCustomBuckets(current, bounds));
+  }
+
+  private static BucketSpan rebinCustomBuckets(NativeHistogramSample histogram, double[] bounds) {
+    Map<Integer, Double> buckets = new TreeMap<>();
+    for (int i = 0; i < histogram.positiveBuckets().length; i++) {
+      int source = histogram.positiveOffset() + i;
+      double upper =
+          source < histogram.customValues().length
+              ? histogram.customValues()[source]
+              : Double.POSITIVE_INFINITY;
+      int target = insertionPoint(bounds, upper);
+      buckets.merge(target, histogram.positiveBuckets()[i], Double::sum);
+    }
+    return denseBuckets(buckets);
+  }
+
+  private static BucketSpan combine(BucketSpan left, BucketSpan right, boolean subtract) {
+    Map<Integer, Double> buckets = new TreeMap<>();
+    mergeBuckets(buckets, left, 1d);
+    mergeBuckets(buckets, right, subtract ? -1d : 1d);
+    return denseBuckets(buckets);
+  }
+
+  private static void mergeBuckets(Map<Integer, Double> target, BucketSpan source, double sign) {
+    for (int i = 0; i < source.buckets().length; i++) {
+      target.merge(source.offset() + i, sign * source.buckets()[i], Double::sum);
+    }
+  }
+
+  private static BucketSpan denseBuckets(Map<Integer, Double> buckets) {
+    if (buckets.isEmpty()) return new BucketSpan(0, new double[0]);
+    int offset = buckets.keySet().iterator().next();
+    int last = ((TreeMap<Integer, Double>) buckets).lastKey();
+    double[] dense = new double[last - offset + 1];
+    for (var entry : buckets.entrySet()) dense[entry.getKey() - offset] = entry.getValue();
+    return new BucketSpan(offset, dense);
+  }
+
+  private static int insertionPoint(double[] bounds, double upper) {
+    int index = Arrays.binarySearch(bounds, upper);
+    return index >= 0 ? index : -index - 1;
+  }
+
+  private static double[] intersect(double[] left, double[] right) {
+    return Arrays.stream(left)
+        .filter(bound -> Arrays.binarySearch(right, bound) >= 0)
+        .toArray();
+  }
+
+  private static boolean isCustomBuckets(NativeHistogramSample histogram) {
+    return histogram.schema() == CUSTOM_BUCKET_SCHEMA;
+  }
+
+  private static void requireCustomBuckets(NativeHistogramSample histogram) {
+    if (!isCustomBuckets(histogram)) {
+      throw new IllegalArgumentException("cannot combine exponential and custom bucket histograms");
+    }
   }
 
   private static BucketSpan combine(
@@ -273,6 +378,23 @@ public final class HistogramSeries extends Scan {
   }
 
   private record BucketSpan(int offset, double[] buckets) {}
+
+  private static boolean decreased(BucketSpan previous, BucketSpan current) {
+    int first = Math.min(previous.offset(), current.offset());
+    int last =
+        Math.max(
+            previous.offset() + previous.buckets().length,
+            current.offset() + current.buckets().length);
+    for (int bucket = first; bucket < last; bucket++) {
+      if (bucket(previous, bucket) > bucket(current, bucket)) return true;
+    }
+    return false;
+  }
+
+  private static double bucket(BucketSpan span, int index) {
+    int position = index - span.offset();
+    return position < 0 || position >= span.buckets().length ? 0d : span.buckets()[position];
+  }
 
   private static int[] add(int[] left, int[] right) {
     int[] result = Arrays.copyOf(right, Math.max(left.length, right.length));
