@@ -113,4 +113,116 @@ public final class HistogramSeries extends Scan {
     }
     return false;
   }
+
+  public static HistogramSample add(HistogramSample left, HistogramSample right) {
+    if (left instanceof ExplicitHistogramSample a && right instanceof ExplicitHistogramSample b) {
+      return new ExplicitHistogramSample(
+          b.startMs(),
+          b.endMs(),
+          b.temporality(),
+          b.upperBounds(),
+          add(a.counts(), b.counts()),
+          a.sum() + b.sum(),
+          a.count() + b.count());
+    }
+    if (left instanceof NativeHistogramSample a && right instanceof NativeHistogramSample b) {
+      return nativeResult(b, add(a.positiveBuckets(), b.positiveBuckets()),
+          add(a.negativeBuckets(), b.negativeBuckets()), a.zeroCount() + b.zeroCount(),
+          a.sum() + b.sum(), a.count() + b.count());
+    }
+    throw new IllegalArgumentException("cannot add different histogram representations");
+  }
+
+  public static HistogramSample subtract(HistogramSample left, HistogramSample right) {
+    if (left instanceof ExplicitHistogramSample a && right instanceof ExplicitHistogramSample b) {
+      return new ExplicitHistogramSample(
+          a.startMs(),
+          a.endMs(),
+          a.temporality(),
+          a.upperBounds(),
+          subtract(a.counts(), b.counts()),
+          a.sum() - b.sum(),
+          a.count() - b.count());
+    }
+    if (left instanceof NativeHistogramSample a && right instanceof NativeHistogramSample b) {
+      return nativeResult(a, subtract(a.positiveBuckets(), b.positiveBuckets()),
+          subtract(a.negativeBuckets(), b.negativeBuckets()), a.zeroCount() - b.zeroCount(),
+          a.sum() - b.sum(), a.count() - b.count());
+    }
+    throw new IllegalArgumentException("cannot subtract different histogram representations");
+  }
+
+  public static HistogramSample scale(HistogramSample histogram, double factor) {
+    if (histogram instanceof ExplicitHistogramSample sample) {
+      int[] counts = new int[sample.counts().length];
+      for (int i = 0; i < counts.length; i++) counts[i] = (int) Math.round(sample.counts()[i] * factor);
+      return new ExplicitHistogramSample(
+          sample.startMs(),
+          sample.endMs(),
+          sample.temporality(),
+          sample.upperBounds(),
+          counts,
+          sample.sum() * factor,
+          sample.count() * factor);
+    }
+    if (histogram instanceof NativeHistogramSample sample) {
+      return nativeResult(sample, scale(sample.positiveBuckets(), factor),
+          scale(sample.negativeBuckets(), factor), sample.zeroCount() * factor,
+          sample.sum() * factor, sample.count() * factor);
+    }
+    throw new IllegalArgumentException("unknown histogram representation");
+  }
+
+  private static NativeHistogramSample nativeResult(
+      NativeHistogramSample template,
+      double[] positiveBuckets,
+      double[] negativeBuckets,
+      double zeroCount,
+      double sum,
+      double count) {
+    return new NativeHistogramSample(
+        template.startMs(),
+        template.endMs(),
+        template.schema(),
+        template.zeroThreshold(),
+        zeroCount,
+        template.positiveOffset(),
+        positiveBuckets,
+        template.negativeOffset(),
+        negativeBuckets,
+        template.customValues(),
+        sum,
+        count,
+        "gauge");
+  }
+
+  private static int[] add(int[] left, int[] right) {
+    int[] result = Arrays.copyOf(right, Math.max(left.length, right.length));
+    for (int i = 0; i < left.length; i++) result[i] += left[i];
+    return result;
+  }
+
+  private static int[] subtract(int[] left, int[] right) {
+    int[] result = Arrays.copyOf(left, Math.max(left.length, right.length));
+    for (int i = 0; i < right.length; i++) result[i] -= right[i];
+    return result;
+  }
+
+  private static double[] add(double[] left, double[] right) {
+    double[] result = Arrays.copyOf(right, Math.max(left.length, right.length));
+    for (int i = 0; i < left.length; i++) result[i] += left[i];
+    return result;
+  }
+
+  private static double[] subtract(double[] left, double[] right) {
+    double[] result = Arrays.copyOf(left, Math.max(left.length, right.length));
+    for (int i = 0; i < right.length; i++) result[i] -= right[i];
+    return result;
+  }
+
+  private static double[] scale(double[] values, double factor) {
+    double[] result = Arrays.copyOf(values, values.length);
+    for (int i = 0; i < result.length; i++) result[i] *= factor;
+    return result;
+  }
 }

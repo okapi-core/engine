@@ -29,7 +29,7 @@ public final class RangeStats {
   private RangeStats() {}
 
   public static InstantVectorResult avg(RangeVectorResult rv, long rangeMs, EvalContext ctx, long anchorMs) {
-    return mapWindows(rv, rangeMs, ctx, anchorMs, (ts, vals, winStart, t) -> {
+    return mapNumericOrHistogramWindows(rv, rangeMs, ctx, anchorMs, true, (ts, vals, winStart, t) -> {
       double sum = 0; int count = 0;
       for (int i = 0; i < ts.size(); i++) {
         if (ts.get(i) <= winStart || ts.get(i) > t) continue;
@@ -66,7 +66,7 @@ public final class RangeStats {
   }
 
   public static InstantVectorResult sum(RangeVectorResult rv, long rangeMs, EvalContext ctx, long anchorMs) {
-    return mapWindows(rv, rangeMs, ctx, anchorMs, (ts, vals, winStart, t) -> {
+    return mapNumericOrHistogramWindows(rv, rangeMs, ctx, anchorMs, false, (ts, vals, winStart, t) -> {
       float s = 0;
       for (int i = 0; i < ts.size(); i++) {
         if (ts.get(i) <= winStart || ts.get(i) > t) continue;
@@ -358,6 +358,50 @@ public final class RangeStats {
   private static InstantVectorResult mapWindows(
       RangeVectorResult rv, long rangeMs, EvalContext ctx, long anchorMs, WindowFn fn) {
     return mapWindows(rv, rangeMs, ctx, anchorMs, fn, true);
+  }
+
+  private static InstantVectorResult mapNumericOrHistogramWindows(
+      RangeVectorResult rv,
+      long rangeMs,
+      EvalContext ctx,
+      long anchorMs,
+      boolean average,
+      WindowFn floatFn) {
+    List<SeriesSample> out = new ArrayList<>();
+    for (SeriesWindow window : rv.data()) {
+      for (long t = ctx.startMs; t <= ctx.endMs; t += ctx.stepMs) {
+        long anchor = anchorMs >= 0 ? anchorMs : t;
+        var samples = samplesInWindow(window, anchor - rangeMs, anchor);
+        boolean hasFloats = samples.stream().anyMatch(sample -> sample.histogram() == null);
+        boolean hasHistograms = samples.stream().anyMatch(sample -> sample.histogram() != null);
+        if (hasFloats && hasHistograms) continue;
+        if (hasHistograms) {
+          HistogramSeries.HistogramSample histogram = null;
+          for (var sample : samples) {
+            histogram =
+                histogram == null
+                    ? sample.histogram()
+                    : HistogramSeries.add(histogram, sample.histogram());
+          }
+          if (average) histogram = HistogramSeries.scale(histogram, 1d / samples.size());
+          out.add(
+              new SeriesSample(
+                  SeriesIds.derived(window.id()), new Sample(t, t, histogram)));
+          continue;
+        }
+        GaugeScan scan = floatScan(window);
+        if (scan == null || scan.getTimestamps().isEmpty()) continue;
+        var normalized = Staleness.withoutStaleSamples(scan);
+        float value =
+            floatFn.apply(
+                normalized.getTimestamps(),
+                normalized.getValues(),
+                anchor - rangeMs,
+                anchor);
+        out.add(new SeriesSample(SeriesIds.derived(window.id()), new Sample(t, value)));
+      }
+    }
+    return new InstantVectorResult(out);
   }
 
   private static InstantVectorResult mapWindows(

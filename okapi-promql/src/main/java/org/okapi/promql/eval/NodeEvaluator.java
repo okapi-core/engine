@@ -364,7 +364,8 @@ public final class NodeEvaluator {
   }
 
   private InstantVectorResult evalScalarVector(BinaryOpExpr e, double s, InstantVectorResult v) {
-    if (isArithmetic(e.op)) return mapVectorDropName(v, val -> applyArith(s, val, e.op));
+    if (isArithmetic(e.op))
+      return mapVectorArithmetic(v, e.op, val -> applyArith(s, val, e.op), s, true);
     if (isComparison(e.op)) {
       return e.boolModifier
           ? mapVectorDropName(v, val -> compare(s, val, e.op) ? 1d : 0d)
@@ -374,7 +375,8 @@ public final class NodeEvaluator {
   }
 
   private InstantVectorResult evalVectorScalar(BinaryOpExpr e, InstantVectorResult v, double s) {
-    if (isArithmetic(e.op)) return mapVectorDropName(v, val -> applyArith(val, s, e.op));
+    if (isArithmetic(e.op))
+      return mapVectorArithmetic(v, e.op, val -> applyArith(val, s, e.op), s, false);
     if (isComparison(e.op)) {
       return e.boolModifier
           ? mapVectorDropName(v, val -> compare(val, s, e.op) ? 1d : 0d)
@@ -495,8 +497,36 @@ public final class NodeEvaluator {
 
   private Optional<SeriesSample> combineHistograms(
       BinaryOpExpr e, SeriesSample l, SeriesSample r, boolean isCmp) {
-    if (!isCmp || !l.sample().isHistogram() || !r.sample().isHistogram())
-      return Optional.empty();
+    if (!l.sample().isHistogram() || !r.sample().isHistogram()) {
+      if (isCmp) return Optional.empty();
+      HistogramSeries.HistogramSample histogram;
+      if (l.sample().isHistogram() && (e.op.equals("*") || e.op.equals("/"))) {
+        double factor = e.op.equals("*") ? r.sample().value() : 1d / r.sample().value();
+        histogram = HistogramSeries.scale(l.sample().histogram(), factor);
+      } else if (r.sample().isHistogram() && e.op.equals("*")) {
+        histogram = HistogramSeries.scale(r.sample().histogram(), l.sample().value());
+      } else {
+        return Optional.empty();
+      }
+      return Optional.of(
+          new SeriesSample(
+              mergeLabels(l.series(), r.series(), e.matchSpec),
+              new Sample(l.sample().ts(), l.sample().sourceTs(), histogram)));
+    }
+    if (!isCmp) {
+      HistogramSeries.HistogramSample histogram =
+          switch (e.op) {
+            case "+" -> HistogramSeries.add(l.sample().histogram(), r.sample().histogram());
+            case "-" -> HistogramSeries.subtract(l.sample().histogram(), r.sample().histogram());
+            default -> null;
+          };
+      return histogram == null
+          ? Optional.empty()
+          : Optional.of(
+              new SeriesSample(
+                  mergeLabels(l.series(), r.series(), e.matchSpec),
+                  new Sample(l.sample().ts(), l.sample().sourceTs(), histogram)));
+    }
     if (!e.op.equals("==") && !e.op.equals("!=")) return Optional.empty();
     boolean equal = HistogramSeries.sameValue(l.sample().histogram(), r.sample().histogram());
     boolean ok = e.op.equals("==") ? equal : !equal;
@@ -1205,6 +1235,35 @@ public final class NodeEvaluator {
           new SeriesSample(
               SeriesIds.derived(s.series()),
               new Sample(s.sample().ts(), s.sample().sourceTs(), fn.apply(s.sample().value()))));
+    }
+    return new InstantVectorResult(out);
+  }
+
+  private InstantVectorResult mapVectorArithmetic(
+      InstantVectorResult vector,
+      String op,
+      java.util.function.Function<Double, Double> floatFn,
+      double scalar,
+      boolean scalarOnLeft) {
+    List<SeriesSample> out = new ArrayList<>(vector.data().size());
+    for (var seriesSample : vector.data()) {
+      var sample = seriesSample.sample();
+      if (sample.isHistogram()) {
+        if (!op.equals("*") && (!op.equals("/") || scalarOnLeft)) continue;
+        double factor = op.equals("*") ? scalar : 1d / scalar;
+        out.add(
+            new SeriesSample(
+                SeriesIds.derived(seriesSample.series()),
+                new Sample(
+                    sample.ts(),
+                    sample.sourceTs(),
+                    HistogramSeries.scale(sample.histogram(), factor))));
+      } else {
+        out.add(
+            new SeriesSample(
+                SeriesIds.derived(seriesSample.series()),
+                new Sample(sample.ts(), sample.sourceTs(), floatFn.apply(sample.value()))));
+      }
     }
     return new InstantVectorResult(out);
   }
