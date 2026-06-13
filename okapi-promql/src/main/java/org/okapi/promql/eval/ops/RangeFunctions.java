@@ -5,8 +5,10 @@
 package org.okapi.promql.eval.ops;
 
 import org.okapi.metrics.pojos.results.GaugeScan;
+import org.okapi.metrics.pojos.results.Scan;
 import org.okapi.metrics.pojos.results.SumScan;
 import org.okapi.promql.eval.EvalContext;
+import org.okapi.promql.eval.HistogramSeries;
 import org.okapi.promql.eval.InstantVectorResult;
 import org.okapi.promql.eval.RangeEvalContext;
 import org.okapi.promql.eval.RangeVectorResult;
@@ -80,7 +82,8 @@ public final class RangeFunctions {
     EvalContext ctx = rangeCtx.query();
     List<SeriesSample> out = new ArrayList<>();
     for (SeriesWindow w : rv.data()) {
-      if (!(w.scan() instanceof GaugeScan gs)) continue;
+      GaugeScan gs = floatScan(w.scan());
+      if (gs == null) continue;
       for (long t = ctx.startMs; t <= ctx.endMs; t += ctx.stepMs) {
         long anchor = anchorMs >= 0 ? anchorMs : t;
         out.add(new SeriesSample(SeriesIds.derived(w.id()), new Sample(t, delta(gs, rangeCtx, anchor))));
@@ -92,7 +95,8 @@ public final class RangeFunctions {
   public static InstantVectorResult idelta(RangeVectorResult rv, long rangeMs, EvalContext ctx, long anchorMs) {
     List<SeriesSample> out = new ArrayList<>();
     for (SeriesWindow w : rv.data()) {
-      if (!(w.scan() instanceof GaugeScan gs)) continue;
+      GaugeScan gs = floatScan(w.scan());
+      if (gs == null) continue;
       for (long t = ctx.startMs; t <= ctx.endMs; t += ctx.stepMs) {
         long anchor = anchorMs >= 0 ? anchorMs : t;
         out.add(new SeriesSample(SeriesIds.derived(w.id()), new Sample(t, ideltaInWindow(gs, anchor - rangeMs, anchor))));
@@ -104,7 +108,8 @@ public final class RangeFunctions {
   public static InstantVectorResult deriv(RangeVectorResult rv, long rangeMs, EvalContext ctx, long anchorMs) {
     List<SeriesSample> out = new ArrayList<>();
     for (SeriesWindow w : rv.data()) {
-      if (!(w.scan() instanceof GaugeScan gs)) continue;
+      GaugeScan gs = floatScan(w.scan());
+      if (gs == null) continue;
       for (long t = ctx.startMs; t <= ctx.endMs; t += ctx.stepMs) {
         long anchor = anchorMs >= 0 ? anchorMs : t;
         out.add(new SeriesSample(SeriesIds.derived(w.id()), new Sample(t, derivInWindow(gs, anchor - rangeMs, anchor))));
@@ -117,7 +122,8 @@ public final class RangeFunctions {
       RangeVectorResult rv, long rangeMs, EvalContext ctx, long anchorMs, float t) {
     List<SeriesSample> out = new ArrayList<>();
     for (SeriesWindow w : rv.data()) {
-      if (!(w.scan() instanceof GaugeScan gs)) continue;
+      GaugeScan gs = floatScan(w.scan());
+      if (gs == null) continue;
       gs = Staleness.withoutStaleSamples(gs);
       var ts = gs.getTimestamps();
       var vals = gs.getValues();
@@ -137,7 +143,7 @@ public final class RangeFunctions {
           double denom = n * sumXX - sumX * sumX;
           double slope = denom == 0 ? 0 : (n * sumXY - sumX * sumY) / denom;
           double intercept = (sumY - slope * sumX) / n;
-          v = (float) (slope * (anchor / 1000.0 + t) + intercept);
+          v = (float) (slope * (step / 1000.0 + t) + intercept);
         }
         out.add(new SeriesSample(SeriesIds.derived(w.id()), new Sample(step, v)));
       }
@@ -340,7 +346,7 @@ public final class RangeFunctions {
     int firstIdx = -1, lastIdx = -1;
     for (int i = 0; i < ts.size(); i++) {
       long tsi = ts.get(i);
-      if (tsi <= start || tsi > end) continue;
+      if (tsi < start || tsi > end) continue;
       if (firstIdx == -1) firstIdx = i;
       lastIdx = i;
     }
@@ -370,16 +376,27 @@ public final class RangeFunctions {
     gs = Staleness.withoutStaleSamples(gs);
     var ts = gs.getTimestamps();
     var vals = gs.getValues();
-    int firstIdx = -1, lastIdx = -1;
+    double n = 0, sumX = 0, sumY = 0, sumXX = 0, sumXY = 0;
     for (int i = 0; i < ts.size(); i++) {
       long tsi = ts.get(i);
       if (tsi <= start || tsi > end) continue;
-      if (firstIdx == -1) firstIdx = i;
-      lastIdx = i;
+      double x = tsi / 1000d;
+      double y = vals.get(i);
+      n++;
+      sumX += x;
+      sumY += y;
+      sumXX += x * x;
+      sumXY += x * y;
     }
-    if (firstIdx == -1 || firstIdx == lastIdx) return Float.NaN;
-    float d = vals.get(lastIdx) - vals.get(firstIdx);
-    float seconds = Math.max((ts.get(lastIdx) - ts.get(firstIdx)) / 1000f, 1f);
-    return d / seconds;
+    if (n < 2) return Float.NaN;
+    double covariance = n * sumXY - sumX * sumY;
+    double variance = n * sumXX - sumX * sumX;
+    return (float) (covariance / variance);
+  }
+
+  private static GaugeScan floatScan(Scan scan) {
+    if (scan instanceof GaugeScan gauge) return gauge;
+    if (scan instanceof HistogramSeries series) return series.floatScan();
+    return null;
   }
 }

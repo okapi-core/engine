@@ -150,12 +150,12 @@ public final class NodeEvaluator {
       throws EvaluationException {
     long range = e.range.evalMs(ctx);
     if (range < 0) throw new EvaluationException("range selector duration must not be negative");
-    long start = ctx.startMs - range + 1;
+    long start = ctx.startMs - range;
     long end = ctx.endMs;
     if (e.mode == ExtendedVectorMode.ANCHORED) {
-      start = Math.max(0L, start - STALENESS_MS);
+      start = Math.max(0L, start - STALENESS_MS + 1);
     } else if (e.mode == ExtendedVectorMode.SMOOTHED) {
-      start = Math.max(0L, start - STALENESS_MS);
+      start = Math.max(0L, start - STALENESS_MS + 1);
       end += STALENESS_MS;
     }
     Long offset = e.offset == null ? null : e.offset.evalMs(ctx);
