@@ -17,7 +17,7 @@ import org.junit.jupiter.api.Test;
 
 class KafkaMetricsEventEmitterTests {
   @Test
-  void buffersPolledRecordsAndCommitsOnlyReturnedOffsets() {
+  void ignoresBatchSizeAndCommitsAllPolledRecords() {
     var topic = "metrics";
     var partition = new TopicPartition(topic, 0);
     var consumer = new MockConsumer<byte[], byte[]>(OffsetResetStrategy.EARLIEST);
@@ -30,13 +30,12 @@ class KafkaMetricsEventEmitterTests {
         });
     var emitter = new KafkaMetricsEventEmitter(consumer, topic, Duration.ZERO);
 
-    var first = emitter.next(1);
-    emitter.commit();
-    var second = emitter.next(1);
+    var batch = emitter.next(1);
     emitter.commit();
 
-    assertArrayEquals(new byte[] {1}, first.getFirst().payload());
-    assertArrayEquals(new byte[] {2}, second.getFirst().payload());
+    assertEquals(2, batch.size());
+    assertArrayEquals(new byte[] {1}, batch.get(0).payload());
+    assertArrayEquals(new byte[] {2}, batch.get(1).payload());
     assertEquals(2L, consumer.committed(java.util.Set.of(partition)).get(partition).offset());
   }
 }

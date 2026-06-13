@@ -5,21 +5,17 @@
 package org.okapi.metrics.core;
 
 import java.time.Duration;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Queue;
 import org.apache.kafka.clients.consumer.Consumer;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
 
 public class KafkaMetricsEventEmitter implements MetricsEventEmitter, AutoCloseable {
   private final Consumer<byte[], byte[]> consumer;
   private final Duration pollTimeout;
-  private final Queue<ConsumerRecord<byte[], byte[]>> bufferedRecords = new ArrayDeque<>();
   private final Map<TopicPartition, OffsetAndMetadata> pendingCommit = new HashMap<>();
 
   public KafkaMetricsEventEmitter(
@@ -30,23 +26,22 @@ public class KafkaMetricsEventEmitter implements MetricsEventEmitter, AutoClosea
   }
 
   @Override
-  public List<MetricEvent> next(int batchSize) {
+  public List<MetricEvent> next(int ignoredBatchSize) {
     if (!pendingCommit.isEmpty()) {
       throw new IllegalStateException("The previous metrics event batch must be committed first");
     }
-    if (bufferedRecords.isEmpty()) {
-      consumer.poll(pollTimeout).forEach(bufferedRecords::add);
-    }
 
     var batch = new ArrayList<MetricEvent>();
-    while (batch.size() < batchSize && !bufferedRecords.isEmpty()) {
-      var record = bufferedRecords.remove();
-      batch.add(new MetricEvent(record.value()));
-      pendingCommit.merge(
-          new TopicPartition(record.topic(), record.partition()),
-          new OffsetAndMetadata(record.offset() + 1),
-          (left, right) -> left.offset() >= right.offset() ? left : right);
-    }
+    consumer
+        .poll(pollTimeout)
+        .forEach(
+            record -> {
+              batch.add(new MetricEvent(record.value()));
+              pendingCommit.merge(
+                  new TopicPartition(record.topic(), record.partition()),
+                  new OffsetAndMetadata(record.offset() + 1),
+                  (left, right) -> left.offset() >= right.offset() ? left : right);
+            });
     return batch;
   }
 
