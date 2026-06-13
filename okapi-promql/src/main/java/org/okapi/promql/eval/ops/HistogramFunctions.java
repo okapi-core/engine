@@ -75,11 +75,13 @@ public final class HistogramFunctions {
       }
       String bound = seriesSample.series().labels().tags().get("le");
       if (bound == null) continue;
+      Double upperBound = parseBound(bound);
+      if (upperBound == null) continue;
       var key = new ClassicBucketKey(outputLabels(seriesSample.series(), true), seriesSample.sample().ts());
       var classic =
           classicHistograms.computeIfAbsent(key, ignored -> new ClassicHistogram());
       classic.metrics().add(seriesSample.series().metric());
-      classic.buckets().add(new ClassicBucket(parseBound(bound), seriesSample.sample().value()));
+      classic.buckets().add(new ClassicBucket(upperBound, seriesSample.sample().value()));
     }
     for (var entry : nativeHistograms.entrySet()) {
       var classic = classicHistograms.get(entry.getKey());
@@ -162,6 +164,7 @@ public final class HistogramFunctions {
   private static double variance(HistogramSeries.HistogramSample histogram) {
     if (!(histogram instanceof HistogramSeries.NativeHistogramSample nativeHistogram))
       return Double.NaN;
+    if (!Double.isFinite(nativeHistogram.sum())) return nativeHistogram.sum();
     double count = nativeHistogram.count();
     if (count == 0) return Double.NaN;
     double mean = nativeHistogram.sum() / count;
@@ -177,6 +180,16 @@ public final class HistogramFunctions {
 
   private static double fraction(
       double lower, double upper, HistogramSeries.NativeHistogramSample histogram) {
+    if (histogram.customValues().length == 0) {
+      if (Double.isNaN(lower) || Double.isNaN(upper)) return Double.NaN;
+      if (lower >= upper) return 0d;
+      if (histogram.count() == 0d) return Double.NaN;
+      double included = 0d;
+      for (var bucket : exponentialBuckets(histogram)) {
+        included += overlap(bucket, lower, upper);
+      }
+      return included / histogram.count();
+    }
     double[] customValues = histogram.customValues();
     double[] bucketCounts = histogram.positiveBuckets();
     double[] bounds = Arrays.copyOf(customValues, customValues.length + 1);
@@ -192,6 +205,30 @@ public final class HistogramFunctions {
 
   private static double quantile(
       double quantile, HistogramSeries.NativeHistogramSample histogram) {
+    if (histogram.customValues().length == 0) {
+      if (Double.isNaN(quantile)) return Double.NaN;
+      if (quantile < 0d) return Double.NEGATIVE_INFINITY;
+      if (quantile > 1d) return Double.POSITIVE_INFINITY;
+      if (histogram.count() == 0d) return Double.NaN;
+      double rank = quantile * histogram.count();
+      double cumulative = 0d;
+      List<NativeBucket> buckets = exponentialBuckets(histogram);
+      for (int i = 0; i < buckets.size(); i++) {
+        var bucket = buckets.get(i);
+        if (bucket.count() == 0d) continue;
+        if (rank < cumulative + bucket.count() || rank == 0d) {
+          return interpolate(bucket, (rank - cumulative) / bucket.count());
+        }
+        cumulative += bucket.count();
+        if (rank == cumulative) {
+          for (int j = i + 1; j < buckets.size(); j++) {
+            if (buckets.get(j).count() != 0d) return buckets.get(j).lower();
+          }
+          return bucket.upper();
+        }
+      }
+      return Double.NaN;
+    }
     double[] customValues = histogram.customValues();
     double[] bucketCounts = histogram.positiveBuckets();
     if (customValues.length == 0) return Double.NaN;
@@ -204,6 +241,69 @@ public final class HistogramFunctions {
       cumulative[i] = count;
     }
     return quantile(quantile, bounds, cumulative);
+  }
+
+  private static List<NativeBucket> exponentialBuckets(
+      HistogramSeries.NativeHistogramSample histogram) {
+    List<NativeBucket> buckets = new ArrayList<>();
+    double base = Math.pow(2d, Math.pow(2d, -histogram.schema()));
+    for (int i = histogram.negativeBuckets().length - 1; i >= 0; i--) {
+      int index = histogram.negativeOffset() + i;
+      double upper = -Math.pow(base, index - 1d);
+      double lower = -Math.pow(base, index);
+      buckets.add(new NativeBucket(lower, upper, histogram.negativeBuckets()[i], true));
+    }
+    if (histogram.zeroCount() != 0d) {
+      boolean hasNegative = Arrays.stream(histogram.negativeBuckets()).anyMatch(count -> count != 0d);
+      boolean hasPositive = Arrays.stream(histogram.positiveBuckets()).anyMatch(count -> count != 0d);
+      buckets.add(
+          new NativeBucket(
+              hasNegative || !hasPositive ? -histogram.zeroThreshold() : 0d,
+              hasPositive || !hasNegative ? histogram.zeroThreshold() : 0d,
+              histogram.zeroCount(),
+              false));
+    }
+    for (int i = 0; i < histogram.positiveBuckets().length; i++) {
+      int index = histogram.positiveOffset() + i;
+      double lower = Math.pow(base, index - 1d);
+      double upper = Math.pow(base, index);
+      buckets.add(new NativeBucket(lower, upper, histogram.positiveBuckets()[i], true));
+    }
+    return buckets;
+  }
+
+  private static double overlap(NativeBucket bucket, double lower, double upper) {
+    double overlapLower = Math.max(lower, bucket.lower());
+    double overlapUpper = Math.min(upper, bucket.upper());
+    if (overlapLower >= overlapUpper) return 0d;
+    if (overlapLower <= bucket.lower() && overlapUpper >= bucket.upper()) return bucket.count();
+    double positionLower = bucketPosition(bucket, overlapLower);
+    double positionUpper = bucketPosition(bucket, overlapUpper);
+    return bucket.count() * (positionUpper - positionLower);
+  }
+
+  private static double interpolate(NativeBucket bucket, double position) {
+    if (!bucket.exponential()) {
+      return bucket.lower() + (bucket.upper() - bucket.lower()) * position;
+    }
+    if (bucket.upper() <= 0d) {
+      return -Math.exp(
+          Math.log(-bucket.lower())
+              + (Math.log(-bucket.upper()) - Math.log(-bucket.lower())) * position);
+    }
+    return Math.exp(
+        Math.log(bucket.lower())
+            + (Math.log(bucket.upper()) - Math.log(bucket.lower())) * position);
+  }
+
+  private static double bucketPosition(NativeBucket bucket, double value) {
+    if (!bucket.exponential()) return (value - bucket.lower()) / (bucket.upper() - bucket.lower());
+    if (bucket.upper() <= 0d) {
+      return (Math.log(-value) - Math.log(-bucket.lower()))
+          / (Math.log(-bucket.upper()) - Math.log(-bucket.lower()));
+    }
+    return (Math.log(value) - Math.log(bucket.lower()))
+        / (Math.log(bucket.upper()) - Math.log(bucket.lower()));
   }
 
   private static double quantile(double quantile, double[] bounds, double[] cumulative) {
@@ -280,11 +380,15 @@ public final class HistogramFunctions {
         cumulative.stream().mapToDouble(Double::doubleValue).toArray());
   }
 
-  private static double parseBound(String value) {
+  private static Double parseBound(String value) {
     if (value.equalsIgnoreCase("+Inf") || value.equalsIgnoreCase("Inf"))
       return Double.POSITIVE_INFINITY;
     if (value.equalsIgnoreCase("-Inf")) return Double.NEGATIVE_INFINITY;
-    return Double.parseDouble(value);
+    try {
+      return Double.parseDouble(value);
+    } catch (NumberFormatException ignored) {
+      return null;
+    }
   }
 
   private record ClassicBucketKey(Map<String, String> labels, long timestamp) {}
@@ -301,6 +405,8 @@ public final class HistogramFunctions {
   }
 
   private record CumulativeBuckets(double[] bounds, double[] cumulative) {}
+
+  private record NativeBucket(double lower, double upper, double count, boolean exponential) {}
 
   private static double customBucketVariance(double[] bounds, double[] counts, double mean) {
     double variance = 0d;

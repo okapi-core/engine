@@ -163,7 +163,7 @@ public class LabelMatchVisitor extends PromQLParserBaseVisitor<LabelMatchCtx> {
       throw new IllegalArgumentException("match[]: missing selector");
     }
     final String metricName =
-        (context.METRIC_NAME() != null) ? context.METRIC_NAME().getText() : null;
+        (context.metricIdentifier() != null) ? context.metricIdentifier().getText() : null;
     final LabelConditionList matchers =
         (LabelConditionList) visitLabelMatcherList(context.labelMatcherList());
     return new MetricMatchCondition(metricName, matchers.getConditions());

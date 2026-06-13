@@ -141,10 +141,11 @@ final class InMemoryTimeSeriesStore {
         case RepeatPoint rp -> { for (int i = 0; i <= rp.count(); i++) expandSeriesPoint(rp.value(), out); }
         case StepSequencePoint sp -> {
           if (sp.start() instanceof HistogramPoint start && sp.step() instanceof HistogramPoint delta) {
-            float startSum = histogramField(start.value(), "sum"), startCount = histogramField(start.value(), "count");
-            float dSum = histogramField(delta.value(), "sum"), dCount = histogramField(delta.value(), "count");
+            NativeHistogramSample current = toNativeHistogramSample(0L, start.value());
+            NativeHistogramSample increment = toNativeHistogramSample(0L, delta.value());
             for (int i = 0; i <= sp.count(); i++) {
-              out.add(new HistogramPoint(buildHistogramLiteral(startSum + dSum * i, startCount + dCount * i)));
+              out.add(new HistogramPoint(toHistogramLiteral(current)));
+              current = (NativeHistogramSample) HistogramSeries.add(current, increment);
             }
           } else if (sp.start() instanceof NumberPoint start && sp.step() instanceof NumberPoint delta) {
             for (int i = 0; i <= sp.count(); i++)
@@ -265,6 +266,29 @@ final class InMemoryTimeSeriesStore {
     fields.put("sum", new HistogramNumber(sum));
     fields.put("count", new HistogramNumber(count));
     return new HistogramLiteral(fields);
+  }
+
+  private static HistogramLiteral toHistogramLiteral(NativeHistogramSample histogram) {
+    Map<String, HistogramValue> fields = new HashMap<>();
+    fields.put("schema", new HistogramNumber(histogram.schema()));
+    fields.put("z_bucket_w", new HistogramNumber(histogram.zeroThreshold()));
+    fields.put("z_bucket", new HistogramNumber(histogram.zeroCount()));
+    fields.put("offset", new HistogramNumber(histogram.positiveOffset()));
+    fields.put("buckets", new HistogramNumberList(toList(histogram.positiveBuckets())));
+    fields.put("n_offset", new HistogramNumber(histogram.negativeOffset()));
+    fields.put("n_buckets", new HistogramNumberList(toList(histogram.negativeBuckets())));
+    fields.put("custom_values", new HistogramNumberList(toList(histogram.customValues())));
+    fields.put("sum", new HistogramNumber(histogram.sum()));
+    fields.put("count", new HistogramNumber(histogram.count()));
+    if (histogram.counterResetHint() != null)
+      fields.put("counter_reset_hint", new HistogramIdentifier(histogram.counterResetHint()));
+    return new HistogramLiteral(fields);
+  }
+
+  private static List<Double> toList(double[] values) {
+    List<Double> result = new ArrayList<>(values.length);
+    for (double value : values) result.add(value);
+    return result;
   }
 
   private static double extractNumber(PointExpr point) {

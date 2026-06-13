@@ -5,6 +5,8 @@
 package org.okapi.promql.eval;
 
 import java.util.Arrays;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.List;
 import java.util.Objects;
 import org.okapi.metrics.pojos.results.GaugeScan;
@@ -126,9 +128,7 @@ public final class HistogramSeries extends Scan {
           a.count() + b.count());
     }
     if (left instanceof NativeHistogramSample a && right instanceof NativeHistogramSample b) {
-      return nativeResult(b, add(a.positiveBuckets(), b.positiveBuckets()),
-          add(a.negativeBuckets(), b.negativeBuckets()), a.zeroCount() + b.zeroCount(),
-          a.sum() + b.sum(), a.count() + b.count());
+      return combine(a, b, false);
     }
     throw new IllegalArgumentException("cannot add different histogram representations");
   }
@@ -145,9 +145,7 @@ public final class HistogramSeries extends Scan {
           a.count() - b.count());
     }
     if (left instanceof NativeHistogramSample a && right instanceof NativeHistogramSample b) {
-      return nativeResult(a, subtract(a.positiveBuckets(), b.positiveBuckets()),
-          subtract(a.negativeBuckets(), b.negativeBuckets()), a.zeroCount() - b.zeroCount(),
-          a.sum() - b.sum(), a.count() - b.count());
+      return combine(a, b, true);
     }
     throw new IllegalArgumentException("cannot subtract different histogram representations");
   }
@@ -209,6 +207,72 @@ public final class HistogramSeries extends Scan {
         count,
         "gauge");
   }
+
+  private static NativeHistogramSample combine(
+      NativeHistogramSample left, NativeHistogramSample right, boolean subtract) {
+    int schema = Math.min(left.schema(), right.schema());
+    BucketSpan positive =
+        combine(
+            left.schema(), left.positiveOffset(), left.positiveBuckets(),
+            right.schema(), right.positiveOffset(), right.positiveBuckets(),
+            schema, subtract);
+    BucketSpan negative =
+        combine(
+            left.schema(), left.negativeOffset(), left.negativeBuckets(),
+            right.schema(), right.negativeOffset(), right.negativeBuckets(),
+            schema, subtract);
+    NativeHistogramSample template = subtract ? left : right;
+    return new NativeHistogramSample(
+        template.startMs(),
+        template.endMs(),
+        schema,
+        Math.max(left.zeroThreshold(), right.zeroThreshold()),
+        subtract ? left.zeroCount() - right.zeroCount() : left.zeroCount() + right.zeroCount(),
+        positive.offset(),
+        positive.buckets(),
+        negative.offset(),
+        negative.buckets(),
+        template.customValues(),
+        subtract ? left.sum() - right.sum() : left.sum() + right.sum(),
+        subtract ? left.count() - right.count() : left.count() + right.count(),
+        "gauge");
+  }
+
+  private static BucketSpan combine(
+      int leftSchema,
+      int leftOffset,
+      double[] left,
+      int rightSchema,
+      int rightOffset,
+      double[] right,
+      int targetSchema,
+      boolean subtract) {
+    Map<Integer, Double> buckets = new TreeMap<>();
+    mergeBuckets(buckets, leftSchema, leftOffset, left, targetSchema, 1d);
+    mergeBuckets(buckets, rightSchema, rightOffset, right, targetSchema, subtract ? -1d : 1d);
+    if (buckets.isEmpty()) return new BucketSpan(0, new double[0]);
+    int offset = buckets.keySet().iterator().next();
+    int last = ((TreeMap<Integer, Double>) buckets).lastKey();
+    double[] dense = new double[last - offset + 1];
+    for (var entry : buckets.entrySet()) dense[entry.getKey() - offset] = entry.getValue();
+    return new BucketSpan(offset, dense);
+  }
+
+  private static void mergeBuckets(
+      Map<Integer, Double> target,
+      int schema,
+      int offset,
+      double[] buckets,
+      int targetSchema,
+      double sign) {
+    int scale = 1 << Math.max(0, schema - targetSchema);
+    for (int i = 0; i < buckets.length; i++) {
+      int index = -Math.floorDiv(-(offset + i), scale);
+      target.merge(index, sign * buckets[i], Double::sum);
+    }
+  }
+
+  private record BucketSpan(int offset, double[] buckets) {}
 
   private static int[] add(int[] left, int[] right) {
     int[] result = Arrays.copyOf(right, Math.max(left.length, right.length));

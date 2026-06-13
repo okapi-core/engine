@@ -95,12 +95,16 @@ public final class RangeStats {
   }
 
   public static InstantVectorResult present(RangeVectorResult rv, long rangeMs, EvalContext ctx, long anchorMs) {
-    return mapWindows(rv, rangeMs, ctx, anchorMs, (ts, vals, winStart, t) -> {
-      for (int i = 0; i < ts.size(); i++) {
-        if (ts.get(i) > winStart && ts.get(i) <= t) return 1f;
+    List<SeriesSample> out = new ArrayList<>();
+    for (SeriesWindow window : rv.data()) {
+      for (long t = ctx.startMs; t <= ctx.endMs; t += ctx.stepMs) {
+        long anchor = anchorMs >= 0 ? anchorMs : t;
+        if (!samplesInWindow(window, anchor - rangeMs, anchor).isEmpty()) {
+          out.add(new SeriesSample(SeriesIds.derived(window.id()), new Sample(t, 1f)));
+        }
       }
-      return 0f;
-    });
+    }
+    return new InstantVectorResult(out);
   }
 
   public static InstantVectorResult first(RangeVectorResult rv, long rangeMs, EvalContext ctx, long anchorMs) {

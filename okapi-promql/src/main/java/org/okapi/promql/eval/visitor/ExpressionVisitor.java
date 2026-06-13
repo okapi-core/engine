@@ -347,8 +347,8 @@ public class ExpressionVisitor extends PromQLParserBaseVisitor<LogicalExpr> {
   private SelectorExpr buildInstantSelector(PromQLParser.InstantSelectorContext is) {
     String metric = null;
     List<LabelMatcher> matchers = new ArrayList<>();
-    if (is.METRIC_NAME() != null) {
-      metric = is.METRIC_NAME().getText();
+    if (is.metricIdentifier() != null) {
+      metric = is.metricIdentifier().getText();
       if (is.LEFT_BRACE() != null) matchers = collectMatchers(is.labelMatcherList());
     } else {
       matchers = collectMatchers(is.labelMatcherList());
