@@ -40,17 +40,21 @@ public class ScalarTimesAvgOverTimeTest {
 
     var iv = (InstantVectorResult) res;
 
+    // Scalar * vector arithmetic drops __name__ per PromQL spec.
+    var i1 = new SeriesId(null, new Labels(cm.cpuUsageApiI1Tags));
+    var i2 = new SeriesId(null, new Labels(cm.cpuUsageApiI2Tags));
+
     // For cpu_usage{instance="i1"}: values per minute 10,20,30,40
     // avg_over_time[2m] at t1,t2,t3 -> (10,20)->15 ; (20,30)->25 ; (30,40)->35 ; times 2 => 30, 50,
     // 70
-    assertEquals(30f, findValue(iv, cm.cpuUsageApiI1, cm.t1), 1e-4);
-    assertEquals(50f, findValue(iv, cm.cpuUsageApiI1, cm.t2), 1e-4);
-    assertEquals(70f, findValue(iv, cm.cpuUsageApiI1, cm.t3), 1e-4);
+    assertEquals(30f, findValue(iv, i1, cm.t1), 1e-4);
+    assertEquals(50f, findValue(iv, i1, cm.t2), 1e-4);
+    assertEquals(70f, findValue(iv, i1, cm.t3), 1e-4);
 
     // For cpu_usage{instance="i2"}: 40,60,80,100
     // avgs: (40,60)->50 ; (60,80)->70 ; (80,100)->90 ; times 2 => 100, 140, 180
-    assertEquals(100f, findValue(iv, cm.cpuUsageApiI2, cm.t1), 1e-4);
-    assertEquals(140f, findValue(iv, cm.cpuUsageApiI2, cm.t2), 1e-4);
-    assertEquals(180f, findValue(iv, cm.cpuUsageApiI2, cm.t3), 1e-4);
+    assertEquals(100f, findValue(iv, i2, cm.t1), 1e-4);
+    assertEquals(140f, findValue(iv, i2, cm.t2), 1e-4);
+    assertEquals(180f, findValue(iv, i2, cm.t3), 1e-4);
   }
 }

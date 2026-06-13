@@ -17,8 +17,8 @@ import org.okapi.promql.eval.visitor.ExpressionVisitor;
 import org.okapi.promql.parser.PromQLParser;
 
 public final class ExpressionEvaluator {
-  private static final long DEFAULT_INSTANT_STEP_MS =
-      1_000L; // 1s; sufficient for secondly resolution
+  private static final long DEFAULT_INSTANT_STEP_MS = 1_000L;
+
   private final TsClient client;
   private final SeriesDiscovery discovery;
   private final ExecutorService exec;
@@ -35,44 +35,39 @@ public final class ExpressionEvaluator {
     this.statisticsMerger = statisticsMerger;
   }
 
-  private static RESOLUTION chooseResolution(long stepMs) {
-    if (stepMs <= 1_000L) return RESOLUTION.SECONDLY;
-    if (stepMs <= 60_000L) return RESOLUTION.MINUTELY;
-    return RESOLUTION.HOURLY;
-  }
-
   public ExpressionResult evaluate(
       String promql, long startMs, long endMs, long stepMs, PromQLParser parser)
       throws EvaluationException {
-    var tree = parser.expression(); // assume parser already constructed with token stream
-    var logical = new ExpressionVisitor(statisticsMerger).visit(tree); // returns LogicalExpr
+    long nowMs = System.currentTimeMillis();
+    var logical = new ExpressionVisitor().visit(parser.expression());
     var ctx =
-        new EvalContext(startMs, endMs, stepMs, chooseResolution(stepMs), client, discovery, exec);
-    return logical.lower().eval(ctx);
+        new EvalContext(
+            startMs, endMs, stepMs, nowMs, chooseResolution(stepMs),
+            client, discovery, exec, statisticsMerger);
+    return new NodeEvaluator().eval(logical, ctx);
   }
 
   public ExpressionResult evaluateAt(String promql, long tsMs, PromQLParser parser)
       throws EvaluationException {
-    // Use a tiny step so evaluators that iterate [start..end] execute exactly once at tsMs.
-    final long effStepMs = DEFAULT_INSTANT_STEP_MS;
-
-    var tree = parser.expression();
-    var logical = new ExpressionVisitor(statisticsMerger).visit(tree);
-
+    long nowMs = System.currentTimeMillis();
+    var logical = new ExpressionVisitor().visit(parser.expression());
     var ctx =
         new EvalContext(
-            tsMs, tsMs, effStepMs, chooseResolution(effStepMs), client, discovery, exec);
-
-    return logical.lower().eval(ctx);
+            tsMs, tsMs, DEFAULT_INSTANT_STEP_MS, nowMs, chooseResolution(DEFAULT_INSTANT_STEP_MS),
+            client, discovery, exec, statisticsMerger);
+    return new NodeEvaluator().eval(logical, ctx);
   }
 
   public List<VectorData.SeriesId> find(PromQLParser parser, long start, long end) {
     var tree = parser.expression();
     var labelMatcher = new LabelMatchVisitor();
     var conditions = (MetricMatchCondition) labelMatcher.visit(tree);
-    var matching =
-        discovery.expand(
-            conditions.getMetricNameOrNull(), conditions.getLabelMatchers(), start, end);
-    return matching;
+    return discovery.expand(conditions.getMetricNameOrNull(), conditions.getLabelMatchers(), start, end);
+  }
+
+  private static RESOLUTION chooseResolution(long stepMs) {
+    if (stepMs <= 1_000L) return RESOLUTION.SECONDLY;
+    if (stepMs <= 60_000L) return RESOLUTION.MINUTELY;
+    return RESOLUTION.HOURLY;
   }
 }

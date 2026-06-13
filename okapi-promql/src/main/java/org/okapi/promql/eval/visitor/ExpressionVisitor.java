@@ -5,22 +5,13 @@
 package org.okapi.promql.eval.visitor;
 
 import java.util.*;
-import org.okapi.promql.eval.LogicalExpr;
 import org.okapi.promql.eval.nodes.*;
-import org.okapi.promql.eval.ops.FunctionRegistry;
-import org.okapi.promql.eval.ts.StatisticsMerger;
 import org.okapi.promql.parse.LabelMatcher;
 import org.okapi.promql.parse.LabelOp;
 import org.okapi.promql.parser.PromQLParser;
 import org.okapi.promql.parser.PromQLParserBaseVisitor;
 
 public class ExpressionVisitor extends PromQLParserBaseVisitor<LogicalExpr> {
-
-  private final FunctionRegistry fnRegistry;
-
-  public ExpressionVisitor(StatisticsMerger statisticsMerger) {
-    this.fnRegistry = new FunctionRegistry(statisticsMerger);
-  }
 
   @Override
   public LogicalExpr visitExpression(PromQLParser.ExpressionContext ctx) {
@@ -36,17 +27,15 @@ public class ExpressionVisitor extends PromQLParserBaseVisitor<LogicalExpr> {
 
   @Override
   public LogicalExpr visitVecOpSubQuery(PromQLParser.VecOpSubQueryContext ctx) {
-    // <assoc=right> vectorOperation subqueryOp
     var inner = visit(ctx.vectorOperation());
     var sq = ctx.subqueryOp();
-    // SUBQUERY_RANGE token like: [5m:1m] or [30m:5m]
     String token = sq.SUBQUERY_RANGE().getText();
-    // strip brackets, split by ':'
     String body = token.substring(1, token.length() - 1);
-    String[] parts = body.split(":");
+    String[] parts = body.split(":", -1);
     if (parts.length < 2) throw new IllegalArgumentException("subquery requires [range:step]");
     long rangeMs = DurationUtil.parseToMillis(parts[0]);
-    long stepMs = DurationUtil.parseToMillis(parts[1]);
+    // empty step means use evaluation step — represented as 0 (NodeEvaluator uses ctx.stepMs)
+    long stepMs = parts[1].isEmpty() ? 0L : DurationUtil.parseToMillis(parts[1]);
     Long offMs = null;
     if (sq.offsetOp() != null) {
       offMs = DurationUtil.parseToMillis(sq.offsetOp().DURATION().getText());
@@ -56,9 +45,9 @@ public class ExpressionVisitor extends PromQLParserBaseVisitor<LogicalExpr> {
 
   @Override
   public LogicalExpr visitVecOpUnary(PromQLParser.VecOpUnaryContext ctx) {
-    String u = ctx.unaryOp().getText(); // +/-
     LogicalExpr inner = visit(ctx.vectorOperation());
-    if ("-".equals(u)) return new BinaryOpExpr("*", new LiteralExpr(-1f), inner, null, false);
+    if ("-".equals(ctx.unaryOp().getText()))
+      return new BinaryOpExpr("*", new LiteralExpr(-1f), inner, null, false);
     return inner;
   }
 
@@ -99,14 +88,13 @@ public class ExpressionVisitor extends PromQLParserBaseVisitor<LogicalExpr> {
 
   @Override
   public LogicalExpr visitVecOpMatch(PromQLParser.VecOpMatchContext ctx) {
-    MatchSpec ms = buildMatchSpecFromVectorMatch(ctx.vectorMatchOp());
-    return binop("match", ctx.vectorOperation(0), ctx.vectorOperation(1), ms, false);
+    throw new UnsupportedOperationException("vectorMatchOp is not supported in this evaluator");
   }
 
   @Override
   public LogicalExpr visitVecOpAt(PromQLParser.VecOpAtContext ctx) {
     var left = visit(ctx.vectorOperation(0));
-    var right = visit(ctx.vectorOperation(1)); // expect scalar at eval
+    var right = visit(ctx.vectorOperation(1));
     return new AtExpr(left, right);
   }
 
@@ -125,24 +113,23 @@ public class ExpressionVisitor extends PromQLParserBaseVisitor<LogicalExpr> {
   @Override
   public LogicalExpr visitVecLiteral(PromQLParser.VecLiteralContext ctx) {
     String lit = ctx.literal().getText();
-    if (lit.startsWith("\""))
-      return new LiteralExpr(0f); // strings not yet surfaced as string results
+    if (lit.startsWith("\"") || lit.startsWith("`"))
+      throw new UnsupportedOperationException("string literals are not supported as expressions");
     return new LiteralExpr(Float.parseFloat(lit));
   }
 
   @Override
   public LogicalExpr visitVecInstant(PromQLParser.VecInstantContext ctx) {
-    // Wrap instant selector with instantization layer
     return new InstantizeExpr(buildInstantSelector(ctx.instantSelector()));
   }
 
   @Override
   public LogicalExpr visitVecMatrix(PromQLParser.VecMatrixContext ctx) {
     var ms = ctx.matrixSelector();
-    var sel = buildInstantSelector(ms.instantSelector());
+    var sel = (SelectorExpr) buildInstantSelector(ms.instantSelector());
     String tr = ms.TIME_RANGE().getText();
     long rangeMs = DurationUtil.parseToMillis(tr.substring(1, tr.length() - 1));
-    return new RangeSelectorExpr((SelectorExpr) sel, rangeMs, null);
+    return new RangeSelectorExpr(sel, rangeMs, null);
   }
 
   @Override
@@ -151,14 +138,11 @@ public class ExpressionVisitor extends PromQLParserBaseVisitor<LogicalExpr> {
     long offMs = DurationUtil.parseToMillis(off);
     if (ctx.offset().instantSelector() != null) {
       var base = (SelectorExpr) buildInstantSelector(ctx.offset().instantSelector());
-      return new InstantizeExpr(
-          new SelectorExpr(base.metricOrNull, base.matchers, base.atTsMs, offMs));
+      return new InstantizeExpr(new SelectorExpr(base.metricOrNull, base.matchers, base.atTsMs, offMs));
     } else {
       var ms = ctx.offset().matrixSelector();
       var base = (SelectorExpr) buildInstantSelector(ms.instantSelector());
-      long rangeMs =
-          DurationUtil.parseToMillis(
-              ms.TIME_RANGE().getText().substring(1, ms.TIME_RANGE().getText().length() - 1));
+      long rangeMs = DurationUtil.parseToMillis(ms.TIME_RANGE().getText().substring(1, ms.TIME_RANGE().getText().length() - 1));
       return new RangeSelectorExpr(base, rangeMs, offMs);
     }
   }
@@ -167,14 +151,14 @@ public class ExpressionVisitor extends PromQLParserBaseVisitor<LogicalExpr> {
   public LogicalExpr visitVecFunc(PromQLParser.VecFuncContext ctx) {
     String name = ctx.function_().FUNCTION().getText();
     List<LogicalExpr> args = new ArrayList<>();
-    var params = ctx.function_().parameter(); // IMPORTANT: parameter(), not parameterList()
+    var params = ctx.function_().parameter();
     if (params != null) {
       for (var p : params) {
         if (p.literal() != null) args.add(literalParam(p.literal()));
         else args.add(visit(p.vectorOperation()));
       }
     }
-    return new FunctionExpr(name, args, fnRegistry);
+    return new FunctionExpr(name, args);
   }
 
   @Override
@@ -183,12 +167,11 @@ public class ExpressionVisitor extends PromQLParserBaseVisitor<LogicalExpr> {
     String op = ag.AGGREGATION_OPERATOR().getText();
 
     boolean isBy = false;
-    List<String> labels = List.of();
+    List<String> labels = null; // null = no modifier: aggregate all series into one group
     if (ag.by() != null) {
       isBy = true;
       labels = labelList(ag.by().labelNameList());
     } else if (ag.without() != null) {
-      isBy = false;
       labels = labelList(ag.without().labelNameList());
     }
 
@@ -213,11 +196,12 @@ public class ExpressionVisitor extends PromQLParserBaseVisitor<LogicalExpr> {
 
   private LogicalExpr literalParam(PromQLParser.LiteralContext lit) {
     String s = lit.getText();
-    if (s.startsWith("\"")) return new LiteralExpr(0f);
+    if (s.startsWith("\"") || s.startsWith("`"))
+      throw new UnsupportedOperationException("string literal parameters are not supported");
     return new LiteralExpr(Float.parseFloat(s));
   }
 
-  private LogicalExpr buildInstantSelector(PromQLParser.InstantSelectorContext is) {
+  private SelectorExpr buildInstantSelector(PromQLParser.InstantSelectorContext is) {
     String metric = null;
     List<LabelMatcher> matchers = new ArrayList<>();
     if (is.METRIC_NAME() != null) {
@@ -237,11 +221,11 @@ public class ExpressionVisitor extends PromQLParserBaseVisitor<LogicalExpr> {
       String val = stripQuotes(lm.STRING().getText());
       LabelOp op =
           switch (lm.labelMatcherOperator().getText()) {
-            case "=" -> LabelOp.EQ;
+            case "="  -> LabelOp.EQ;
             case "!=" -> LabelOp.NE;
             case "=~" -> LabelOp.RE;
             case "!~" -> LabelOp.NRE;
-            default -> throw new IllegalArgumentException("Unknown label op");
+            default -> throw new IllegalArgumentException("unknown label op");
           };
       res.add(new LabelMatcher(name, op, val));
     }
@@ -256,28 +240,23 @@ public class ExpressionVisitor extends PromQLParserBaseVisitor<LogicalExpr> {
   }
 
   private String stripQuotes(String s) {
-    return (s.length() >= 2 && s.startsWith("\"")) ? s.substring(1, s.length() - 1) : s;
+    if (s.length() >= 2 && (s.startsWith("\"") || s.startsWith("`")))
+      return s.substring(1, s.length() - 1);
+    return s;
   }
 
   private MatchSpec buildMatchSpec(PromQLParser.GroupingContext g) {
     if (g == null) return null;
     boolean groupLeft = g.groupLeft() != null;
     boolean groupRight = g.groupRight() != null;
-    MatchSpec.Mode mode = (g.on_() != null) ? MatchSpec.Mode.ON : MatchSpec.Mode.IGNORING;
-    List<String> labels =
-        (g.on_() != null)
-            ? labelList(g.on_().labelNameList())
-            : labelList(g.ignoring().labelNameList());
+    boolean hasOn = g.on_() != null;
+    MatchSpec.Mode mode = hasOn ? MatchSpec.Mode.ON : MatchSpec.Mode.IGNORING;
+    List<String> labels = hasOn ? labelList(g.on_().labelNameList()) : labelList(g.ignoring().labelNameList());
     List<String> include = new ArrayList<>();
     if (groupLeft && g.groupLeft().labelNameList() != null)
       include = labelList(g.groupLeft().labelNameList());
     if (groupRight && g.groupRight().labelNameList() != null)
       include = labelList(g.groupRight().labelNameList());
     return new MatchSpec(mode, labels, groupLeft, groupRight, include);
-  }
-
-  private MatchSpec buildMatchSpecFromVectorMatch(PromQLParser.VectorMatchOpContext vmo) {
-    if (vmo == null) return null;
-    return buildMatchSpec(vmo.grouping());
   }
 }

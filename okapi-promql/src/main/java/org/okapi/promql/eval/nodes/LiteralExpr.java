@@ -4,20 +4,9 @@
  */
 package org.okapi.promql.eval.nodes;
 
-import org.okapi.promql.eval.Evaluable;
-import org.okapi.promql.eval.LogicalExpr;
-import org.okapi.promql.eval.ScalarResult;
+import lombok.AllArgsConstructor;
 
-// eval/nodes/LiteralExpr.java
+@AllArgsConstructor
 public final class LiteralExpr implements LogicalExpr {
-  private final float value;
-
-  public LiteralExpr(float value) {
-    this.value = value;
-  }
-
-  @Override
-  public Evaluable lower() {
-    return ctx -> new ScalarResult(value);
-  }
+  public final float value;
 }

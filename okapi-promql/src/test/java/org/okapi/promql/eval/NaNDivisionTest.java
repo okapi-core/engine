@@ -20,7 +20,7 @@ import org.okapi.promql.parser.PromQLParser;
 public class NaNDivisionTest {
 
   @Test
-  void divisionByZero_isNaN_perSample() throws EvaluationException {
+  void divisionByZero_isInfinity_perSample() throws EvaluationException {
     var cm = TestFixtures.buildCommonMocks();
     var exec = Executors.newFixedThreadPool(2);
     var merger = new MockStatsMerger();
@@ -36,8 +36,9 @@ public class NaNDivisionTest {
 
     assertEquals(ValueType.INSTANT_VECTOR, res.type());
     var iv = (InstantVectorResult) res;
+    // PromQL / IEEE 754: nonzero / 0 = +Inf (not NaN). Only 0/0 = NaN.
     for (var s : iv.data()) {
-      assertTrue(Float.isNaN(s.sample().value()));
+      assertTrue(Float.isInfinite(s.sample().value()));
     }
   }
 }

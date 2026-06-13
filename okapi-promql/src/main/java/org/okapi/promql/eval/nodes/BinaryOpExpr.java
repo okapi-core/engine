@@ -4,29 +4,12 @@
  */
 package org.okapi.promql.eval.nodes;
 
-// eval/nodes/BinaryOpExpr.java
-import java.util.*;
-import org.okapi.promql.eval.Evaluable;
-import org.okapi.promql.eval.LogicalExpr;
-import org.okapi.promql.eval.ops.BinaryOpEval;
+import lombok.AllArgsConstructor;
 
+@AllArgsConstructor
 public final class BinaryOpExpr implements LogicalExpr {
-  public final String op; // + - * / % ^, and, or, unless, compare ops with bool?
+  public final String op;
   public final LogicalExpr left, right;
-  public final MatchSpec matchSpec; // on/ignoring + group_left/right (may be null)
-  public final boolean boolModifier; // for comparisons like > bool
-
-  public BinaryOpExpr(
-      String op, LogicalExpr left, LogicalExpr right, MatchSpec matchSpec, boolean boolModifier) {
-    this.op = op;
-    this.left = left;
-    this.right = right;
-    this.matchSpec = matchSpec;
-    this.boolModifier = boolModifier;
-  }
-
-  @Override
-  public Evaluable lower() {
-    return new BinaryOpEval(this);
-  }
+  public final MatchSpec matchSpec;
+  public final boolean boolModifier;
 }
