@@ -480,7 +480,12 @@ public final class NodeEvaluator {
     if (isCmp) {
       boolean ok = compare(a, b, e.op);
       if (e.boolModifier) return Optional.of(new SeriesSample(SeriesIds.derived(l.series()), new Sample(ts, ok ? 1f : 0f)));
-      return ok ? Optional.of(l) : Optional.empty();
+      if (!ok) return Optional.empty();
+      if (e.matchSpec == null) return Optional.of(l);
+      SeriesId merged = mergeLabels(l.series(), r.series(), e.matchSpec);
+      return Optional.of(
+          new SeriesSample(
+              new SeriesId(l.series().metric(), merged.labels(), false), l.sample()));
     }
     double v = applyArith(a, b, e.op);
     return Optional.of(new SeriesSample(mergeLabels(l.series(), r.series(), e.matchSpec), new Sample(ts, v)));
