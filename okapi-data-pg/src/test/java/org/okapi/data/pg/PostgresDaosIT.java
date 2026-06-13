@@ -13,25 +13,37 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.okapi.data.dao.ResultUploader;
+import org.okapi.data.dao.*;
 import org.okapi.data.exceptions.IllegalJobStateTransition;
 import org.okapi.data.exceptions.UserAlreadyExistsException;
 import org.okapi.data.model.*;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.SpringBootConfiguration;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Bean;
 
+@SpringBootTest(classes = PostgresDaosIT.TestApplication.class)
 class PostgresDaosIT {
-  private PostgresDataStore store;
+  @Autowired private JdbcRecordStore store;
+  @Autowired private UsersDao users;
+  @Autowired private OrgDao organizations;
+  @Autowired private DashboardDao dashboards;
+  @Autowired private DashboardVersionDao versions;
+  @Autowired private DashboardRowDao rows;
+  @Autowired private DashboardPanelDao panels;
+  @Autowired private DashboardVarDao variables;
+  @Autowired private RelationGraphDao graph;
+  @Autowired private PendingJobsDao jobs;
+  @Autowired private InfraEntityNodeDao infra;
 
   @BeforeEach
   void resetDatabase() {
-    store = PostgresDataStore.fromEnvironment();
     store.clearAll();
   }
 
   @Test
   void persistsUsersAndOrganizationsWithUniqueEmails() throws Exception {
-    var users = PostgresDaos.users(store);
-    var organizations = PostgresDaos.organizations(store);
-
     var user = users.createIfNotExists("Ada", "Lovelace", "ada@example.com", "secret");
     organizations.save(
         Organization.builder()
@@ -51,12 +63,6 @@ class PostgresDaosIT {
 
   @Test
   void persistsDashboardHierarchyAndVersions() {
-    var dashboards = PostgresDaos.dashboards(store);
-    var versions = PostgresDaos.dashboardVersions(store);
-    var rows = PostgresDaos.dashboardRows(store);
-    var panels = PostgresDaos.dashboardPanels(store);
-    var variables = PostgresDaos.dashboardVariables(store);
-
     dashboards.save(
         Dashboard.builder()
             .orgId("org")
@@ -111,7 +117,8 @@ class PostgresDaosIT {
 
     assertEquals("Overview", dashboards.get("org", "dash").orElseThrow().getTitle());
     assertEquals("v1", versions.list("org", "dash").getFirst().getVersionId());
-    assertEquals(ResourceOrder.from("panel"), rows.getAll("org", "dash", "v1").getFirst().getPanelOrder());
+    assertEquals(
+        ResourceOrder.from("panel"), rows.getAll("org", "dash", "v1").getFirst().getPanelOrder());
     assertEquals(
         ExpectedResultType.TIME_VECTOR,
         panels
@@ -126,7 +133,6 @@ class PostgresDaosIT {
 
   @Test
   void traversesRelationGraphAndDeletesBothSides() {
-    var graph = PostgresDaos.relationGraph(store);
     var user = EntityId.of(EntityType.USER, "user");
     var org = EntityId.of(EntityType.ORG, "org");
     var dashboard = EntityId.of(EntityType.DASHBOARD, "dashboard");
@@ -148,8 +154,6 @@ class PostgresDaosIT {
 
   @Test
   void enforcesPendingJobTransitionsAndQueriesBySource() throws Exception {
-    var uploader = new MemoryUploader();
-    var jobs = PostgresDaos.pendingJobs(store, uploader);
     var job =
         PendingJob.builder()
             .orgId("org")
@@ -171,7 +175,6 @@ class PostgresDaosIT {
 
   @Test
   void validatesAndPersistsInfrastructureEdges() throws Exception {
-    var infra = PostgresDaos.infraEntities(store);
     var source = new InfraEntityId("org", InfraEntityType.SERVICE, "api");
     var target = new InfraEntityId("org", InfraEntityType.HOST, "host");
     infra.createNode(new InfraEntityNode(source, "{}", new ArrayList<>()));
@@ -180,7 +183,8 @@ class PostgresDaosIT {
     infra.addOutgoingEdge(
         source, new InfraNodeOutgoingEdge(target, "{\"port\":443}", DependencyType.RUNS_ON));
 
-    assertEquals(target, infra.getEdgesByType(source, DependencyType.RUNS_ON).getFirst().targetNodeId());
+    assertEquals(
+        target, infra.getEdgesByType(source, DependencyType.RUNS_ON).getFirst().targetNodeId());
     infra.removeEdge(source, target);
     assertTrue(infra.getAllOutgoingEdges(source).isEmpty());
   }
@@ -196,6 +200,15 @@ class PostgresDaosIT {
 
     public String getRawResult(String orgId, String jobId) {
       return values.get(orgId + "/" + jobId);
+    }
+  }
+
+  @SpringBootConfiguration
+  @EnableAutoConfiguration
+  static class TestApplication {
+    @Bean
+    ResultUploader resultUploader() {
+      return new MemoryUploader();
     }
   }
 }
