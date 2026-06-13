@@ -4,14 +4,9 @@
  */
 package org.okapi.metrics.otel;
 
-import static org.okapi.clock.OkapiTimeUtils.nanosToMillis;
-import static org.okapi.metrics.otel.OtelValueDecoders.*;
-
 import io.opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceRequest;
 import io.opentelemetry.proto.common.v1.KeyValue;
 import io.opentelemetry.proto.metrics.v1.*;
-import java.util.*;
-import java.util.stream.Collectors;
 import org.okapi.bytes.OkapiBytes;
 import org.okapi.collections.OkapiLists;
 import org.okapi.rest.metrics.Exemplar;
@@ -24,6 +19,12 @@ import org.okapi.rest.metrics.payloads.SUM_TEMPORALITY;
 import org.okapi.rest.metrics.payloads.SumPoint;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+
+import java.util.*;
+import java.util.stream.Collectors;
+
+import static org.okapi.clock.OkapiTimeUtils.nanosToMillis;
+import static org.okapi.metrics.otel.OtelValueDecoders.*;
 
 /**
  * Converts OTLP ExportMetricsServiceRequest (protobuf) into Okapi ExportMetricsRequest(s).
@@ -99,11 +100,11 @@ public final class OtelConverter {
 
   private List<ExportMetricsRequest> convertMetric(Metric m) {
     if (m.hasGauge()) {
-      return convertGauge(m.getName(), m.getGauge());
+      return convertGauge(m);
     } else if (m.hasSum()) {
-      return convertSum(m.getName(), m.getSum());
+      return convertSum(m);
     } else if (m.hasHistogram()) {
-      return convertHistogram(m.getName(), m.getHistogram());
+      return convertHistogram(m);
     }
     return Collections.emptyList();
   }
@@ -148,13 +149,15 @@ public final class OtelConverter {
         .toList();
   }
 
-  private List<ExportMetricsRequest> convertGauge(String metricName, Gauge g) {
+  private List<ExportMetricsRequest> convertGauge(Metric metric) {
+    var g = metric.getGauge();
+    var metricName = metric.getName();
     // Group points by tags
     Map<String, Map<String, String>> tagKeyToTags = new HashMap<>();
     Map<String, List<Long>> tsByKey = new HashMap<>();
     Map<String, List<Float>> valsByKey = new HashMap<>();
     Map<String, List<Exemplar>> exemplarsByKey = new HashMap<>();
-    for (NumberDataPoint p : g.getDataPointsList()) {
+    for (var p : g.getDataPointsList()) {
       Map<String, String> tags = toTagsMap(p.getAttributesList());
       String key = canonicalKey(tags);
       tagKeyToTags.putIfAbsent(key, tags);
@@ -179,6 +182,7 @@ public final class OtelConverter {
               .value(valList);
       out.add(
           ExportMetricsRequest.builder()
+              .unit(metric.getUnit())
               .metricName(metricName)
               .tags(tagKeyToTags.get(key))
               .type(MetricType.GAUGE)
@@ -188,7 +192,8 @@ public final class OtelConverter {
     return out;
   }
 
-  private List<ExportMetricsRequest> convertSum(String metricName, Sum s) {
+  private List<ExportMetricsRequest> convertSum(Metric metric) {
+    var s = metric.getSum();
     SUM_TEMPORALITY SUMTYPE =
         switch (s.getAggregationTemporality()) {
           case AGGREGATION_TEMPORALITY_CUMULATIVE -> SUM_TEMPORALITY.CUMULATIVE;
@@ -221,7 +226,8 @@ public final class OtelConverter {
               .build();
       out.add(
           ExportMetricsRequest.builder()
-              .metricName(metricName)
+              .unit(metric.getUnit())
+              .metricName(metric.getName())
               .tags(tagKeyToTags.get(key))
               .type(MetricType.COUNTER)
               .sum(sumPayload)
@@ -230,8 +236,9 @@ public final class OtelConverter {
     return out;
   }
 
-  private List<ExportMetricsRequest> convertHistogram(String metricName, Histogram otelHisto) {
+  private List<ExportMetricsRequest> convertHistogram(Metric metric) {
     // Group datapoints by tags
+    var otelHisto = metric.getHistogram();
     Map<String, Map<String, String>> tagKeyToTags = new HashMap<>();
     Map<String, List<HistoPoint>> ptsByKey = new HashMap<>();
     Map<String, List<Exemplar>> exemplarsByKey = new HashMap<>();
@@ -260,14 +267,14 @@ public final class OtelConverter {
       pt.setBuckets(buckets);
 
       // Counts: uint64[] -> int[] with clamping
-      int[] counts = new int[p.getBucketCountsCount()];
+      long[] counts = new long[p.getBucketCountsCount()];
       for (int i = 0; i < counts.length; i++) {
         counts[i] = clampToInt(p.getBucketCounts(i));
       }
       pt.setBucketCounts(counts);
       ptsByKey.computeIfAbsent(key, OkapiLists::keyToEmptyArrayList).add(pt);
 
-      var exemplars = collectExemplar(metricName, tags, p);
+      var exemplars = collectExemplar(metric.getName(), tags, p);
       exemplarsByKey.computeIfAbsent(key, OkapiLists::keyToEmptyArrayList).addAll(exemplars);
     }
 
@@ -276,7 +283,8 @@ public final class OtelConverter {
       Histo histo = Histo.builder().histoPoints(ptsByKey.getOrDefault(key, List.of())).build();
       out.add(
           ExportMetricsRequest.builder()
-              .metricName(metricName)
+              .unit(metric.getUnit())
+              .metricName(metric.getName())
               .tags(tagKeyToTags.get(key))
               .type(MetricType.HISTO)
               .histo(histo)

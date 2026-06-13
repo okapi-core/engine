@@ -35,6 +35,7 @@ public class RewritePostProcessor implements MetricsPostProcessor {
         .metricName(pipeline.rewrite(req.getMetricName()))
         .tags(rewrittenTags)
         .type(req.getType())
+        .unit(req.getUnit())
         .gauge(req.getGauge())
         .histo(req.getHisto())
         .sum(req.getSum())

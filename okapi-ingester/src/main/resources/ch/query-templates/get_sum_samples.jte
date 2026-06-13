@@ -1,6 +1,6 @@
 @param org.okapi.metrics.ch.template.ChGetSumQueryTemplate data
 
-SELECT metric_name, tags,
+SELECT metric_name, tags, unit,
 toUnixTimestamp64Milli(ts_start) AS ts_start_ms,
 toUnixTimestamp64Milli(ts_end) AS ts_end_ms,
 value, toString(sums_type) AS sums_type

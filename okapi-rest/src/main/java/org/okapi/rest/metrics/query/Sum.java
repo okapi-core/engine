@@ -23,6 +23,9 @@ public class Sum {
   @JsonPropertyDescription("Interval end time in milliseconds since Unix epoch.")
   long te;
 
+  @JsonPropertyDescription("Unit associated with this counter.")
+  String unit;
+
   @JsonPropertyDescription("Accumulated counter value over this interval.")
   long count;
 }

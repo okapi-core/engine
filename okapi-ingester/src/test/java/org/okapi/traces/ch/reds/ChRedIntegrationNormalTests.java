@@ -4,17 +4,10 @@
  */
 package org.okapi.traces.ch.reds;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.fail;
-
 import com.clickhouse.client.api.Client;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import io.opentelemetry.proto.trace.v1.Status;
-import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -23,18 +16,18 @@ import org.okapi.chtest.ChTestOnlyUtils;
 import org.okapi.metrics.ch.ChConstants;
 import org.okapi.metrics.pojos.RES_TYPE;
 import org.okapi.rest.traces.TimestampFilter;
-import org.okapi.rest.traces.red.ListServicesRequest;
-import org.okapi.rest.traces.red.RedMetrics;
-import org.okapi.rest.traces.red.ServiceEdgeRed;
-import org.okapi.rest.traces.red.ServiceListResponse;
-import org.okapi.rest.traces.red.ServiceOpRed;
-import org.okapi.rest.traces.red.ServiceRedRequest;
-import org.okapi.rest.traces.red.ServiceRedResponse;
+import org.okapi.rest.traces.red.*;
 import org.okapi.testmodules.guice.TestChTracesModule;
 import org.okapi.timeutils.TimeUtils;
 import org.okapi.traces.OtelTestFactory;
 import org.okapi.traces.ch.ChTracesIngester;
 import org.okapi.traces.ch.ChTracesWalConsumerDriver;
+
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 public class ChRedIntegrationNormalTests {
 
@@ -150,11 +143,7 @@ public class ChRedIntegrationNormalTests {
             "op.search", "svc-C", baseMs + 3_600_000L, 400L, Status.StatusCode.STATUS_CODE_OK));
     svcASpans.add(
         otelTestFactory.span(
-            "op.search",
-            "svc-C",
-            baseMs + 3_600_000L,
-            888L,
-            Status.StatusCode.STATUS_CODE_ERROR));
+            "op.search", "svc-C", baseMs + 3_600_000L, 888L, Status.StatusCode.STATUS_CODE_ERROR));
 
     var otherSpans = new ArrayList<io.opentelemetry.proto.trace.v1.Span>();
     otherSpans.add(
@@ -173,8 +162,7 @@ public class ChRedIntegrationNormalTests {
   private void assertOpRed(List<ServiceOpRed> reds, String op, RedMetrics expected) {
     var found = reds.stream().filter(r -> op.equals(r.getOp())).findFirst();
     found.ifPresentOrElse(
-        red -> assertEquals(expected, red.getRedMetrics()),
-        () -> fail("Missing op red for " + op));
+        red -> assertEquals(expected, red.getRedMetrics()), () -> fail("Missing op red for " + op));
   }
 
   private void assertPeerRed(List<ServiceEdgeRed> reds, String peer, RedMetrics expected) {

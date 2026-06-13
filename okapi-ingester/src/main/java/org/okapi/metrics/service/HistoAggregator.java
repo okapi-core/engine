@@ -23,8 +23,8 @@ public class HistoAggregator {
                         .start(h.getStartTs())
                         .end(h.getEndTs())
                         .build())
+            .map((histo) -> HistogramSeries.builder().tags(null).histogram(histo).build())
             .toList();
-    var series = HistogramSeries.builder().tags(null).histograms(histos).build();
-    return GetHistogramResponse.builder().series(List.of(series)).build();
+    return GetHistogramResponse.builder().series(histos).build();
   }
 }

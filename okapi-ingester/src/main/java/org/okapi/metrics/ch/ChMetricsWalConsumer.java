@@ -7,12 +7,6 @@ package org.okapi.metrics.ch;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import com.google.gson.Gson;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.concurrent.ExecutionException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.okapi.rest.metrics.Exemplar;
@@ -21,6 +15,13 @@ import org.okapi.rest.metrics.query.METRIC_TYPE;
 import org.okapi.wal.frame.WalEntry;
 import org.okapi.wal.io.WalReader;
 import org.okapi.wal.manager.WalManager;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -38,7 +39,7 @@ public class ChMetricsWalConsumer {
     this.walManager = resources.getManager();
   }
 
-  record ChWriteWork(String mainTable, List<String> rows, List<String> meta) {}
+  public record ChWriteWork(String mainTable, List<String> rows, List<String> meta) {}
 
   public ChWriteWork getGaugeSamples(ExportMetricsRequest req) {
     List<String> gaugeSamples = new ArrayList<>();
@@ -50,6 +51,7 @@ public class ChMetricsWalConsumer {
             ChGaugeSampleRow.builder()
                 .metric(req.getMetricName())
                 .tags(req.getTags())
+                .unit(req.getUnit())
                 .timestamp(ts)
                 .value(req.getGauge().getValue().get(i))
                 .build();
@@ -93,6 +95,7 @@ public class ChMetricsWalConsumer {
                 .tags(req.getTags())
                 .tsStart(pt.getStart())
                 .tsEnd(pt.getEnd())
+                .unit(req.getUnit())
                 .min(min)
                 .max(max)
                 .buckets(buckets)
@@ -129,6 +132,7 @@ public class ChMetricsWalConsumer {
                 .tags(req.getTags())
                 .tsStart(pt.getStart())
                 .tsEnd(pt.getEnd())
+                .unit(req.getUnit())
                 .value(pt.getSum())
                 .sumType(sumType)
                 .build();

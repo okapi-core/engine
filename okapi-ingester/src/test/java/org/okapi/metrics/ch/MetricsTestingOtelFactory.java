@@ -4,12 +4,13 @@ import com.google.protobuf.ByteString;
 import io.opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceRequest;
 import io.opentelemetry.proto.metrics.v1.*;
 import io.opentelemetry.proto.resource.v1.Resource;
-import java.util.List;
-import java.util.Map;
 import lombok.AllArgsConstructor;
 import org.okapi.bytes.OkapiBytes;
 import org.okapi.timeutils.TimeUtils;
 import org.okapi.traces.testutil.OtelShortHands;
+
+import java.util.List;
+import java.util.Map;
 
 @AllArgsConstructor
 public class MetricsTestingOtelFactory {
@@ -18,6 +19,15 @@ public class MetricsTestingOtelFactory {
 
   public ExportMetricsServiceRequest buildGaugeRequest(
       String resourceName, String metricName, List<Long> timestampsMs, List<Double> values) {
+    return buildGaugeRequest(resourceName, metricName, timestampsMs, values, "unit");
+  }
+
+  public ExportMetricsServiceRequest buildGaugeRequest(
+      String resourceName,
+      String metricName,
+      List<Long> timestampsMs,
+      List<Double> values,
+      String unit) {
     var gaugeBuilder = Gauge.newBuilder();
     for (int i = 0; i < timestampsMs.size(); i++) {
       gaugeBuilder.addDataPoints(
@@ -29,7 +39,12 @@ public class MetricsTestingOtelFactory {
               .setAsDouble(values.get(i))
               .build());
     }
-    Metric metric = Metric.newBuilder().setName(metricName).setGauge(gaugeBuilder.build()).build();
+    Metric metric =
+        Metric.newBuilder()
+            .setUnit(unit)
+            .setName(metricName)
+            .setGauge(gaugeBuilder.build())
+            .build();
     var scopeMetrics = ScopeMetrics.newBuilder().addMetrics(metric).build();
     var resource =
         Resource.newBuilder()
@@ -93,9 +108,7 @@ public class MetricsTestingOtelFactory {
     }
     Metric metricProto = Metric.newBuilder().setName(metric).setGauge(gaugeBuilder.build()).build();
     var scopeMetrics = ScopeMetrics.newBuilder().addMetrics(metricProto).build();
-    var resource =
-        Resource.newBuilder()
-            .build();
+    var resource = Resource.newBuilder().build();
     var resourceMetrics =
         ResourceMetrics.newBuilder().setResource(resource).addScopeMetrics(scopeMetrics).build();
     return ExportMetricsServiceRequest.newBuilder().addResourceMetrics(resourceMetrics).build();

@@ -8,6 +8,7 @@ import org.okapi.rest.traces.SpanQueryV2Response;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.TreeMap;
 
 public final class ToolCallSummaries {
@@ -195,28 +196,25 @@ public final class ToolCallSummaries {
   }
 
   private static long countPoints(METRIC_TYPE type, GetMetricsResponse response) {
-    if (type == METRIC_TYPE.GAUGE) {
-      GetGaugeResponse gauge = response.getGaugeResponse();
-      if (gauge == null || gauge.getSeries() == null) {
-        return 0;
-      }
-      long total = 0;
-      for (GaugeSeries series : gauge.getSeries()) {
-        if (series != null && series.getValues() != null) {
-          total += series.getValues().size();
-        }
-      }
-      return total;
-    }
-    if (type == METRIC_TYPE.HISTO) {
-      GetHistogramResponse histo = response.getHistogramResponse();
-      return countHistogramPoints(histo);
-    }
-    if (type == METRIC_TYPE.SUM) {
-      GetSumsResponse sums = response.getSumsResponse();
-      return sums == null || sums.getSums() == null ? 0 : sums.getSums().size();
-    }
-    return 0;
+    return switch (type) {
+      case METRIC_TYPE.GAUGE ->
+          Optional.ofNullable(response.getGaugeResponse())
+              .map(GetGaugeResponse::getSeries)
+              .map(List::size)
+              .stream()
+              .reduce(Integer::sum)
+              .orElse(0);
+
+      case METRIC_TYPE.HISTO -> response.getHistogramResponse().getSeries().size();
+
+      case METRIC_TYPE.SUM ->
+          Optional.ofNullable(response.getSumsResponse())
+              .map(GetSumsResponse::getSums)
+              .map(List::size)
+              .stream()
+              .reduce(Integer::sum)
+              .orElse(0);
+    };
   }
 
   private static String summarizeTimeWindow(
@@ -239,19 +237,10 @@ public final class ToolCallSummaries {
   }
 
   private static long[] gaugeTimeRange(GetGaugeResponse response) {
-    if (response == null || response.getSeries() == null) {
-      return null;
-    }
     long min = Long.MAX_VALUE;
     long max = Long.MIN_VALUE;
     for (GaugeSeries series : response.getSeries()) {
-      if (series == null || series.getTimes() == null) {
-        continue;
-      }
       for (Long time : series.getTimes()) {
-        if (time == null) {
-          continue;
-        }
         min = Math.min(min, time);
         max = Math.max(max, time);
       }
@@ -267,17 +256,13 @@ public final class ToolCallSummaries {
       long min = Long.MAX_VALUE;
       long max = Long.MIN_VALUE;
       for (HistogramSeries series : response.getSeries()) {
-        if (series == null || series.getHistograms() == null) {
+        if (series == null || series.getHistogram() == null) {
           continue;
         }
-        for (var hist : series.getHistograms()) {
-          if (hist == null) {
-            continue;
-          }
-          min = Math.min(min, hist.getStart());
-          long end = hist.getEnd() == null ? hist.getStart() : hist.getEnd();
-          max = Math.max(max, end);
-        }
+        var hist = series.getHistogram();
+        min = Math.min(min, hist.getStart());
+        long end = hist.getEnd() == null ? hist.getStart() : hist.getEnd();
+        max = Math.max(max, end);
       }
       return new long[] {min, max};
     }
@@ -285,32 +270,10 @@ public final class ToolCallSummaries {
   }
 
   private static long countHistogramPoints(GetHistogramResponse response) {
-    if (response == null) {
-      return 0;
-    }
-    if (response.getSeries() != null && !response.getSeries().isEmpty()) {
-      long total = 0;
-      for (HistogramSeries series : response.getSeries()) {
-        if (series == null || series.getHistograms() == null) {
-          continue;
-        }
-        total += series.getHistograms().size();
-      }
-      return total;
-    }
-    if (response.getSeries() != null) {
-      return response.getSeries().stream()
-          .map(hist -> hist.getHistograms().size())
-          .reduce(Integer::sum)
-          .orElse(0);
-    }
-    return 0;
+    return response.getSeries().size();
   }
 
   private static long[] sumsTimeRange(GetSumsResponse response) {
-    if (response == null || response.getSums() == null) {
-      return null;
-    }
     long min = Long.MAX_VALUE;
     long max = Long.MIN_VALUE;
     for (Sum sum : response.getSums()) {

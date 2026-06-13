@@ -22,5 +22,5 @@ public final class HistoPoint {
   TEMPORALITY temporality;
   float[] buckets;
   // bucketCounts.length = 1 + buckets.length
-  int[] bucketCounts;
+  long[] bucketCounts;
 }

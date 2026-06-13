@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS okapi_metrics.histo_raw_samples (
     ts_end DateTime64(3, 'UTC'),
     buckets Array(Float32),
     counts Array(Int32),
+    unit LowCardinality(String),
     histo_type Enum('DELTA' = 1, 'CUMULATIVE' = 2),
     minute UInt8 DEFAULT toStartOfMinute(ts_start),
     hour UInt8 DEFAULT toStartOfHour(ts_start),

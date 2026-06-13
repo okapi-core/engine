@@ -4,11 +4,12 @@
  */
 package org.okapi.metrics.ch;
 
-import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import org.okapi.ch.AbstractChRow;
+
+import java.util.Map;
 
 @AllArgsConstructor
 @Getter
@@ -18,4 +19,5 @@ public class ChGaugeSampleRow extends AbstractChRow {
   String metric;
   Map<String, String> tags;
   float value;
+  String unit;
 }

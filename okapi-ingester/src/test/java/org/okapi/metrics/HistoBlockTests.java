@@ -4,15 +4,16 @@
  */
 package org.okapi.metrics;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
-import java.io.IOException;
 import org.junit.jupiter.api.Test;
 import org.okapi.io.NotEnoughBytesException;
 import org.okapi.io.StreamReadingException;
 import org.okapi.metrics.primitives.HistoBlock;
 import org.okapi.primitives.Histogram;
 import org.okapi.primitives.ReadonlyHistogram;
+
+import java.io.IOException;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class HistoBlockTests {
 
@@ -24,7 +25,7 @@ public class HistoBlockTests {
             1000L,
             null,
             Histogram.TEMPORALITY.DELTA,
-            new int[] {1, 3, 3, 4},
+            new long[] {1, 3, 3, 4},
             new float[] {0.1f, 0.5f, 0.9f});
     histo.updateHistogram(1000L, ref);
 
@@ -42,14 +43,14 @@ public class HistoBlockTests {
             2000L,
             null,
             Histogram.TEMPORALITY.DELTA,
-            new int[] {2, 4, 4, 1},
+            new long[] {2, 4, 4, 1},
             new float[] {0.2f, 0.6f, 0.8f});
     var refB =
         new Histogram(
             3000L,
             null,
             Histogram.TEMPORALITY.CUMULATIVE,
-            new int[] {3, 1, 0, 0},
+            new long[] {3, 1, 0, 0},
             new float[] {0.3f, 0.5f, 0.7f});
     var histo = new HistoBlock();
     histo.updateHistogram(2000L, refA);

@@ -27,6 +27,8 @@ public class ChSumSampleRow extends AbstractChRow {
   @SerializedName("ts_end")
   long tsEnd;
 
+  String unit;
+
   long value;
 
   @SerializedName("sums_type")

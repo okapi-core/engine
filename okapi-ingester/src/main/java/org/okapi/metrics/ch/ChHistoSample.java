@@ -5,10 +5,11 @@
 package org.okapi.metrics.ch;
 
 import com.google.gson.annotations.SerializedName;
-import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
+
+import java.util.Map;
 
 @AllArgsConstructor
 @Builder
@@ -29,6 +30,7 @@ public class ChHistoSample {
 
   float sum;
   Long count;
+  String unit;
 
   @SerializedName("ts_start")
   long tsStart;
@@ -39,5 +41,5 @@ public class ChHistoSample {
   float min;
   float max;
   float[] buckets;
-  int[] counts;
+  long[] counts;
 }

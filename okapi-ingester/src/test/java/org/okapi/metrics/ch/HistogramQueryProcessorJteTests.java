@@ -4,21 +4,10 @@
  */
 package org.okapi.metrics.ch;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-
 import com.clickhouse.client.api.Client;
 import com.google.gson.Gson;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
-import java.time.Instant;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
-import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -28,6 +17,18 @@ import org.okapi.rest.metrics.query.GetMetricsRequest;
 import org.okapi.rest.metrics.query.HistoQueryConfig;
 import org.okapi.rest.metrics.query.METRIC_TYPE;
 import org.okapi.testmodules.guice.TestChMetricsModule;
+
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /** Sanity test for the JTE-based histogram query execution path. */
 public class HistogramQueryProcessorJteTests {
@@ -57,7 +58,7 @@ public class HistogramQueryProcessorJteTests {
     var tags = Map.of("env", "dev");
 
     var buckets = new float[] {10.0f, 20.0f};
-    var counts = new int[] {1, 2, 3};
+    var counts = new long[] {1, 2, 3};
 
     var row =
         ChHistoSample.builder()
@@ -87,10 +88,8 @@ public class HistogramQueryProcessorJteTests {
     var series = resp.getHistogramResponse().getSeries();
     assertNotNull(series);
     assertEquals(1, series.size());
-    var histos = series.get(0).getHistograms();
-    assertEquals(1, histos.size());
-    assertEquals(List.of(1, 2, 3), histos.get(0).getCounts());
-    assertEquals(List.of(10.0f, 20.0f), histos.get(0).getBuckets());
+    assertEquals(List.of(1L, 2L, 3L), series.getFirst().getHistogram().getCounts());
+    assertEquals(List.of(10.0f, 20.0f), series.getFirst().getHistogram().getBuckets());
   }
 
   @Test
@@ -104,7 +103,7 @@ public class HistogramQueryProcessorJteTests {
     var tagsB = Map.of("env", "dev", "host", "b");
 
     var buckets = new float[] {10.0f, 20.0f};
-    var counts = new int[] {1, 2, 3};
+    var counts = new long[] {1, 2, 3};
 
     var rowA =
         ChHistoSample.builder()
@@ -144,8 +143,7 @@ public class HistogramQueryProcessorJteTests {
     var series = resp.getHistogramResponse().getSeries();
     assertNotNull(series);
     assertEquals(2, series.size());
-    var tags =
-        series.stream().map(s -> s.getTags()).collect(Collectors.toSet());
+    var tags = series.stream().map(s -> s.getTags()).collect(Collectors.toSet());
     assertEquals(Set.of(tagsA, tagsB), tags);
   }
 

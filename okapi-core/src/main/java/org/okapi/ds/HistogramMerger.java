@@ -4,19 +4,20 @@
  */
 package org.okapi.ds;
 
+import org.okapi.collections.OkapiLists;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import org.okapi.collections.OkapiLists;
 
 public class HistogramMerger {
-  public record Distribution(float[] buckets, int[] counts) {}
+  public record Distribution(float[] buckets, long[] counts) {}
 
-  public static float[] getDistribution(int[] counts) {
-    int sum = Arrays.stream(counts).sum();
+  public static float[] getDistribution(long[] counts) {
+    long sum = Arrays.stream(counts).sum();
     float[] f = new float[counts.length];
     f[0] = (0.f + counts[0]) / sum;
-    int running = counts[0];
+    long running = counts[0];
     for (int i = 1; i < counts.length; i++) {
       running += counts[i];
       f[i] = (0.f + running) / sum;
@@ -31,7 +32,7 @@ public class HistogramMerger {
   public static Distribution merge(Distribution a, Distribution b) {
     var isIdentical = Arrays.equals(a.buckets, b.buckets);
     if (isIdentical) {
-      var sum = new int[a.counts.length];
+      var sum = new long[a.counts.length];
       for (int i = 0; i < a.counts.length; i++) {
         sum[i] = a.counts[i] + b.counts[i];
       }
@@ -91,7 +92,7 @@ public class HistogramMerger {
       cdf.add(distB[j]);
       j++;
     }
-    int[] counts = new int[1 + buckets.size()];
+    long[] counts = new long[1 + buckets.size()];
     counts[0] = (int) (cdf.get(0) * totalSamples);
     var leftOver = totalSamples - counts[0];
     for (int n = 1; n < buckets.size(); n++) {

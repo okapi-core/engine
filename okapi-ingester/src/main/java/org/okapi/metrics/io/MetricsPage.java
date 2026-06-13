@@ -4,7 +4,6 @@
  */
 package org.okapi.metrics.io;
 
-import java.util.Optional;
 import org.okapi.logs.io.AbstractTimestampedPage;
 import org.okapi.metrics.common.MetricPaths;
 import org.okapi.pages.AbstractTimeBlockMetadata;
@@ -15,6 +14,8 @@ import org.okapi.primitives.ReadonlyHistogram;
 import org.okapi.rest.metrics.ExportMetricsRequest;
 import org.okapi.rest.metrics.payloads.*;
 import org.okapi.wal.lsn.Lsn;
+
+import java.util.Optional;
 
 public class MetricsPage extends AbstractTimestampedPage
     implements AppendOnlyPage<
@@ -118,7 +119,7 @@ public class MetricsPage extends AbstractTimestampedPage
             sumPoint.getStart(),
             sumPoint.getEnd(),
             Histogram.TEMPORALITY.CUMULATIVE,
-            new int[] {sumPoint.getSum()},
+            new long[] {sumPoint.getSum()},
             new float[] {});
     body.updateHistogram(path, sumPoint.getStart(), histogram);
   }

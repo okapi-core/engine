@@ -22,14 +22,14 @@ dashboard:
           title: Log End Offset
           queries:
             - query: >
-                {"metric":"kafka.log.end_offset","tags":{"service_instance_id":"$__{service_instance_id}","topic":"$__{topic}","partition":"$__{partition}"},"start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"kafka.log.end_offset","topic":"$__{topic}","partition":"$__{partition}"},"start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: log-start-offset
           title: Log Start Offset
           queries:
             - query: >
-                {"metric":"kafka.log.start_offset","tags":{"service_instance_id":"$__{service_instance_id}","topic":"$__{topic}","partition":"$__{partition}"},"start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"kafka.log.start_offset","topic":"$__{topic}","partition":"$__{partition}"},"start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: log-size
           title: Log Size
           queries:
             - query: >
-                {"metric":"kafka.log.size","tags":{"service_instance_id":"$__{service_instance_id}","topic":"$__{topic}","partition":"$__{partition}"},"start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"kafka.log.size","topic":"$__{topic}","partition":"$__{partition}"},"start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}

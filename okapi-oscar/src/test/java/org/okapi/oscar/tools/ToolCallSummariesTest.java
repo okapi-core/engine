@@ -118,10 +118,10 @@ public class ToolCallSummariesTest {
                     .series(
                         List.of(
                             HistogramSeries.builder()
-                                .histograms(
-                                    List.of(
-                                        Histogram.builder().start(10L).end(20L).build(),
-                                        Histogram.builder().start(30L).end(40L).build()))
+                                .histogram(Histogram.builder().start(10L).end(20L).build())
+                                .build(),
+                            HistogramSeries.builder()
+                                .histogram(Histogram.builder().start(30L).end(40L).build())
                                 .build()))
                     .build())
             .build();

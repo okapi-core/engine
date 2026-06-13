@@ -4,16 +4,17 @@
  */
 package org.okapi.otel;
 
-import static org.junit.jupiter.api.Assertions.*;
-
 import io.opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceRequest;
 import io.opentelemetry.proto.metrics.v1.*;
 import io.opentelemetry.proto.resource.v1.Resource;
-import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.okapi.metrics.otel.OtelConverter;
 import org.okapi.rest.metrics.ExportMetricsRequest;
 import org.okapi.rest.metrics.MetricType;
+
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 public class OtelConverterHistogramTest {
 
@@ -60,6 +61,6 @@ public class OtelConverterHistogramTest {
     assertEquals(1L, hp.getStart());
     assertEquals(4L, hp.getEnd());
     assertArrayEquals(new float[] {10.0f, 20.0f}, hp.getBuckets());
-    assertArrayEquals(new int[] {5, 7, 2}, hp.getBucketCounts());
+    assertArrayEquals(new long[] {5, 7, 2}, hp.getBucketCounts());
   }
 }

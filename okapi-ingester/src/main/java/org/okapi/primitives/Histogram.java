@@ -4,11 +4,12 @@
  */
 package org.okapi.primitives;
 
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import lombok.Getter;
 import org.okapi.io.OkapiIo;
 import org.okapi.io.StreamReadingException;
+
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
 
 @Getter
 public class Histogram implements RawSerializable {
@@ -20,15 +21,27 @@ public class Histogram implements RawSerializable {
   long startTs;
   Long endTs;
   TEMPORALITY temporality;
-  int[] bucketCounts;
+  long[] bucketCounts;
   float[] buckets;
+
+  public Histogram(
+      long startTs, Long endTs, TEMPORALITY temporality, long[] bucketCounts, float[] buckets) {
+    this.startTs = startTs;
+    this.endTs = endTs;
+    this.temporality = temporality;
+    this.bucketCounts = bucketCounts;
+    this.buckets = buckets;
+  }
 
   public Histogram(
       long startTs, Long endTs, TEMPORALITY temporality, int[] bucketCounts, float[] buckets) {
     this.startTs = startTs;
     this.endTs = endTs;
     this.temporality = temporality;
-    this.bucketCounts = bucketCounts;
+    this.bucketCounts = new long[bucketCounts.length];
+    for (int i = 0; i < bucketCounts.length; i++) {
+      this.bucketCounts[i] = bucketCounts[i];
+    }
     this.buckets = buckets;
   }
 
@@ -55,9 +68,9 @@ public class Histogram implements RawSerializable {
       endTs = null;
     }
     var length = OkapiIo.readInt(is);
-    bucketCounts = new int[length];
+    bucketCounts = new long[length];
     for (int i = 0; i < length; i++) {
-      bucketCounts[i] = OkapiIo.readInt(is);
+      bucketCounts[i] = OkapiIo.readLong(is);
     }
     buckets = new float[length - 1];
     for (int i = 0; i < length - 1; i++) {
@@ -71,7 +84,7 @@ public class Histogram implements RawSerializable {
         + 8 // startTs
         + 8 // endTs
         + 4 // length of bucketCounts
-        + 4 * bucketCounts.length // bucketCounts
+        + 8 * bucketCounts.length // bucketCounts
         + 4 * buckets.length; // buckets
   }
 
@@ -90,7 +103,7 @@ public class Histogram implements RawSerializable {
     OkapiIo.writeLong(os, endTs != null ? endTs : -1L);
     OkapiIo.writeInt(os, bucketCounts.length);
     for (var count : bucketCounts) {
-      OkapiIo.writeInt(os, count);
+      OkapiIo.writeLong(os, count);
     }
     // it is assumed that buckets.length = bucketCounts.length - 1
     for (var bucket : buckets) {

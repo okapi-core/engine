@@ -6,8 +6,9 @@ package org.okapi.metrics.ch;
 
 import com.clickhouse.client.api.Client;
 import com.clickhouse.client.api.query.GenericRecord;
+import com.google.common.collect.ArrayListMultimap;
 import com.google.common.primitives.Floats;
-import com.google.common.primitives.Ints;
+import com.google.common.primitives.Longs;
 import gg.jte.TemplateOutput;
 import gg.jte.output.StringOutput;
 import org.okapi.ch.ChTemplateFiles;
@@ -39,10 +40,10 @@ public class HistogramQueryProcessor {
           case MERGED -> ChHistoSample.HISTO_TYPE.DELTA;
         };
     var readings = scanSamples(ts, te, query.getMetric(), query.getTags(), histoType);
-    var series = buildSeries(readings, query, histoType);
-    if (series.isEmpty()) {
+    if(readings.isEmpty()){
       return CannedResponses.noMetricsResponse(query.getMetric(), query.getTags());
     }
+    var series = buildSeries(readings, query, histoType);
     var histo = GetHistogramResponse.builder().series(series).build();
     return GetMetricsResponse.builder()
         .metric(query.getMetric())
@@ -53,27 +54,29 @@ public class HistogramQueryProcessor {
 
   private List<HistogramSeries> buildSeries(
       List<ChHistoSample> readings, GetMetricsRequest query, ChHistoSample.HISTO_TYPE histoType) {
-    var byTags = new LinkedHashMap<Map<String, String>, List<ChHistoSample>>();
+    var byTags = ArrayListMultimap.<HistogramKey, ChHistoSample>create();
     for (var sample : readings) {
       var tagsKey =
           sample.getTags() == null ? Map.<String, String>of() : new TreeMap<>(sample.getTags());
-      byTags.computeIfAbsent(tagsKey, key -> new ArrayList<>()).add(sample);
+      var histoKey = new HistogramKey(sample.getUnit(), tagsKey);
+      byTags.put(histoKey, sample);
     }
     var series = new ArrayList<HistogramSeries>();
-    for (var entry : byTags.entrySet()) {
-      var tags = entry.getKey();
-      var samples = entry.getValue();
+    for (var keys : byTags.keySet()) {
+      var tags = keys.tags();
+      var samples = byTags.get(keys);
       if (query.getHistoQueryConfig().getTemporality() == HistoQueryConfig.TEMPORALITY.CUMULATIVE) {
         var largestSampleSize = samples.stream().map(r -> r.count).max(Long::compare).orElse(0L);
         var largestSample =
             samples.stream().filter(f -> Objects.equals(f.count, largestSampleSize)).findFirst();
-        if (largestSample.isPresent()) {
-          series.add(
-              HistogramSeries.builder()
-                  .tags(tags)
-                  .histograms(List.of(toHistogram(largestSample.get())))
-                  .build());
-        }
+        largestSample.ifPresent(
+            chHistoSample ->
+                series.add(
+                    HistogramSeries.builder()
+                        .unit(keys.unit())
+                        .tags(tags)
+                        .histogram(toHistogram(chHistoSample))
+                        .build()));
       } else if (query.getHistoQueryConfig().getTemporality() == HistoQueryConfig.TEMPORALITY.DELTA
           || query.getHistoQueryConfig().getTemporality() == HistoQueryConfig.TEMPORALITY.MERGED) {
         var deltas =
@@ -95,6 +98,7 @@ public class HistogramQueryProcessor {
                   var max = Math.max(a.max, b.max);
                   return ChHistoSample.builder()
                       .metric(query.getMetric())
+                      .unit(keys.unit())
                       .tags(tags)
                       .histoType(histoType)
                       .sum(sum)
@@ -111,13 +115,16 @@ public class HistogramQueryProcessor {
             sample ->
                 series.add(
                     HistogramSeries.builder()
+                        .unit(keys.unit())
                         .tags(tags)
-                        .histograms(List.of(toHistogram(sample)))
+                        .histogram(toHistogram(sample))
                         .build()));
       }
     }
     return series;
   }
+
+  private record HistogramKey(String unit, Map<String, String> tags){}
 
   private static Histogram toHistogram(ChHistoSample chHistoSample) {
     return Histogram.builder()
@@ -126,7 +133,7 @@ public class HistogramQueryProcessor {
         .count(chHistoSample.getCount())
         .sum(chHistoSample.getSum())
         .counts(
-            chHistoSample.getCounts() == null ? List.of() : Ints.asList(chHistoSample.getCounts()))
+            chHistoSample.getCounts() == null ? List.of() : Longs.asList(chHistoSample.getCounts()))
         .buckets(
             chHistoSample.getBuckets() == null
                 ? List.of()
@@ -155,7 +162,7 @@ public class HistogramQueryProcessor {
     var samples = new ArrayList<ChHistoSample>(records.size());
     for (var record : records) {
       float[] buckets;
-      int[] counts;
+      long[] counts;
       try {
         buckets = record.getFloatArray("buckets");
       } catch (Exception e) {
@@ -170,15 +177,15 @@ public class HistogramQueryProcessor {
         }
       }
       try {
-        counts = record.getIntArray("counts");
+        counts = record.getLongArray("counts");
       } catch (Exception e) {
         var list = record.getList("counts");
         counts =
-            list == null ? null : list.stream().mapToInt(o -> ((Number) o).intValue()).toArray();
+            list == null ? null : list.stream().mapToLong(o -> ((Number) o).longValue()).toArray();
       }
       long totalCount = 0L;
       if (counts != null) {
-        for (int c : counts) {
+        for (long c : counts) {
           totalCount += c;
         }
       }
@@ -192,12 +199,14 @@ public class HistogramQueryProcessor {
 
       @SuppressWarnings("unchecked")
       var recordTags = (Map<String, String>) record.getObject("tags");
+      var unit = record.getString("unit");
       var histoTypeStr =
           record.hasValue("histo_type") ? record.getString("histo_type") : histoType.name();
 
       samples.add(
           ChHistoSample.builder()
               .metric(record.getString("metric_name"))
+              .unit(unit)
               .tags(recordTags)
               .tsStart(record.getLong("ts_start_ms"))
               .tsEnd(record.getLong("ts_end_ms"))

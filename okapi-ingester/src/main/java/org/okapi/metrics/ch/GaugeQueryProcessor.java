@@ -4,13 +4,8 @@
  */
 package org.okapi.metrics.ch;
 
-import static org.okapi.validation.OkapiChecks.checkArgument;
-
 import com.clickhouse.client.api.Client;
 import com.clickhouse.client.api.query.GenericRecord;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.okapi.ch.ChTemplateFiles;
 import org.okapi.exceptions.BadRequestException;
@@ -18,11 +13,14 @@ import org.okapi.metrics.ch.template.ChGetGaugeQueryTemplate;
 import org.okapi.metrics.ch.template.ChMetricTemplateEngine;
 import org.okapi.metrics.pojos.AGG_TYPE;
 import org.okapi.metrics.pojos.RES_TYPE;
-import org.okapi.rest.metrics.query.CannedResponses;
-import org.okapi.rest.metrics.query.GaugeSeries;
-import org.okapi.rest.metrics.query.GetGaugeResponse;
-import org.okapi.rest.metrics.query.GetMetricsRequest;
-import org.okapi.rest.metrics.query.GetMetricsResponse;
+import org.okapi.rest.metrics.query.*;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+
+import static org.okapi.validation.OkapiChecks.checkArgument;
 
 /** Handles gauge query execution against ClickHouse. */
 @Slf4j
@@ -69,21 +67,26 @@ public class GaugeQueryProcessor {
 
     var seriesList = new ArrayList<GaugeSeries>();
     Map<String, String> currentTags = null;
+    String currentUnit = null;
     var currentTimes = new ArrayList<Long>();
     var currentValues = new ArrayList<Float>();
     for (var record : records) {
       @SuppressWarnings("unchecked")
       var tags = (Map<String, String>) record.getObject("tags");
-      if (!tags.equals(currentTags)) {
+      var unit = (String) record.getObject("unit");
+
+      if (!Objects.equals(tags, currentTags) || !Objects.equals(unit, currentUnit)) {
         if (currentTags != null) {
           seriesList.add(
               GaugeSeries.builder()
+                  .unit(currentUnit)
                   .tags(currentTags)
                   .times(currentTimes)
                   .values(currentValues)
                   .build());
         }
         currentTags = tags;
+        currentUnit = unit;
         currentTimes = new ArrayList<>();
         currentValues = new ArrayList<>();
       }
@@ -91,7 +94,12 @@ public class GaugeQueryProcessor {
       currentValues.add((float) record.getDouble("value"));
     }
     seriesList.add(
-        GaugeSeries.builder().tags(currentTags).times(currentTimes).values(currentValues).build());
+        GaugeSeries.builder()
+            .tags(currentTags)
+            .times(currentTimes)
+            .unit(currentUnit)
+            .values(currentValues)
+            .build());
 
     var gaugeResponse =
         GetGaugeResponse.builder()

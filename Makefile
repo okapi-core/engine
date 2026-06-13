@@ -75,8 +75,10 @@ tables:
 	java -cp okapi-data-ddb/target/okapi-data-ddb-0.0.1-SNAPSHOT.jar  org.okapi.data.CreateS3Bucket  $(ENV:ENV=test)
 
 stop-test-infra:
-	localstack stop || true
+	$(DOCKER_RM) localstack-main
 	$(DOCKER_RM) okapi-clickhouse
+	$(DOCKER_RM) okapi-postgres
+	$(DOCKER_RM) okapi-vault-dev
 
 localstack-k8s:
 	kubectl apply -n okapi -f okapi-ingester/local-stack-yamls/localstack.yml

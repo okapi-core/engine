@@ -4,17 +4,7 @@
  */
 package org.okapi.byterange;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.okapi.arrays.ArrayUtils.concatArrays;
-
 import com.google.common.primitives.Ints;
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
 import org.okapi.io.NotEnoughBytesException;
@@ -30,6 +20,13 @@ import org.okapi.rest.metrics.payloads.Histo;
 import org.okapi.rest.metrics.payloads.HistoPoint;
 import org.okapi.s3.ByteArrayByteRangeSupplier;
 import org.okapi.testutils.OkapiTestUtils;
+
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.okapi.arrays.ArrayUtils.concatArrays;
 
 @Slf4j
 public class LengthPrefixedBlockSeekIteratorTests {
@@ -84,7 +81,7 @@ public class LengthPrefixedBlockSeekIteratorTests {
     var readonlyHisto = readonlyHistoOpt.get();
     assertEquals(3, readonlyHisto.getBucketCounts().size());
     OkapiTestUtils.assertListEquals(readonlyHisto.getBuckets(), Arrays.asList(10.f, 20.f));
-    OkapiTestUtils.assertListEquals(readonlyHisto.getBucketCounts(), Arrays.asList(1, 2, 3));
+    OkapiTestUtils.assertListEquals(readonlyHisto.getBucketCounts(), Arrays.asList(1L, 2L, 3L));
   }
 
   @Test
@@ -368,7 +365,7 @@ public class LengthPrefixedBlockSeekIteratorTests {
                                 .start(1000L)
                                 .temporality(HistoPoint.TEMPORALITY.DELTA)
                                 .buckets(new float[] {10.f, 20.f})
-                                .bucketCounts(new int[] {1, 2, 3})
+                                .bucketCounts(new long[] {1, 2, 3})
                                 .build()))
                     .build())
             .build();

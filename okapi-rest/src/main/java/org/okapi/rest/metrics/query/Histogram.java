@@ -6,11 +6,12 @@ package org.okapi.rest.metrics.query;
 
 import com.fasterxml.jackson.annotation.JsonClassDescription;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
-import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+
+import java.util.List;
 
 @AllArgsConstructor
 @Builder
@@ -31,7 +32,7 @@ public class Histogram {
   Float sum;
 
   @JsonPropertyDescription("Per-bucket observation counts, index-aligned with buckets.")
-  List<Integer> counts;
+  List<Long> counts;
 
   @JsonPropertyDescription("Upper-bound values defining each histogram bucket.")
   List<Float> buckets;

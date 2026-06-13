@@ -4,8 +4,6 @@
  */
 package org.okapi.metrics;
 
-import java.util.Arrays;
-import java.util.List;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.okapi.metrics.io.MetricsPage;
@@ -14,6 +12,9 @@ import org.okapi.rest.metrics.payloads.Gauge;
 import org.okapi.rest.metrics.payloads.Histo;
 import org.okapi.rest.metrics.payloads.HistoPoint;
 import org.okapi.testutils.OkapiTestUtils;
+
+import java.util.Arrays;
+import java.util.List;
 
 public class MetricsPageTests {
 
@@ -83,7 +84,7 @@ public class MetricsPageTests {
                                 2000L,
                                 HistoPoint.TEMPORALITY.DELTA,
                                 new float[] {0.1f, 0.2f, 0.3f, 0.4f},
-                                new int[] {1, 2, 3, 4, 5})))
+                                new long[] {1, 2, 3, 4, 5})))
                     .build())
             .build());
     var result1 = page.getSecondly("cpu_usage{}", 1000L, new double[] {0.5});
@@ -97,7 +98,7 @@ public class MetricsPageTests {
 
     assert (histoResult.get().getBucketCounts().size() == 5);
     OkapiTestUtils.assertListEquals(
-        Arrays.asList(1, 2, 3, 4, 5), histoResult.get().getBucketCounts());
+        Arrays.asList(1L, 2L, 3L, 4L, 5L), histoResult.get().getBucketCounts());
     OkapiTestUtils.assertListEquals(
         Arrays.asList(0.1f, 0.2f, 0.3f, 0.4f), histoResult.get().getBuckets());
 

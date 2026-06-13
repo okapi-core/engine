@@ -6,6 +6,7 @@ package org.okapi.metrics.ch;
 
 import com.clickhouse.client.api.Client;
 import com.clickhouse.client.api.query.GenericRecord;
+import com.google.common.collect.ArrayListMultimap;
 import gg.jte.TemplateOutput;
 import gg.jte.output.StringOutput;
 import org.okapi.ch.ChTemplateFiles;
@@ -14,10 +15,7 @@ import org.okapi.metrics.ch.template.ChMetricTemplateEngine;
 import org.okapi.rest.metrics.query.*;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /** Handles sum query execution and aggregation. */
 @Service
@@ -29,6 +27,8 @@ public class SumQueryProcessor {
     this.client = client;
     this.templateEngine = templateEngine;
   }
+
+  private record SumsGroupKey(Map<String, String> tags, String unit) {}
 
   public GetMetricsResponse getSumRes(GetMetricsRequest query) {
     var metric = query.getMetric();
@@ -44,40 +44,45 @@ public class SumQueryProcessor {
           case CUMULATIVE -> CH_SUM_TYPE.CUMULATIVE;
           case DELTA_AGGREGATE -> CH_SUM_TYPE.DELTA;
         };
-    var samples = scanSumSamples(ts, te, metric, tags, sumType);
-    if (samples.isEmpty()) {
+    var scan = scanSumSamples(ts, te, metric, tags, sumType);
+    if (scan.isEmpty()) {
       return CannedResponses.noMetricsResponse(metric, tags);
     }
 
-    List<Sum> sums;
-    switch (temporality) {
-      case CUMULATIVE -> {
-        var maxSample =
-            samples.stream().max(Comparator.comparingLong(ChSumSample::value)).orElse(null);
-          sums =
-            List.of(
-                Sum.builder()
-                    .ts(maxSample.tsStart())
-                    .te(maxSample.tsEnd())
-                    .count(maxSample.value())
-                    .build());
-      }
-      case DELTA_AGGREGATE -> {
-        long total =
-            samples.stream()
-                .filter(s -> s.sumType() == CH_SUM_TYPE.DELTA)
-                .mapToLong(ChSumSample::value)
-                .sum();
-        long aggTsStart = samples.stream().mapToLong(ChSumSample::tsStart).min().orElse(ts);
-        long aggTsEnd = samples.stream().mapToLong(ChSumSample::tsEnd).max().orElse(te);
-        sums = List.of(Sum.builder().ts(aggTsStart).te(aggTsEnd).count(total).build());
-      }
-      default -> {
-        sums =
-            samples.stream()
-                .filter(s -> s.sumType() == CH_SUM_TYPE.DELTA)
-                .map(s -> Sum.builder().ts(s.tsStart()).te(s.tsEnd()).count(s.value()).build())
-                .toList();
+    var grouped = ArrayListMultimap.<SumsGroupKey, ChSumSample>create();
+    List<Sum> sums = new ArrayList<>();
+    scan.forEach(
+        sample -> {
+          Map<String, String> sortedTags =
+              sample.tags() == null ? Map.of() : new TreeMap<>(sample.tags());
+          var key = new SumsGroupKey(sortedTags, sample.unit());
+          grouped.put(key, sample);
+        });
+    for (var key : grouped.keySet()) {
+      var group = grouped.get(key);
+      switch (temporality) {
+        case CUMULATIVE -> {
+          var maxSample =
+              group.stream().max(Comparator.comparingLong(ChSumSample::value)).orElse(null);
+          sums.add(
+              Sum.builder()
+                  .ts(maxSample.tsStart())
+                  .te(maxSample.tsEnd())
+                  .unit(key.unit())
+                  .count(maxSample.value())
+                  .build());
+        }
+        case DELTA_AGGREGATE -> {
+          long total =
+              group.stream()
+                  .filter(s -> s.sumType() == CH_SUM_TYPE.DELTA)
+                  .mapToLong(ChSumSample::value)
+                  .sum();
+          long aggTsStart = group.stream().mapToLong(ChSumSample::tsStart).min().orElse(ts);
+          long aggTsEnd = group.stream().mapToLong(ChSumSample::tsEnd).max().orElse(te);
+          sums.add(
+              Sum.builder().ts(aggTsStart).te(aggTsEnd).unit(key.unit()).count(total).build());
+        }
       }
     }
 
@@ -106,11 +111,7 @@ public class SumQueryProcessor {
   }
 
   private List<ChSumSample> scanSumSamples(
-      long ts,
-      long te,
-      String metric,
-      Map<String, String> tags,
-      CH_SUM_TYPE sumType) {
+      long ts, long te, String metric, Map<String, String> tags, CH_SUM_TYPE sumType) {
 
     var query = chScanSumsQuery(ts, te, metric, tags, sumType);
     List<GenericRecord> records = client.queryAll(query);
@@ -124,7 +125,8 @@ public class SumQueryProcessor {
               record.getLong("ts_end_ms"),
               record.getLong("value"),
               CH_SUM_TYPE.valueOf(record.getString("sums_type")),
-              recordTags));
+              recordTags,
+              record.getString("unit")));
     }
     return samples;
   }

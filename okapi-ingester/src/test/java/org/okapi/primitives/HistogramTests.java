@@ -4,12 +4,13 @@
  */
 package org.okapi.primitives;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-
-import java.io.IOException;
 import org.junit.jupiter.api.Test;
 import org.okapi.io.StreamReadingException;
+
+import java.io.IOException;
+
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class HistogramTests {
 
@@ -36,7 +37,7 @@ public class HistogramTests {
             1L,
             null,
             Histogram.TEMPORALITY.CUMULATIVE,
-            new int[] {5, 10, 15, 20},
+            new long[] {5, 10, 15, 20},
             new float[] {10.0f, 20.0f, 30.0f});
     var serialied = histogram.toByteArray();
     var deserialized = new Histogram();
@@ -52,7 +53,7 @@ public class HistogramTests {
   @Test
   void testHistogram_empty() throws IOException, StreamReadingException {
     var histogram =
-        new Histogram(0L, 0L, Histogram.TEMPORALITY.DELTA, new int[] {0, 0}, new float[] {10.0f});
+        new Histogram(0L, 0L, Histogram.TEMPORALITY.DELTA, new long[] {0, 0}, new float[] {10.0f});
     var serialied = histogram.toByteArray();
     var deserialized = new Histogram();
     deserialized.fromByteArray(serialied, 0, serialied.length);
