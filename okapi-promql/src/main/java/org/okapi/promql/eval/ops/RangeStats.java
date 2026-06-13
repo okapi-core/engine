@@ -73,7 +73,7 @@ public final class RangeStats {
   }
 
   public static InstantVectorResult last(RangeVectorResult rv, long rangeMs, EvalContext ctx, long anchorMs) {
-    return mapWindows(rv, rangeMs, ctx, anchorMs, (ts, vals, winStart, t) -> {
+    return mapWindowsPreserveName(rv, rangeMs, ctx, anchorMs, (ts, vals, winStart, t) -> {
       for (int i = ts.size() - 1; i >= 0; --i) {
         if (ts.get(i) <= winStart || ts.get(i) > t) continue;
         return vals.get(i);
@@ -92,7 +92,7 @@ public final class RangeStats {
   }
 
   public static InstantVectorResult first(RangeVectorResult rv, long rangeMs, EvalContext ctx, long anchorMs) {
-    return mapWindows(rv, rangeMs, ctx, anchorMs, (ts, vals, winStart, t) -> {
+    return mapWindowsPreserveName(rv, rangeMs, ctx, anchorMs, (ts, vals, winStart, t) -> {
       for (int i = 0; i < ts.size(); i++) {
         if (ts.get(i) <= winStart || ts.get(i) > t) continue;
         return vals.get(i);
@@ -207,6 +207,16 @@ public final class RangeStats {
   // anchorMs >= 0 pins the window anchor to a fixed time (for @ modifier); -1 uses the step time.
   private static InstantVectorResult mapWindows(
       RangeVectorResult rv, long rangeMs, EvalContext ctx, long anchorMs, WindowFn fn) {
+    return mapWindows(rv, rangeMs, ctx, anchorMs, fn, true);
+  }
+
+  private static InstantVectorResult mapWindowsPreserveName(
+      RangeVectorResult rv, long rangeMs, EvalContext ctx, long anchorMs, WindowFn fn) {
+    return mapWindows(rv, rangeMs, ctx, anchorMs, fn, false);
+  }
+
+  private static InstantVectorResult mapWindows(
+      RangeVectorResult rv, long rangeMs, EvalContext ctx, long anchorMs, WindowFn fn, boolean derived) {
     List<SeriesSample> out = new ArrayList<>();
     for (SeriesWindow w : rv.data()) {
       if (!(w.scan() instanceof GaugeScan gs)) continue;
@@ -215,7 +225,7 @@ public final class RangeStats {
       for (long t = ctx.startMs; t <= ctx.endMs; t += ctx.stepMs) {
         long anchor = anchorMs >= 0 ? anchorMs : t;
         float v = fn.apply(ts, vals, anchor - rangeMs, anchor);
-        out.add(new SeriesSample(SeriesIds.derived(w.id()), new Sample(t, v)));
+        out.add(new SeriesSample(derived ? SeriesIds.derived(w.id()) : w.id(), new Sample(t, v)));
       }
     }
     return new InstantVectorResult(out);

@@ -14,14 +14,28 @@ public final class SeriesIds {
   private SeriesIds() {}
 
   public static SeriesId derived(SeriesId id) {
-    return derived(id.labels().tags());
+    return new SeriesId(id.metric(), cleanedLabels(id.labels().tags()), true);
   }
 
-  public static SeriesId derived(Map<String, String> sourceTags) {
+  public static SeriesId derived(SeriesId id, Map<String, String> sourceTags) {
+    return new SeriesId(id.metric(), cleanedLabels(sourceTags), true);
+  }
+
+  public static SeriesId materialize(SeriesId id) {
+    return id.dropMetricName()
+        ? new SeriesId("", id.labels())
+        : new SeriesId(id.metric(), id.labels());
+  }
+
+  public static SeriesId withMetric(SeriesId id, String metric) {
+    return new SeriesId(metric, id.labels(), false);
+  }
+
+  private static Labels cleanedLabels(Map<String, String> sourceTags) {
     Map<String, String> tags = new HashMap<>(sourceTags);
     tags.remove("__name__");
     tags.remove("__type__");
     tags.remove("__unit__");
-    return new SeriesId("", new Labels(tags));
+    return new Labels(tags);
   }
 }

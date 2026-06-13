@@ -10,7 +10,11 @@ import org.okapi.metrics.pojos.results.Scan;
 public class VectorData {
   public record Labels(Map<String, String> tags) {}
 
-  public record SeriesId(String metric, Labels labels) {}
+  public record SeriesId(String metric, Labels labels, boolean dropMetricName) {
+    public SeriesId(String metric, Labels labels) {
+      this(metric, labels, false);
+    }
+  }
 
   public record Sample(long ts, long sourceTs, float value) {
     public Sample(long ts, float value) {

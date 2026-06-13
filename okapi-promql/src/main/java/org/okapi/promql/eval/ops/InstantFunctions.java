@@ -17,21 +17,35 @@ public final class InstantFunctions {
   private InstantFunctions() {}
 
   public static InstantVectorResult mapSamples(InstantVectorResult iv, Function<Float, Float> fn) {
+    return mapSamples(iv, fn, false);
+  }
+
+  public static InstantVectorResult mapDerivedSamples(
+      InstantVectorResult iv, Function<Float, Float> fn) {
+    return mapSamples(iv, fn, true);
+  }
+
+  private static InstantVectorResult mapSamples(
+      InstantVectorResult iv, Function<Float, Float> fn, boolean derived) {
     List<SeriesSample> out = new ArrayList<>(iv.data().size());
     for (var s : iv.data())
       out.add(
           new SeriesSample(
-              s.series(),
+              derived ? SeriesIds.derived(s.series()) : s.series(),
               new Sample(s.sample().ts(), s.sample().sourceTs(), fn.apply(s.sample().value()))));
     return new InstantVectorResult(out);
   }
 
+  public static InstantVectorResult clamp(InstantVectorResult iv, float min, float max) {
+    return mapDerivedSamples(iv, v -> Math.max(min, Math.min(max, v)));
+  }
+
   public static InstantVectorResult clampMin(InstantVectorResult iv, float min) {
-    return mapSamples(iv, v -> Math.max(v, min));
+    return mapDerivedSamples(iv, v -> Math.max(v, min));
   }
 
   public static InstantVectorResult clampMax(InstantVectorResult iv, float max) {
-    return mapSamples(iv, v -> Math.min(v, max));
+    return mapDerivedSamples(iv, v -> Math.min(v, max));
   }
 
   public static InstantVectorResult sort(InstantVectorResult iv, boolean desc) {

@@ -393,7 +393,7 @@ public final class NodeEvaluator {
     if (isCmp) {
       boolean ok = compare(a, b, e.op);
       if (e.boolModifier) return Optional.of(new SeriesSample(SeriesIds.derived(l.series()), new Sample(ts, ok ? 1f : 0f)));
-      return ok ? Optional.of(new SeriesSample(SeriesIds.derived(l.series()), l.sample())) : Optional.empty();
+      return ok ? Optional.of(l) : Optional.empty();
     }
     float v = applyArith(a, b, e.op);
     return Optional.of(new SeriesSample(mergeLabels(l.series(), r.series(), e.matchSpec), new Sample(ts, v)));
@@ -419,14 +419,17 @@ public final class NodeEvaluator {
     Map<GroupKey, List<SeriesSample>> groups = new HashMap<>();
     for (SeriesSample s : iv.data())
       groups
-          .computeIfAbsent(groupKey(e.isBy, e.groupLabels, s.series().labels().tags()), k -> new ArrayList<>())
+          .computeIfAbsent(groupKey(e.isBy, e.groupLabels, s.series()), k -> new ArrayList<>())
           .add(s);
 
     List<SeriesSample> out = new ArrayList<>(groups.size());
     for (var entry : groups.entrySet()) {
       var list = entry.getValue();
       long ts = list.get(0).sample().ts();
-      var id = new SeriesId("", new Labels(entry.getKey().labels()));
+      Map<String, String> labels = new HashMap<>(entry.getKey().labels());
+      String metric = labels.remove("__name__");
+      boolean dropMetricName = list.stream().anyMatch(s -> s.series().dropMetricName());
+      var id = new SeriesId(metric == null ? "" : metric, new Labels(labels), dropMetricName);
 
       switch (op) {
         case "sum" -> out.add(sample(id, ts, (float) list.stream().mapToDouble(s -> s.sample().value()).sum()));
@@ -440,14 +443,12 @@ public final class NodeEvaluator {
         case "topk" -> {
           int k = Math.max(0, Math.round(param));
           list.sort((a, b) -> Float.compare(b.sample().value(), a.sample().value()));
-          list.subList(0, Math.min(k, list.size())).forEach(s ->
-              out.add(new SeriesSample(new SeriesId("topk", s.series().labels()), s.sample())));
+          out.addAll(list.subList(0, Math.min(k, list.size())));
         }
         case "bottomk" -> {
           int k = Math.max(0, Math.round(param));
           list.sort(Comparator.comparingDouble(s -> s.sample().value()));
-          list.subList(0, Math.min(k, list.size())).forEach(s ->
-              out.add(new SeriesSample(new SeriesId("bottomk", s.series().labels()), s.sample())));
+          out.addAll(list.subList(0, Math.min(k, list.size())));
         }
         case "quantile" -> out.add(sample(id, ts, aggQuantile(list, param)));
         default -> throw new EvaluationException("aggregation not implemented: " + e.op);
@@ -491,10 +492,14 @@ public final class NodeEvaluator {
           rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx),
           TypeChecks.requireScalar(eval(e.args.get(1), ctx), e.name).value);
       // instant-vector functions
-      case "abs"   -> InstantFunctions.mapSamples(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), Math::abs);
-      case "ceil"  -> InstantFunctions.mapSamples(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), v -> (float) Math.ceil(v));
-      case "floor" -> InstantFunctions.mapSamples(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), v -> (float) Math.floor(v));
-      case "round" -> InstantFunctions.mapSamples(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), v -> (float) Math.rint(v));
+      case "abs"   -> InstantFunctions.mapDerivedSamples(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), Math::abs);
+      case "ceil"  -> InstantFunctions.mapDerivedSamples(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), v -> (float) Math.ceil(v));
+      case "floor" -> InstantFunctions.mapDerivedSamples(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), v -> (float) Math.floor(v));
+      case "round" -> InstantFunctions.mapDerivedSamples(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), v -> (float) Math.rint(v));
+      case "clamp" -> InstantFunctions.clamp(
+          TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name),
+          TypeChecks.requireScalar(eval(e.args.get(1), ctx), e.name).value,
+          TypeChecks.requireScalar(eval(e.args.get(2), ctx), e.name).value);
       case "clamp_min" -> InstantFunctions.clampMin(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), TypeChecks.requireScalar(eval(e.args.get(1), ctx), e.name).value);
       case "clamp_max" -> InstantFunctions.clampMax(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), TypeChecks.requireScalar(eval(e.args.get(1), ctx), e.name).value);
       case "sort"      -> InstantFunctions.sort(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), false);
@@ -539,6 +544,15 @@ public final class NodeEvaluator {
         String srcLabel = ((StringLiteralExpr) e.args.get(3)).value;
         String regex = ((StringLiteralExpr) e.args.get(4)).value;
         yield labelReplace(lriv, dstLabel, replacement, srcLabel, regex);
+      }
+      case "label_join" -> {
+        var ljiv = TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name);
+        String dstLabel = ((StringLiteralExpr) e.args.get(1)).value;
+        String separator = ((StringLiteralExpr) e.args.get(2)).value;
+        List<String> srcLabels = new ArrayList<>();
+        for (int i = 3; i < e.args.size(); i++)
+          srcLabels.add(((StringLiteralExpr) e.args.get(i)).value);
+        yield labelJoin(ljiv, dstLabel, separator, srcLabels);
       }
       default -> throw new EvaluationException("unknown function: " + e.name);
     };
@@ -665,19 +679,47 @@ public final class NodeEvaluator {
     List<SeriesSample> out = new ArrayList<>();
     for (var s : iv.data()) {
       Map<String, String> tags = new HashMap<>(s.series().labels().tags());
-      String srcVal = tags.getOrDefault(srcLabel, "");
+      SeriesId id = s.series();
+      String srcVal = labelValue(id, srcLabel);
       Matcher m = p.matcher(srcVal);
       if (m.matches()) {
         String newVal = replacement;
         for (int i = m.groupCount(); i >= 1; i--)
           newVal = newVal.replace("$" + i, m.group(i) == null ? "" : m.group(i));
         newVal = newVal.replace("$0", m.group(0));
-        if (newVal.isEmpty()) tags.remove(dstLabel);
-        else tags.put(dstLabel, newVal);
+        if ("__name__".equals(dstLabel)) {
+          id = SeriesIds.withMetric(id, newVal);
+        } else if (newVal.isEmpty()) {
+          tags.remove(dstLabel);
+        } else {
+          tags.put(dstLabel, newVal);
+        }
       }
-      out.add(new SeriesSample(new SeriesId(s.series().metric(), new Labels(tags)), s.sample()));
+      out.add(new SeriesSample(new SeriesId(id.metric(), new Labels(tags), id.dropMetricName()), s.sample()));
     }
     return new InstantVectorResult(out);
+  }
+
+  private InstantVectorResult labelJoin(
+      InstantVectorResult iv, String dstLabel, String separator, List<String> srcLabels) {
+    List<SeriesSample> out = new ArrayList<>(iv.data().size());
+    for (var sample : iv.data()) {
+      SeriesId sourceId = sample.series();
+      SeriesId id = sourceId;
+      Map<String, String> tags = new HashMap<>(id.labels().tags());
+      String joined = srcLabels.stream().map(label -> labelValue(sourceId, label)).collect(java.util.stream.Collectors.joining(separator));
+      if ("__name__".equals(dstLabel)) {
+        id = SeriesIds.withMetric(id, joined);
+      } else {
+        tags.put(dstLabel, joined);
+      }
+      out.add(new SeriesSample(new SeriesId(id.metric(), new Labels(tags), id.dropMetricName()), sample.sample()));
+    }
+    return new InstantVectorResult(out);
+  }
+
+  private String labelValue(SeriesId id, String label) {
+    return "__name__".equals(label) ? id.metric() : id.labels().tags().getOrDefault(label, "");
   }
 
   private String summarize(ExpressionResult result) {
@@ -836,17 +878,21 @@ public final class NodeEvaluator {
         if (v != null) out.put(k, v);
       }
     }
-    return SeriesIds.derived(out);
+    return SeriesIds.derived(left, out);
   }
 
-  private static GroupKey groupKey(boolean isBy, List<String> groupLabels, Map<String, String> src) {
+  private static GroupKey groupKey(boolean isBy, List<String> groupLabels, SeriesId id) {
+    Map<String, String> src = id.labels().tags();
     Map<String, String> m = new HashMap<>();
     if (groupLabels == null) {
       // No by/without modifier: aggregate all series into one group (empty key).
       return new GroupKey(m);
     }
     if (isBy) {
-      for (String k : groupLabels) if (src.containsKey(k)) m.put(k, src.get(k));
+      for (String k : groupLabels) {
+        if ("__name__".equals(k)) m.put(k, id.metric());
+        else if (src.containsKey(k)) m.put(k, src.get(k));
+      }
     } else {
       // without(): keep all labels except those listed (and __name__)
       for (var e : src.entrySet())

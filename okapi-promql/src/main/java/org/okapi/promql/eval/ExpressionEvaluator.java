@@ -15,6 +15,7 @@ import org.okapi.promql.eval.ts.StatisticsMerger;
 import org.okapi.promql.eval.ts.TsClient;
 import org.okapi.promql.eval.visitor.ExpressionVisitor;
 import org.okapi.promql.eval.nodes.LogicalExpr;
+import org.okapi.promql.eval.ops.SeriesIds;
 import org.okapi.promql.parser.PromQLParser;
 
 public final class ExpressionEvaluator {
@@ -45,7 +46,7 @@ public final class ExpressionEvaluator {
         new EvalContext(
             startMs, endMs, stepMs, nowMs, chooseResolution(stepMs),
             client, discovery, exec, statisticsMerger);
-    return new NodeEvaluator().eval(logical, ctx);
+    return finalizeResult(new NodeEvaluator().eval(logical, ctx));
   }
 
   public ExpressionResult evaluateAt(String promql, long tsMs, PromQLParser parser)
@@ -56,7 +57,7 @@ public final class ExpressionEvaluator {
         new EvalContext(
             tsMs, tsMs, DEFAULT_INSTANT_STEP_MS, nowMs, chooseResolution(DEFAULT_INSTANT_STEP_MS),
             client, discovery, exec, statisticsMerger);
-    return new NodeEvaluator().eval(logical, ctx);
+    return finalizeResult(new NodeEvaluator().eval(logical, ctx));
   }
 
   public List<VectorData.SeriesId> find(PromQLParser parser, long start, long end) {
@@ -78,6 +79,36 @@ public final class ExpressionEvaluator {
       throw new EvaluationException("invalid PromQL expression");
     }
   }
+
+  private ExpressionResult finalizeResult(ExpressionResult result) {
+    if (result instanceof InstantVectorResult iv) {
+      List<VectorData.SeriesSample> out = new java.util.ArrayList<>(iv.data().size());
+      java.util.Set<SeriesTimestamp> seen = new java.util.HashSet<>();
+      for (var sample : iv.data()) {
+        var id = SeriesIds.materialize(sample.series());
+        if (!seen.add(new SeriesTimestamp(id, sample.sample().ts()))) {
+          throw new EvaluationException("vector contains duplicate labelsets after metric-name removal");
+        }
+        out.add(new VectorData.SeriesSample(id, sample.sample()));
+      }
+      return new InstantVectorResult(out);
+    }
+    if (result instanceof RangeVectorResult rv) {
+      List<VectorData.SeriesWindow> out = new java.util.ArrayList<>(rv.data().size());
+      java.util.Set<VectorData.SeriesId> seen = new java.util.HashSet<>();
+      for (var window : rv.data()) {
+        var id = SeriesIds.materialize(window.id());
+        if (!seen.add(id)) {
+          throw new EvaluationException("range vector contains duplicate labelsets after metric-name removal");
+        }
+        out.add(new VectorData.SeriesWindow(id, window.scan()));
+      }
+      return new RangeVectorResult(out);
+    }
+    return result;
+  }
+
+  private record SeriesTimestamp(VectorData.SeriesId id, long ts) {}
 
   private static RESOLUTION chooseResolution(long stepMs) {
     if (stepMs <= 1_000L) return RESOLUTION.SECONDLY;
