@@ -5,12 +5,14 @@
 package org.okapi.promql.eval.ops;
 
 import java.util.*;
+import java.util.function.ToDoubleFunction;
 import org.okapi.metrics.pojos.results.HistoScan;
 import org.okapi.metrics.pojos.results.HistoScanMerger;
 import org.okapi.promql.eval.*;
 import org.okapi.promql.eval.HistogramSeries;
 import org.okapi.promql.eval.VectorData;
 import org.okapi.promql.eval.VectorData.*;
+import org.okapi.promql.eval.exceptions.EvaluationException;
 
 /** Pure functions over histogram range vectors. */
 public final class HistogramFunctions {
@@ -38,82 +40,90 @@ public final class HistogramFunctions {
 
   public static InstantVectorResult fraction(
       double lower, double upper, InstantVectorResult vector) {
+    return mapHistogramBuckets(
+        vector,
+        histogram -> fraction(lower, upper, histogram),
+        buckets -> fraction(lower, upper, buckets.bounds(), buckets.cumulative()));
+  }
+
+  public static InstantVectorResult quantile(double quantile, InstantVectorResult vector) {
+    return mapHistogramBuckets(
+        vector,
+        histogram -> quantile(quantile, histogram),
+        buckets -> quantile(quantile, buckets.bounds(), buckets.cumulative()));
+  }
+
+  private static InstantVectorResult mapHistogramBuckets(
+      InstantVectorResult vector,
+      ToDoubleFunction<HistogramSeries.NativeHistogramSample> nativeFunction,
+      ToDoubleFunction<CumulativeBuckets> classicFunction) {
     List<SeriesSample> out = new ArrayList<>();
-    Map<ClassicBucketKey, List<ClassicBucket>> classicBuckets = new LinkedHashMap<>();
+    Map<ClassicBucketKey, NativeHistogram> nativeHistograms = new LinkedHashMap<>();
+    Map<ClassicBucketKey, ClassicHistogram> classicHistograms = new LinkedHashMap<>();
     for (var seriesSample : vector.data()) {
       if (seriesSample.sample().isHistogram()) {
         var histogram = seriesSample.sample().histogram();
         if (!(histogram instanceof HistogramSeries.NativeHistogramSample nativeHistogram)) continue;
-        out.add(
-            new SeriesSample(
-                SeriesIds.derived(seriesSample.series()),
-                new Sample(
-                    seriesSample.sample().ts(),
-                    seriesSample.sample().sourceTs(),
-                    fraction(lower, upper, nativeHistogram))));
+        var key = new ClassicBucketKey(outputLabels(seriesSample.series(), false), seriesSample.sample().ts());
+        var previous =
+            nativeHistograms.putIfAbsent(
+                key, new NativeHistogram(seriesSample, nativeHistogram));
+        if (previous != null && !previous.sample().series().metric().equals(seriesSample.series().metric())) {
+          throw ambiguousHistogram();
+        }
         continue;
       }
       String bound = seriesSample.series().labels().tags().get("le");
       if (bound == null) continue;
-      Map<String, String> labels = new HashMap<>(seriesSample.series().labels().tags());
-      labels.remove("le");
-      var key = new ClassicBucketKey(labels, seriesSample.sample().ts());
-      classicBuckets
-          .computeIfAbsent(key, ignored -> new ArrayList<>())
-          .add(new ClassicBucket(parseBound(bound), seriesSample.sample().value()));
+      var key = new ClassicBucketKey(outputLabels(seriesSample.series(), true), seriesSample.sample().ts());
+      var classic =
+          classicHistograms.computeIfAbsent(key, ignored -> new ClassicHistogram());
+      classic.metrics().add(seriesSample.series().metric());
+      classic.buckets().add(new ClassicBucket(parseBound(bound), seriesSample.sample().value()));
     }
-    for (var entry : classicBuckets.entrySet()) {
-      var buckets = entry.getValue();
-      buckets.sort(Comparator.comparingDouble(ClassicBucket::upperBound));
-      double[] bounds = buckets.stream().mapToDouble(ClassicBucket::upperBound).toArray();
-      double[] cumulative = buckets.stream().mapToDouble(ClassicBucket::cumulativeCount).toArray();
+    for (var entry : nativeHistograms.entrySet()) {
+      var classic = classicHistograms.get(entry.getKey());
+      if (classic != null) {
+        if (classic.metrics().size() == 1
+            && classic.metrics().contains(entry.getValue().sample().series().metric())) continue;
+        throw ambiguousHistogram();
+      }
+      var seriesSample = entry.getValue().sample();
+      out.add(
+          new SeriesSample(
+              SeriesIds.derived(seriesSample.series()),
+              new Sample(
+                  seriesSample.sample().ts(),
+                  seriesSample.sample().sourceTs(),
+                  nativeFunction.applyAsDouble(entry.getValue().histogram()))));
+    }
+    for (var entry : classicHistograms.entrySet()) {
+      var nativeHistogram = nativeHistograms.get(entry.getKey());
+      if (nativeHistogram != null) {
+        if (entry.getValue().metrics().size() == 1
+            && entry.getValue().metrics().contains(nativeHistogram.sample().series().metric())) continue;
+        throw ambiguousHistogram();
+      }
+      if (entry.getValue().metrics().size() != 1) throw ambiguousHistogram();
       out.add(
           new SeriesSample(
               new SeriesId("", new Labels(entry.getKey().labels())),
-              new Sample(entry.getKey().timestamp(), fraction(lower, upper, bounds, cumulative))));
+              new Sample(entry.getKey().timestamp(), classicFunction.applyAsDouble(normalize(entry.getValue().buckets())))));
     }
     return new InstantVectorResult(out);
   }
 
-  public static InstantVectorResult quantile(double quantile, InstantVectorResult vector) {
-    List<SeriesSample> out = new ArrayList<>();
-    Map<ClassicBucketKey, List<ClassicBucket>> classicBuckets = new LinkedHashMap<>();
-    for (var seriesSample : vector.data()) {
-      if (seriesSample.sample().isHistogram()) {
-        var histogram = seriesSample.sample().histogram();
-        if (!(histogram instanceof HistogramSeries.NativeHistogramSample nativeHistogram)) continue;
-        out.add(
-            new SeriesSample(
-                SeriesIds.derived(seriesSample.series()),
-                new Sample(
-                    seriesSample.sample().ts(),
-                    seriesSample.sample().sourceTs(),
-                    quantile(quantile, nativeHistogram))));
-        continue;
-      }
-      String bound = seriesSample.series().labels().tags().get("le");
-      if (bound == null) continue;
-      Map<String, String> labels = new HashMap<>(seriesSample.series().labels().tags());
-      labels.remove("le");
-      var key = new ClassicBucketKey(labels, seriesSample.sample().ts());
-      classicBuckets
-          .computeIfAbsent(key, ignored -> new ArrayList<>())
-          .add(new ClassicBucket(parseBound(bound), seriesSample.sample().value()));
-    }
-    for (var entry : classicBuckets.entrySet()) {
-      var buckets = entry.getValue();
-      buckets.sort(Comparator.comparingDouble(ClassicBucket::upperBound));
-      out.add(
-          new SeriesSample(
-              new SeriesId("", new Labels(entry.getKey().labels())),
-              new Sample(
-                  entry.getKey().timestamp(),
-                  quantile(
-                      quantile,
-                      buckets.stream().mapToDouble(ClassicBucket::upperBound).toArray(),
-                      buckets.stream().mapToDouble(ClassicBucket::cumulativeCount).toArray()))));
-    }
-    return new InstantVectorResult(out);
+  private static Map<String, String> outputLabels(SeriesId series, boolean removeBound) {
+    Map<String, String> labels = new HashMap<>(series.labels().tags());
+    if (removeBound) labels.remove("le");
+    labels.remove("__name__");
+    labels.remove("__type__");
+    labels.remove("__unit__");
+    return labels;
+  }
+
+  private static EvaluationException ambiguousHistogram() {
+    return new EvaluationException("vector cannot contain metrics with the same labelset");
   }
 
   public static InstantVectorResult quantiles(
@@ -169,7 +179,6 @@ public final class HistogramFunctions {
       double lower, double upper, HistogramSeries.NativeHistogramSample histogram) {
     double[] customValues = histogram.customValues();
     double[] bucketCounts = histogram.positiveBuckets();
-    if (customValues.length == 0) return Double.NaN;
     double[] bounds = Arrays.copyOf(customValues, customValues.length + 1);
     bounds[bounds.length - 1] = Double.POSITIVE_INFINITY;
     double[] cumulative = new double[bucketCounts.length];
@@ -225,27 +234,50 @@ public final class HistogramFunctions {
     if (lower >= upper || cumulative.length == 0) return 0d;
     double total = cumulative[cumulative.length - 1];
     if (total == 0d) return Double.NaN;
-    return (cumulativeAt(upper, bounds, cumulative) - cumulativeAt(lower, bounds, cumulative)) / total;
-  }
-
-  private static double cumulativeAt(double value, double[] bounds, double[] cumulative) {
-    if (value == Double.NEGATIVE_INFINITY) return 0d;
-    if (value == Double.POSITIVE_INFINITY) return cumulative[cumulative.length - 1];
+    double included = 0d;
     double previousCount = 0d;
     double lowerBound = bounds.length > 0 && bounds[0] > 0d ? 0d : Double.NEGATIVE_INFINITY;
     for (int i = 0; i < cumulative.length; i++) {
       double upperBound = i < bounds.length ? bounds[i] : Double.POSITIVE_INFINITY;
-      if (value <= upperBound) {
-        if (Double.isInfinite(lowerBound)) return value < upperBound ? 0d : cumulative[i];
-        if (Double.isInfinite(upperBound)) return previousCount;
-        double position = (value - lowerBound) / (upperBound - lowerBound);
-        position = Math.max(0d, Math.min(1d, position));
-        return previousCount + position * (cumulative[i] - previousCount);
+      double bucketCount = cumulative[i] - previousCount;
+      double overlapLower = Math.max(lower, lowerBound);
+      double overlapUpper = Math.min(upper, upperBound);
+      if (overlapLower < overlapUpper) {
+        if (overlapLower <= lowerBound
+            && overlapUpper >= upperBound
+            || upperBound == Double.POSITIVE_INFINITY
+                && upper == Double.POSITIVE_INFINITY) {
+          included += bucketCount;
+        } else if (!Double.isInfinite(lowerBound) && !Double.isInfinite(upperBound)) {
+          included += bucketCount * (overlapUpper - overlapLower) / (upperBound - lowerBound);
+        }
       }
       previousCount = cumulative[i];
       lowerBound = upperBound;
     }
-    return previousCount;
+    return included / total;
+  }
+
+  private static CumulativeBuckets normalize(List<ClassicBucket> input) {
+    List<ClassicBucket> sorted = new ArrayList<>(input);
+    sorted.sort(Comparator.comparingDouble(ClassicBucket::upperBound));
+    List<Double> bounds = new ArrayList<>();
+    List<Double> cumulative = new ArrayList<>();
+    for (var bucket : sorted) {
+      int last = bounds.size() - 1;
+      if (last >= 0 && Double.compare(bounds.get(last), bucket.upperBound()) == 0) {
+        cumulative.set(last, cumulative.get(last) + bucket.cumulativeCount());
+      } else {
+        bounds.add(bucket.upperBound());
+        cumulative.add(bucket.cumulativeCount());
+      }
+    }
+    for (int i = 1; i < cumulative.size(); i++) {
+      cumulative.set(i, Math.max(cumulative.get(i - 1), cumulative.get(i)));
+    }
+    return new CumulativeBuckets(
+        bounds.stream().mapToDouble(Double::doubleValue).toArray(),
+        cumulative.stream().mapToDouble(Double::doubleValue).toArray());
   }
 
   private static double parseBound(String value) {
@@ -258,6 +290,17 @@ public final class HistogramFunctions {
   private record ClassicBucketKey(Map<String, String> labels, long timestamp) {}
 
   private record ClassicBucket(double upperBound, double cumulativeCount) {}
+
+  private record NativeHistogram(
+      SeriesSample sample, HistogramSeries.NativeHistogramSample histogram) {}
+
+  private record ClassicHistogram(Set<String> metrics, List<ClassicBucket> buckets) {
+    private ClassicHistogram() {
+      this(new HashSet<>(), new ArrayList<>());
+    }
+  }
+
+  private record CumulativeBuckets(double[] bounds, double[] cumulative) {}
 
   private static double customBucketVariance(double[] bounds, double[] counts, double mean) {
     double variance = 0d;

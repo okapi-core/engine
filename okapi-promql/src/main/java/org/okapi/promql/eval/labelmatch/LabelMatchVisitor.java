@@ -29,7 +29,7 @@ public class LabelMatchVisitor extends PromQLParserBaseVisitor<LabelMatchCtx> {
     if (s.length() >= 2
         && (s.charAt(0) == '"' || s.charAt(0) == '\'')
         && s.charAt(s.length() - 1) == s.charAt(0)) {
-      return s.substring(1, s.length() - 1);
+      return s.substring(1, s.length() - 1).replace("\\\\", "\\");
     }
     return s;
   }
