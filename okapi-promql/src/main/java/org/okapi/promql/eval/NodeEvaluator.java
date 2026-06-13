@@ -603,10 +603,19 @@ public final class NodeEvaluator {
       boolean dropMetricName = list.stream().anyMatch(s -> s.series().dropMetricName());
       var id = new SeriesId(metric == null ? "" : metric, new Labels(labels), dropMetricName);
       var gauges = list.stream().filter(s -> !s.sample().isHistogram()).toList();
+      var histograms = list.stream().filter(s -> s.sample().isHistogram()).toList();
 
       switch (op) {
-        case "sum" -> addIfNotEmpty(out, gauges, id, ts, (float) gauges.stream().mapToDouble(s -> s.sample().value()).sum());
-        case "avg" -> addIfNotEmpty(out, gauges, id, ts, (float) gauges.stream().mapToDouble(s -> s.sample().value()).average().orElse(Double.NaN));
+        case "sum" -> {
+          if (gauges.isEmpty()) addHistogramAggregate(out, histograms, id, ts, false);
+          else if (histograms.isEmpty())
+            addIfNotEmpty(out, gauges, id, ts, gauges.stream().mapToDouble(s -> s.sample().value()).sum());
+        }
+        case "avg" -> {
+          if (gauges.isEmpty()) addHistogramAggregate(out, histograms, id, ts, true);
+          else if (histograms.isEmpty())
+            addIfNotEmpty(out, gauges, id, ts, gauges.stream().mapToDouble(s -> s.sample().value()).average().orElse(Double.NaN));
+        }
         case "min" -> addIfNotEmpty(out, gauges, id, ts, aggregateExtrema(gauges, false));
         case "max" -> addIfNotEmpty(out, gauges, id, ts, aggregateExtrema(gauges, true));
         case "count" -> out.add(sample(id, ts, (float) list.size()));
@@ -741,6 +750,20 @@ public final class NodeEvaluator {
   private void addIfNotEmpty(
       List<SeriesSample> out, List<SeriesSample> samples, SeriesId id, long ts, double value) {
     if (!samples.isEmpty()) out.add(sample(id, ts, value));
+  }
+
+  private void addHistogramAggregate(
+      List<SeriesSample> out, List<SeriesSample> samples, SeriesId id, long ts, boolean average) {
+    HistogramSeries.HistogramSample histogram = null;
+    for (var sample : samples) {
+      histogram =
+          histogram == null
+              ? sample.sample().histogram()
+              : HistogramSeries.add(histogram, sample.sample().histogram());
+    }
+    if (histogram == null) return;
+    if (average) histogram = HistogramSeries.scale(histogram, 1d / samples.size());
+    out.add(new SeriesSample(id, new Sample(ts, ts, histogram)));
   }
 
   private double aggregateExtrema(List<SeriesSample> samples, boolean max) {
