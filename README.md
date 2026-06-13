@@ -67,6 +67,27 @@ okapi-cp deploy local --hmac-key 5e1a04d3 --api-key a2991d99
 
 Okapi will be available at `http://localhost:9001` once the healthcheck succeeds.
 
+### Development test infrastructure
+
+The repository uses Docker Compose for the local services required by integration tests:
+ClickHouse, LocalStack, PostgreSQL, and Vault.
+
+```sh
+export OPENAI_API_KEY=<your-openai-api-key>
+make test-infra
+```
+
+`make test-infra` builds the operations artifact, waits for each container to become healthy,
+initializes Vault, and runs the ClickHouse and DynamoDB migrations. Stop the stack with:
+
+```sh
+make stop-test-infra
+```
+
+ClickHouse data remains under `${HOME}/.okapi-data` when the stack is stopped. Set `ch_dir`
+when invoking Make to use another location. The existing `make ch`, `make localstack`,
+`make postgres`, and `make oscar-vault-dev` targets start individual Compose services.
+
 ### Deploy on Kubernetes (sample production deployment)
 
 Full deployment with LocalStack and a new ClickHouse install:
