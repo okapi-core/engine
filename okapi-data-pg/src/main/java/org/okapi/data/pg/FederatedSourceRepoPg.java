@@ -8,62 +8,50 @@ import java.util.List;
 import java.util.Optional;
 import org.okapi.data.dao.FederatedSourceRepo;
 import org.okapi.data.model.FederatedSource;
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.okapi.data.pg.entity.FederatedSourceEntity;
+import org.okapi.data.pg.repository.FederatedSourceRepository;
 
 public final class FederatedSourceRepoPg implements FederatedSourceRepo {
-  private final JdbcTemplate jdbc;
+  private final FederatedSourceRepository repository;
 
-  public FederatedSourceRepoPg(JdbcTemplate jdbc) {
-    this.jdbc = jdbc;
+  public FederatedSourceRepoPg(FederatedSourceRepository repository) {
+    this.repository = repository;
   }
 
   public Optional<FederatedSource> getSource(String tenant, String source) {
-    return jdbc
-        .query(
-            "SELECT * FROM federated_sources WHERE org_id = ? AND source_name = ?",
-            this::map,
-            tenant,
-            source)
-        .stream()
-        .findFirst();
+    return repository.findById(id(tenant, source)).map(this::toDto);
   }
 
   public List<FederatedSource> getAllSources(String tenant) {
-    return jdbc.query(
-        "SELECT * FROM federated_sources WHERE org_id = ? ORDER BY source_name", this::map, tenant);
+    return repository.findAllByIdOrgIdOrderByIdSourceName(tenant).stream()
+        .map(this::toDto)
+        .toList();
   }
 
   public void createSource(FederatedSource source) {
-    jdbc.update(
-        """
-        INSERT INTO federated_sources
-          (org_id, source_name, source_type, registration_token, created_at)
-        VALUES (?, ?, ?, ?, ?)
-        ON CONFLICT (org_id, source_name) DO UPDATE SET
-          source_type = EXCLUDED.source_type,
-          registration_token = EXCLUDED.registration_token,
-          created_at = EXCLUDED.created_at
-        """,
-        source.getOrgId(),
-        source.getSourceName(),
-        source.getSourceType(),
-        source.getRegistrationToken(),
-        source.getCreated() == null ? null : java.sql.Timestamp.from(source.getCreated()));
+    repository.saveAndFlush(
+        new FederatedSourceEntity(
+            id(source.getOrgId(), source.getSourceName()),
+            source.getSourceType(),
+            source.getRegistrationToken(),
+            source.getCreated()));
   }
 
   public void deleteSource(String tenant, String source) {
-    jdbc.update(
-        "DELETE FROM federated_sources WHERE org_id = ? AND source_name = ?", tenant, source);
+    repository.deleteById(id(tenant, source));
   }
 
-  private FederatedSource map(java.sql.ResultSet rs, int row) throws java.sql.SQLException {
-    var created = rs.getTimestamp("created_at");
+  private FederatedSourceEntity.Id id(String orgId, String sourceName) {
+    return new FederatedSourceEntity.Id(orgId, sourceName);
+  }
+
+  private FederatedSource toDto(FederatedSourceEntity entity) {
     return FederatedSource.builder()
-        .orgId(rs.getString("org_id"))
-        .sourceName(rs.getString("source_name"))
-        .sourceType(rs.getString("source_type"))
-        .registrationToken(rs.getString("registration_token"))
-        .created(created == null ? null : created.toInstant())
+        .orgId(entity.getId().getOrgId())
+        .sourceName(entity.getId().getSourceName())
+        .sourceType(entity.getSourceType())
+        .registrationToken(entity.getRegistrationToken())
+        .created(entity.getCreated())
         .build();
   }
 }

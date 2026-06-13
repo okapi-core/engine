@@ -14,19 +14,27 @@ import java.io.IOException;
 import java.time.Instant;
 import javax.sql.DataSource;
 import org.flywaydb.core.Flyway;
+import org.hibernate.cfg.SchemaToolingSettings;
 import org.okapi.data.dao.*;
+import org.okapi.data.pg.entity.DashboardVariableEntity;
+import org.okapi.data.pg.repository.*;
 import org.postgresql.ds.PGSimpleDataSource;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.hibernate.autoconfigure.HibernatePropertiesCustomizer;
+import org.springframework.boot.persistence.autoconfigure.EntityScan;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.DependsOn;
+import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 @AutoConfiguration
 @EnableConfigurationProperties(PostgresCfg.class)
+@EntityScan(basePackageClasses = DashboardVariableEntity.class)
+@EnableJpaRepositories(basePackageClasses = DashboardVariableRepository.class)
 public class PostgresDataAutoConfiguration {
   @Bean
   @ConditionalOnMissingBean(name = "okapiDataSource")
@@ -42,6 +50,11 @@ public class PostgresDataAutoConfiguration {
   @ConditionalOnMissingBean(name = "okapiJdbcTemplate")
   JdbcTemplate okapiJdbcTemplate(@Qualifier("okapiDataSource") DataSource okapiDataSource) {
     return new JdbcTemplate(okapiDataSource);
+  }
+
+  @Bean
+  HibernatePropertiesCustomizer disableHibernateSchemaManagement() {
+    return properties -> properties.put(SchemaToolingSettings.HBM2DDL_AUTO, "none");
   }
 
   @Bean
@@ -61,15 +74,15 @@ public class PostgresDataAutoConfiguration {
   @Bean
   @DependsOn("okapiFlyway")
   @ConditionalOnMissingBean
-  UsersDao usersDao(@Qualifier("okapiJdbcTemplate") JdbcTemplate jdbc) {
-    return new UsersDaoPg(jdbc);
+  UsersDao usersDao(UserRepository repository) {
+    return new UsersDaoPg(repository);
   }
 
   @Bean
   @DependsOn("okapiFlyway")
   @ConditionalOnMissingBean
-  OrgDao orgDao(@Qualifier("okapiJdbcTemplate") JdbcTemplate jdbc) {
-    return new OrgDaoPg(jdbc);
+  OrgDao orgDao(OrganizationRepository repository) {
+    return new OrgDaoPg(repository);
   }
 
   @Bean
@@ -82,66 +95,65 @@ public class PostgresDataAutoConfiguration {
   @Bean
   @DependsOn("okapiFlyway")
   @ConditionalOnMissingBean
-  DashboardDao dashboardDao(@Qualifier("okapiJdbcTemplate") JdbcTemplate jdbc) {
-    return new DashboardDaoPg(jdbc, gson());
+  DashboardDao dashboardDao(DashboardRepository repository) {
+    return new DashboardDaoPg(repository, gson());
   }
 
   @Bean
   @DependsOn("okapiFlyway")
   @ConditionalOnMissingBean
-  FederatedSourceRepo federatedSourceRepo(@Qualifier("okapiJdbcTemplate") JdbcTemplate jdbc) {
-    return new FederatedSourceRepoPg(jdbc);
+  FederatedSourceRepo federatedSourceRepo(FederatedSourceRepository repository) {
+    return new FederatedSourceRepoPg(repository);
   }
 
   @Bean
   @DependsOn("okapiFlyway")
   @ConditionalOnMissingBean
-  DashboardRowDao dashboardRowDao(@Qualifier("okapiJdbcTemplate") JdbcTemplate jdbc) {
-    return new DashboardRowDaoPg(jdbc, gson());
+  DashboardRowDao dashboardRowDao(DashboardRowRepository repository) {
+    return new DashboardRowDaoPg(repository, gson());
   }
 
   @Bean
   @DependsOn("okapiFlyway")
   @ConditionalOnMissingBean
-  DashboardPanelDao dashboardPanelDao(@Qualifier("okapiJdbcTemplate") JdbcTemplate jdbc) {
-    return new DashboardPanelDaoPg(jdbc, gson());
+  DashboardPanelDao dashboardPanelDao(DashboardPanelRepository repository) {
+    return new DashboardPanelDaoPg(repository, gson());
   }
 
   @Bean
   @DependsOn("okapiFlyway")
   @ConditionalOnMissingBean
-  UserEntityRelationsDao userEntityRelationsDao(@Qualifier("okapiJdbcTemplate") JdbcTemplate jdbc) {
-    return new UserEntityRelationsDaoPg(jdbc);
+  UserEntityRelationsDao userEntityRelationsDao(UserEntityRelationRepository repository) {
+    return new UserEntityRelationsDaoPg(repository);
   }
 
   @Bean
   @DependsOn("okapiFlyway")
   @ConditionalOnBean(ResultUploader.class)
   @ConditionalOnMissingBean
-  PendingJobsDao pendingJobsDao(
-      @Qualifier("okapiJdbcTemplate") JdbcTemplate jdbc, ResultUploader uploader) {
-    return new PendingJobsDaoPg(jdbc, uploader, gson());
+  PendingJobsDao pendingJobsDao(PendingJobRepository repository, ResultUploader uploader) {
+    return new PendingJobsDaoPg(repository, uploader, gson());
   }
 
   @Bean
   @DependsOn("okapiFlyway")
   @ConditionalOnMissingBean
-  TokenMetaDao tokenMetaDao(@Qualifier("okapiJdbcTemplate") JdbcTemplate jdbc) {
-    return new TokenMetaDaoPg(jdbc);
+  TokenMetaDao tokenMetaDao(TokenMetadataRepository repository) {
+    return new TokenMetaDaoPg(repository);
   }
 
   @Bean
   @DependsOn("okapiFlyway")
   @ConditionalOnMissingBean
-  DashboardVarDao dashboardVarDao(@Qualifier("okapiJdbcTemplate") JdbcTemplate jdbc) {
-    return new DashboardVarDaoPg(jdbc);
+  DashboardVarDao dashboardVarDao(DashboardVariableRepository repository) {
+    return new DashboardVarDaoPg(repository);
   }
 
   @Bean
   @DependsOn("okapiFlyway")
   @ConditionalOnMissingBean
-  DashboardVersionDao dashboardVersionDao(@Qualifier("okapiJdbcTemplate") JdbcTemplate jdbc) {
-    return new DashboardVersionDaoPg(jdbc);
+  DashboardVersionDao dashboardVersionDao(DashboardVersionRepository repository) {
+    return new DashboardVersionDaoPg(repository);
   }
 
   @Bean

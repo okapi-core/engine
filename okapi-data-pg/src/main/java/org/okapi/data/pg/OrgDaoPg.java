@@ -7,49 +7,34 @@ package org.okapi.data.pg;
 import java.util.Optional;
 import org.okapi.data.dao.OrgDao;
 import org.okapi.data.model.Organization;
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.okapi.data.pg.entity.OrganizationEntity;
+import org.okapi.data.pg.repository.OrganizationRepository;
 
 public final class OrgDaoPg implements OrgDao {
-  private final JdbcTemplate jdbc;
+  private final OrganizationRepository repository;
 
-  public OrgDaoPg(JdbcTemplate jdbc) {
-    this.jdbc = jdbc;
+  public OrgDaoPg(OrganizationRepository repository) {
+    this.repository = repository;
   }
 
   public Optional<Organization> findById(String id) {
-    return jdbc
-        .query(
-            "SELECT * FROM organizations WHERE org_id = ?",
-            (rs, row) ->
-                Organization.builder()
-                    .orgId(rs.getString("org_id"))
-                    .orgName(rs.getString("org_name"))
-                    .orgCreator(rs.getString("org_creator"))
-                    .created(
-                        rs.getTimestamp("created_at") == null
-                            ? null
-                            : rs.getTimestamp("created_at").toInstant())
-                    .build(),
-            id)
-        .stream()
-        .findFirst();
+    return repository.findById(id).map(this::toDto);
   }
 
   public void save(Organization organization) {
-    jdbc.update(
-        """
-        INSERT INTO organizations (org_id, org_name, org_creator, created_at)
-        VALUES (?, ?, ?, ?)
-        ON CONFLICT (org_id) DO UPDATE SET
-          org_name = EXCLUDED.org_name,
-          org_creator = EXCLUDED.org_creator,
-          created_at = EXCLUDED.created_at
-        """,
+    repository.upsert(
         organization.getOrgId(),
         organization.getOrgName(),
         organization.getOrgCreator(),
-        organization.getCreated() == null
-            ? null
-            : java.sql.Timestamp.from(organization.getCreated()));
+        organization.getCreated());
+  }
+
+  private Organization toDto(OrganizationEntity entity) {
+    return Organization.builder()
+        .orgId(entity.getOrgId())
+        .orgName(entity.getOrgName())
+        .orgCreator(entity.getOrgCreator())
+        .created(entity.getCreated())
+        .build();
   }
 }

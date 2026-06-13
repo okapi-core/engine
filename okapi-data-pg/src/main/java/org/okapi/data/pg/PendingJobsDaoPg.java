@@ -14,33 +14,30 @@ import org.okapi.data.exceptions.*;
 import org.okapi.data.model.DataSourceQuery;
 import org.okapi.data.model.JobStatus;
 import org.okapi.data.model.PendingJob;
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.okapi.data.pg.entity.PendingJobEntity;
+import org.okapi.data.pg.repository.PendingJobRepository;
+import org.springframework.data.domain.PageRequest;
 
 public final class PendingJobsDaoPg implements PendingJobsDao {
   private static final int MAX_RETRY_ATTEMPTS = 5;
-  private final JdbcTemplate jdbc;
+  private final PendingJobRepository repository;
   private final ResultUploader uploader;
   private final Gson gson;
 
-  public PendingJobsDaoPg(JdbcTemplate jdbc, ResultUploader uploader, Gson gson) {
-    this.jdbc = jdbc;
+  public PendingJobsDaoPg(PendingJobRepository repository, ResultUploader uploader, Gson gson) {
+    this.repository = repository;
     this.uploader = uploader;
     this.gson = gson;
   }
 
   public Optional<PendingJob> getPendingJob(String org, String job) {
-    return jdbc
-        .query("SELECT * FROM pending_jobs WHERE org_id = ? AND job_id = ?", this::map, org, job)
-        .stream()
-        .findFirst();
+    return repository.findById(id(org, job)).map(this::toDto);
   }
 
   public List<PendingJob> getPendingJobsByTenantAndStatus(String org, JobStatus status) {
-    return jdbc.query(
-        "SELECT * FROM pending_jobs WHERE org_id = ? AND status = ? ORDER BY job_id",
-        this::map,
-        org,
-        status.name());
+    return repository.findAllByIdOrgIdAndStatusOrderByIdJobId(org, status).stream()
+        .map(this::toDto)
+        .toList();
   }
 
   public void createPendingJob(PendingJob job) {
@@ -60,7 +57,7 @@ public final class PendingJobsDaoPg implements PendingJobsDao {
   }
 
   public void deletePendingJob(String org, String job) {
-    jdbc.update("DELETE FROM pending_jobs WHERE org_id = ? AND job_id = ?", org, job);
+    repository.deleteById(id(org, job));
   }
 
   public void retryJob(String org, String job)
@@ -89,18 +86,12 @@ public final class PendingJobsDaoPg implements PendingJobsDao {
 
   public List<PendingJob> getJobsBySourceAndStatus(
       String org, String source, JobStatus status, int limit) {
-    return jdbc.query(
-        """
-        SELECT * FROM pending_jobs
-        WHERE org_id = ? AND source_id = ? AND status = ?
-        ORDER BY job_id
-        LIMIT ?
-        """,
-        this::map,
-        org,
-        source,
-        status.name(),
-        limit);
+    return repository
+        .findAllByIdOrgIdAndSourceIdAndStatusOrderByIdJobId(
+            org, source, status, PageRequest.of(0, limit))
+        .stream()
+        .map(this::toDto)
+        .toList();
   }
 
   public PendingJob updateJobResult(String org, String job, String result)
@@ -132,57 +123,41 @@ public final class PendingJobsDaoPg implements PendingJobsDao {
   }
 
   private void save(PendingJob job) {
-    jdbc.update(
-        """
-        INSERT INTO pending_jobs (
-          org_id, job_id, result_location, error_location, status, source_id,
-          query_text, query_source_id, attempt_count, created_at, assigned_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT (org_id, job_id) DO UPDATE SET
-          result_location = EXCLUDED.result_location,
-          error_location = EXCLUDED.error_location,
-          status = EXCLUDED.status,
-          source_id = EXCLUDED.source_id,
-          query_text = EXCLUDED.query_text,
-          query_source_id = EXCLUDED.query_source_id,
-          attempt_count = EXCLUDED.attempt_count,
-          created_at = EXCLUDED.created_at,
-          assigned_at = EXCLUDED.assigned_at
-        """,
-        job.getOrgId(),
-        job.getJobId(),
-        job.getResultLocation(),
-        job.getErrorLocation(),
-        job.getJobStatus().name(),
-        job.getSourceId(),
-        job.getQuery() == null ? null : job.getQuery().query(),
-        job.getQuery() == null ? null : job.getQuery().sourceId(),
-        job.getAttemptCount(),
-        job.getCreatedAt(),
-        job.getAssignedAt());
+    repository.saveAndFlush(
+        new PendingJobEntity(
+            id(job.getOrgId(), job.getJobId()),
+            job.getResultLocation(),
+            job.getErrorLocation(),
+            job.getJobStatus(),
+            job.getSourceId(),
+            job.getQuery() == null ? null : job.getQuery().query(),
+            job.getQuery() == null ? null : job.getQuery().sourceId(),
+            job.getAttemptCount(),
+            job.getCreatedAt(),
+            job.getAssignedAt()));
   }
 
-  private PendingJob map(java.sql.ResultSet rs, int row) throws java.sql.SQLException {
-    var queryText = rs.getString("query_text");
-    var querySource = rs.getString("query_source_id");
-    var createdAt = rs.getLong("created_at");
-    Long created = rs.wasNull() ? null : createdAt;
-    var assignedAt = rs.getLong("assigned_at");
-    Long assigned = rs.wasNull() ? null : assignedAt;
+  private PendingJobEntity.Id id(String org, String job) {
+    return new PendingJobEntity.Id(org, job);
+  }
+
+  private PendingJob toDto(PendingJobEntity entity) {
+    var queryText = entity.getQueryText();
+    var querySource = entity.getQuerySourceId();
     return PendingJob.builder()
-        .orgId(rs.getString("org_id"))
-        .jobId(rs.getString("job_id"))
-        .resultLocation(rs.getString("result_location"))
-        .errorLocation(rs.getString("error_location"))
-        .jobStatus(JobStatus.valueOf(rs.getString("status")))
-        .sourceId(rs.getString("source_id"))
+        .orgId(entity.getId().getOrgId())
+        .jobId(entity.getId().getJobId())
+        .resultLocation(entity.getResultLocation())
+        .errorLocation(entity.getErrorLocation())
+        .jobStatus(entity.getStatus())
+        .sourceId(entity.getSourceId())
         .query(
             queryText == null && querySource == null
                 ? null
                 : new DataSourceQuery(queryText, querySource))
-        .attemptCount(rs.getInt("attempt_count"))
-        .createdAt(created)
-        .assignedAt(assigned)
+        .attemptCount(entity.getAttemptCount())
+        .createdAt(entity.getCreatedAt())
+        .assignedAt(entity.getAssignedAt())
         .build();
   }
 

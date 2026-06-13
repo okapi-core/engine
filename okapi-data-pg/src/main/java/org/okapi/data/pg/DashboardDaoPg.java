@@ -10,97 +10,75 @@ import java.util.Optional;
 import org.okapi.data.dao.DashboardDao;
 import org.okapi.data.dashboardvars.DashVars;
 import org.okapi.data.exceptions.ResourceNotFoundException;
-import org.okapi.data.model.*;
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.okapi.data.model.Dashboard;
+import org.okapi.data.model.ResourceOrder;
+import org.okapi.data.model.Tags;
+import org.okapi.data.pg.entity.DashboardEntity;
+import org.okapi.data.pg.repository.DashboardRepository;
 
 public final class DashboardDaoPg implements DashboardDao {
-  private final JdbcTemplate jdbc;
+  private final DashboardRepository repository;
   private final Gson gson;
 
-  public DashboardDaoPg(JdbcTemplate jdbc, Gson gson) {
-    this.jdbc = jdbc;
+  public DashboardDaoPg(DashboardRepository repository, Gson gson) {
+    this.repository = repository;
     this.gson = gson;
   }
 
   public Optional<Dashboard> get(String orgId, String id) {
-    return jdbc
-        .query(
-            "SELECT * FROM dashboards WHERE org_id = ? AND dashboard_id = ?", this::map, orgId, id)
-        .stream()
-        .findFirst();
+    return repository.findById(new DashboardEntity.Id(orgId, id)).map(this::toDto);
   }
 
   public Dashboard save(Dashboard dashboard) {
     if (dashboard == null) throw new NullPointerException("dashboard");
-    jdbc.update(
-        """
-        INSERT INTO dashboards (
-          org_id, dashboard_id, creator, last_editor, created_at, updated_at, title,
-          description, tags, row_order, active_version, dashboard_vars, version
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?, ?::jsonb, ?)
-        ON CONFLICT (org_id, dashboard_id) DO UPDATE SET
-          creator = EXCLUDED.creator,
-          last_editor = EXCLUDED.last_editor,
-          created_at = EXCLUDED.created_at,
-          updated_at = EXCLUDED.updated_at,
-          title = EXCLUDED.title,
-          description = EXCLUDED.description,
-          tags = EXCLUDED.tags,
-          row_order = EXCLUDED.row_order,
-          active_version = EXCLUDED.active_version,
-          dashboard_vars = EXCLUDED.dashboard_vars,
-          version = EXCLUDED.version
-        """,
-        dashboard.getOrgId(),
-        dashboard.getDashboardId(),
-        dashboard.getCreator(),
-        dashboard.getLastEditor(),
-        timestamp(dashboard.getCreated()),
-        timestamp(dashboard.getUpdatedTime()),
-        dashboard.getTitle(),
-        dashboard.getDesc(),
-        json(dashboard.getTags()),
-        json(dashboard.getRowOrder()),
-        dashboard.getActiveVersion(),
-        json(dashboard.getDashVars()),
-        dashboard.getVersion());
+    repository.saveAndFlush(
+        new DashboardEntity(
+            new DashboardEntity.Id(dashboard.getOrgId(), dashboard.getDashboardId()),
+            dashboard.getCreator(),
+            dashboard.getLastEditor(),
+            dashboard.getCreated(),
+            dashboard.getUpdatedTime(),
+            dashboard.getTitle(),
+            dashboard.getDesc(),
+            json(dashboard.getTags()),
+            json(dashboard.getRowOrder()),
+            dashboard.getActiveVersion(),
+            json(dashboard.getDashVars()),
+            dashboard.getVersion()));
     return dashboard;
   }
 
   public void delete(String id) throws ResourceNotFoundException {
-    if (jdbc.update("DELETE FROM dashboards WHERE dashboard_id = ?", id) == 0) {
-      throw new ResourceNotFoundException("Dashboard with id " + id + " not found");
-    }
+    var entity =
+        repository
+            .findFirstByIdDashboardId(id)
+            .orElseThrow(
+                () -> new ResourceNotFoundException("Dashboard with id " + id + " not found"));
+    repository.delete(entity);
   }
 
   public List<Dashboard> getAll(String orgId) {
-    return jdbc.query(
-        "SELECT * FROM dashboards WHERE org_id = ? ORDER BY dashboard_id", this::map, orgId);
+    return repository.findAllByIdOrgIdOrderByIdDashboardId(orgId).stream()
+        .map(this::toDto)
+        .toList();
   }
 
-  private Dashboard map(java.sql.ResultSet rs, int row) throws java.sql.SQLException {
-    var created = rs.getTimestamp("created_at");
-    var updated = rs.getTimestamp("updated_at");
-    var version = rs.getLong("version");
+  private Dashboard toDto(DashboardEntity entity) {
     return Dashboard.builder()
-        .orgId(rs.getString("org_id"))
-        .dashboardId(rs.getString("dashboard_id"))
-        .creator(rs.getString("creator"))
-        .lastEditor(rs.getString("last_editor"))
-        .created(created == null ? null : created.toInstant())
-        .updatedTime(updated == null ? null : updated.toInstant())
-        .title(rs.getString("title"))
-        .desc(rs.getString("description"))
-        .tags(fromJson(rs.getString("tags"), Tags.class))
-        .rowOrder(fromJson(rs.getString("row_order"), ResourceOrder.class))
-        .activeVersion(rs.getString("active_version"))
-        .dashVars(fromJson(rs.getString("dashboard_vars"), DashVars.class))
-        .version(rs.wasNull() ? null : version)
+        .orgId(entity.getId().getOrgId())
+        .dashboardId(entity.getId().getDashboardId())
+        .creator(entity.getCreator())
+        .lastEditor(entity.getLastEditor())
+        .created(entity.getCreated())
+        .updatedTime(entity.getUpdatedTime())
+        .title(entity.getTitle())
+        .desc(entity.getDesc())
+        .tags(fromJson(entity.getTags(), Tags.class))
+        .rowOrder(fromJson(entity.getRowOrder(), ResourceOrder.class))
+        .activeVersion(entity.getActiveVersion())
+        .dashVars(fromJson(entity.getDashVars(), DashVars.class))
+        .version(entity.getVersion())
         .build();
-  }
-
-  private Object timestamp(java.time.Instant value) {
-    return value == null ? null : java.sql.Timestamp.from(value);
   }
 
   private String json(Object value) {
