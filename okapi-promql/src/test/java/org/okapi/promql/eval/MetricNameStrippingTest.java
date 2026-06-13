@@ -38,7 +38,7 @@ public class MetricNameStrippingTest {
         "avg_over_time(cpu_usage[2m]) + on(job,instance) avg_over_time(cpu_usage[2m])",
         cm.t2, cm.t2, cm.step);
     for (var s : iv.data()) {
-      assertNull(s.series().metric(), "vector-vector arithmetic must drop __name__");
+      assertEquals("", s.series().metric(), "vector-vector arithmetic must drop __name__");
     }
   }
 
@@ -49,7 +49,7 @@ public class MetricNameStrippingTest {
     // PromQL spec: scalar-vector arithmetic also drops __name__
     var iv = (InstantVectorResult) eval(ev, "avg_over_time(cpu_usage[2m]) + 1", cm.t2, cm.t2, cm.step);
     for (var s : iv.data()) {
-      assertNull(s.series().metric(), "scalar-vector arithmetic must drop __name__");
+      assertEquals("", s.series().metric(), "scalar-vector arithmetic must drop __name__");
     }
   }
 
@@ -58,7 +58,7 @@ public class MetricNameStrippingTest {
     var cm = TestFixtures.buildCommonMocks();
     var ev = new ExpressionEvaluator(cm.client, cm.discovery, Executors.newFixedThreadPool(2), new MockStatsMerger());
     var iv = (InstantVectorResult) eval(ev,
-        "avg_over_time(cpu_usage[2m]) and on(job,instance) avg_over_time(cpu_usage[2m])",
+        "cpu_usage and on(job,instance) avg_over_time(cpu_usage[2m])",
         cm.t2, cm.t2, cm.step);
     for (var s : iv.data()) {
       assertEquals("cpu_usage", s.series().metric(), "set op must preserve LHS __name__");

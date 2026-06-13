@@ -4,13 +4,23 @@
  */
 package org.okapi.promql.eval;
 
-import java.util.*;
-import org.okapi.metrics.pojos.results.*;
+import org.okapi.metrics.pojos.results.GaugeScan;
+import org.okapi.metrics.pojos.results.Scan;
+import org.okapi.metrics.pojos.results.SumScan;
 import org.okapi.promql.eval.VectorData.*;
 import org.okapi.promql.eval.exceptions.EvaluationException;
 import org.okapi.promql.eval.nodes.*;
-import org.okapi.promql.eval.nodes.LogicalExpr;
-import org.okapi.promql.eval.ops.*;
+import org.okapi.promql.eval.ops.HistogramFunctions;
+import org.okapi.promql.eval.ops.InstantFunctions;
+import org.okapi.promql.eval.ops.RangeFunctions;
+import org.okapi.promql.eval.ops.RangeStats;
+import org.okapi.promql.eval.ops.TrigFunctions;
+import org.okapi.promql.parse.LabelMatcher;
+import org.apache.commons.math3.util.FastMath;
+
+import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public final class NodeEvaluator {
 
@@ -28,6 +38,7 @@ public final class NodeEvaluator {
       case AtExpr e -> evalAt(e, ctx);
       case OffsetExpr e -> evalOffset(e, ctx);
       case SubqueryExpr e -> evalSubquery(e, ctx);
+      case StringLiteralExpr e -> throw new EvaluationException("string literal is not directly evaluable");
     };
   }
 
@@ -69,15 +80,27 @@ public final class NodeEvaluator {
       int n = tsList.size();
       int idx = 0;
       for (long t = ctx.startMs; t <= ctx.endMs; t += ctx.stepMs) {
-        long winStart = t - STALENESS_MS;
-        while (idx + 1 < n && tsList.get(idx + 1) <= t) idx++;
+        // When the inner selector has an embedded @ or offset, the effective lookup
+        // time differs from the outer step time t. Use it for the staleness window.
+        long effT = effectiveStepTime(e.inner, t);
+        long winStart = effT - STALENESS_MS;
+        while (idx + 1 < n && tsList.get(idx + 1) <= effT) idx++;
         if (n == 0) continue;
         long ptsTs = tsList.get(idx);
-        if (ptsTs <= t && ptsTs > winStart)
+        if (ptsTs <= effT && ptsTs > winStart)
           out.add(new SeriesSample(w.id(), new Sample(t, valList.get(idx))));
       }
     }
     return new InstantVectorResult(out);
+  }
+
+  private long effectiveStepTime(LogicalExpr inner, long outerT) {
+    if (inner instanceof SelectorExpr s) {
+      long base = s.atTsMs != null ? s.atTsMs : outerT;
+      long off  = s.offsetMs != null ? s.offsetMs : 0L;
+      return base - off;
+    }
+    return outerT;
   }
 
   // ---------- Range selector ----------
@@ -141,8 +164,8 @@ public final class NodeEvaluator {
   private ExpressionResult evalSubquery(SubqueryExpr e, EvalContext ctx)
       throws EvaluationException {
     long offset = e.offsetMs == null ? 0L : e.offsetMs;
-    long subStart = ctx.startMs - e.rangeMs - offset;
-    long subEnd = ctx.endMs - offset;
+    long subStart = ceilToStep(ctx.startMs - e.rangeMs - offset, e.stepMs);
+    long subEnd = floorToStep(ctx.endMs - offset, e.stepMs);
     var subCtx =
         new EvalContext(
             subStart,
@@ -153,7 +176,7 @@ public final class NodeEvaluator {
             ctx.client,
             ctx.discovery,
             ctx.exec,
-            ctx);
+            ctx.statisticsMerger);
     var innerRes = eval(e.inner, subCtx);
 
     if (innerRes instanceof InstantVectorResult iv) {
@@ -168,7 +191,7 @@ public final class NodeEvaluator {
         List<Long> ts = new ArrayList<>(samples.size());
         List<Float> vals = new ArrayList<>(samples.size());
         for (var smp : samples) {
-          ts.add(smp.ts());
+          ts.add(smp.ts() + offset);
           vals.add(smp.value());
         }
         GaugeScan gs =
@@ -405,24 +428,34 @@ public final class NodeEvaluator {
       throws EvaluationException {
     return switch (e.name.toLowerCase(Locale.ROOT)) {
       // counter transforms (range-vector → instant-vector)
-      case "rate"     -> RangeFunctions.rate    (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0), ctx);
-      case "irate"    -> RangeFunctions.irate   (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0), ctx);
-      case "increase" -> RangeFunctions.increase(TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0), ctx);
-      case "delta"    -> RangeFunctions.delta   (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0), ctx);
-      case "idelta"   -> RangeFunctions.idelta  (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0), ctx);
-      case "deriv"    -> RangeFunctions.deriv   (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0), ctx);
+      case "rate"     -> RangeFunctions.rate    (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0), ctx, anchorMsOf(e.args.get(0), ctx));
+      case "irate"    -> RangeFunctions.irate   (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0), ctx, anchorMsOf(e.args.get(0), ctx));
+      case "increase" -> RangeFunctions.increase(TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0), ctx, anchorMsOf(e.args.get(0), ctx));
+      case "delta"    -> RangeFunctions.delta   (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0), ctx, anchorMsOf(e.args.get(0), ctx));
+      case "idelta"   -> RangeFunctions.idelta  (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0), ctx, anchorMsOf(e.args.get(0), ctx));
+      case "deriv"    -> RangeFunctions.deriv   (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0), ctx, anchorMsOf(e.args.get(0), ctx));
       // window stats (range-vector → instant-vector)
-      case "avg_over_time"     -> RangeStats.avg    (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0), ctx);
-      case "min_over_time"     -> RangeStats.min    (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0), ctx);
-      case "max_over_time"     -> RangeStats.max    (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0), ctx);
-      case "sum_over_time"     -> RangeStats.sum    (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0), ctx);
-      case "count_over_time"   -> RangeStats.count  (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0), ctx);
-      case "last_over_time"    -> RangeStats.last   (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0), ctx);
-      case "present_over_time" -> RangeStats.present(TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0), ctx);
+      case "avg_over_time"     -> RangeStats.avg    (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0), ctx, anchorMsOf(e.args.get(0), ctx));
+      case "min_over_time"     -> RangeStats.min    (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0), ctx, anchorMsOf(e.args.get(0), ctx));
+      case "max_over_time"     -> RangeStats.max    (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0), ctx, anchorMsOf(e.args.get(0), ctx));
+      case "sum_over_time"     -> RangeStats.sum    (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0), ctx, anchorMsOf(e.args.get(0), ctx));
+      case "count_over_time"   -> RangeStats.count  (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0), ctx, anchorMsOf(e.args.get(0), ctx));
+      case "last_over_time"    -> RangeStats.last   (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0), ctx, anchorMsOf(e.args.get(0), ctx));
+      case "present_over_time" -> RangeStats.present(TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0), ctx, anchorMsOf(e.args.get(0), ctx));
       case "quantile_over_time" -> RangeStats.quantile(
           TypeChecks.requireScalar(eval(e.args.get(0), ctx), e.name).value,
           TypeChecks.requireRangeVector(eval(e.args.get(1), ctx), e.name),
-          rangeOf(e, 1), ctx);
+          rangeOf(e, 1), ctx, anchorMsOf(e.args.get(1), ctx));
+      case "first_over_time"   -> RangeStats.first  (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0), ctx, anchorMsOf(e.args.get(0), ctx));
+      case "stddev_over_time"  -> RangeStats.stddev (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0), ctx, anchorMsOf(e.args.get(0), ctx));
+      case "stdvar_over_time"  -> RangeStats.stdvar (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0), ctx, anchorMsOf(e.args.get(0), ctx));
+      case "mad_over_time"     -> RangeStats.mad    (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0), ctx, anchorMsOf(e.args.get(0), ctx));
+      case "changes"           -> RangeStats.changes(TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0), ctx, anchorMsOf(e.args.get(0), ctx));
+      case "resets"            -> RangeStats.resets (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0), ctx, anchorMsOf(e.args.get(0), ctx));
+      case "predict_linear" -> RangeFunctions.predictLinear(
+          TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name),
+          rangeOf(e, 0), ctx, anchorMsOf(e.args.get(0), ctx),
+          TypeChecks.requireScalar(eval(e.args.get(1), ctx), e.name).value);
       // instant-vector functions
       case "abs"   -> InstantFunctions.mapSamples(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), Math::abs);
       case "ceil"  -> InstantFunctions.mapSamples(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), v -> (float) Math.ceil(v));
@@ -433,26 +466,225 @@ public final class NodeEvaluator {
       case "sort"      -> InstantFunctions.sort(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), false);
       case "sort_desc" -> InstantFunctions.sort(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), true);
       case "absent"    -> InstantFunctions.absent(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), ctx);
-      case "timestamp" -> InstantFunctions.timestamp(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name));
+      case "timestamp" -> InstantFunctions.timestamp(
+          TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name),
+          ctx,
+          e.args.get(0) instanceof AtExpr);
+      case "sin", "cos", "tan", "asin", "acos", "atan", "sinh", "cosh", "tanh",
+          "asinh", "acosh", "atanh", "rad", "deg" -> evalTrig(e, ctx);
+      case "pi" -> {
+        requireArgCount(e, 0);
+        yield new ScalarResult((float) FastMath.PI);
+      }
+      case "info" -> evalInfo(e, ctx);
       case "histogram_quantile" -> HistogramFunctions.quantile(
           TypeChecks.requireScalar(eval(e.args.get(0), ctx), e.name).value,
           TypeChecks.requireRangeVector(eval(e.args.get(1), ctx), e.name),
           rangeOf(e, 1), ctx);
       // vector → scalar
       case "scalar" -> InstantFunctions.toScalar(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name));
-      // nullary
-      case "time" -> new ScalarResult(ctx.nowMs / 1000f);
+      // scalar → vector
+      case "vector" -> {
+        List<SeriesSample> vout = new ArrayList<>();
+        for (long t = ctx.startMs; t <= ctx.endMs; t += ctx.stepMs) {
+          float v = TypeChecks.requireScalar(eval(e.args.get(0), ctx.withWindow(t, t)), e.name).value;
+          vout.add(new SeriesSample(new SeriesId("", new Labels(Map.of())), new Sample(t, v)));
+        }
+        yield new InstantVectorResult(vout);
+      }
+      // time functions
+      case "time" -> new ScalarResult(ctx.endMs / 1000f);
+      case "year", "month", "day_of_month", "day_of_week", "day_of_year", "days_in_month",
+          "hour", "minute" -> InstantFunctions.calendar(
+              e.name,
+              e.args.isEmpty() ? null : TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name),
+              ctx,
+              !e.args.isEmpty() && e.args.get(0) instanceof AtExpr);
+      // label manipulation
+      case "label_replace" -> {
+        var lriv = TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name);
+        String dstLabel = ((StringLiteralExpr) e.args.get(1)).value;
+        String replacement = ((StringLiteralExpr) e.args.get(2)).value;
+        String srcLabel = ((StringLiteralExpr) e.args.get(3)).value;
+        String regex = ((StringLiteralExpr) e.args.get(4)).value;
+        yield labelReplace(lriv, dstLabel, replacement, srcLabel, regex);
+      }
       default -> throw new EvaluationException("unknown function: " + e.name);
     };
   }
 
   // ---------- Helpers ----------
 
+  private InstantVectorResult evalTrig(FunctionExpr e, EvalContext ctx) {
+    requireArgCount(e, 1);
+    return TrigFunctions.apply(
+        e.name, TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name));
+  }
+
+  private void requireArgCount(FunctionExpr e, int expected) {
+    if (e.args.size() != expected)
+      throw new EvaluationException(
+          e.name + ": expected " + expected + " arguments, got " + e.args.size());
+  }
+
+  private InstantVectorResult evalInfo(FunctionExpr e, EvalContext ctx) {
+    if (e.args.isEmpty() || e.args.size() > 2)
+      throw new EvaluationException("info: expected one or two arguments");
+
+    var base = TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name);
+    if (e.args.get(0) instanceof AtExpr) base = rematerializePinnedInfoBase(base, ctx);
+    InstantizeExpr infoArg =
+        e.args.size() == 1
+            ? new InstantizeExpr(new SelectorExpr("target_info", List.of(), null, null))
+            : requireInfoSelector(e.args.get(1));
+    var selector = (SelectorExpr) infoArg.inner;
+    boolean hasNameMatcher = selector.matchers.stream().anyMatch(m -> "__name__".equals(m.name()));
+    Set<String> selectedDataLabels = new HashSet<>();
+    for (var matcher : selector.matchers)
+      if (!"__name__".equals(matcher.name())) selectedDataLabels.add(matcher.name());
+    boolean requireInfoMatch =
+        selector.matchers.stream()
+            .filter(m -> !"__name__".equals(m.name()))
+            .anyMatch(m -> !matchesLabel("", m));
+    if (selector.metricOrNull == null && !hasNameMatcher)
+      infoArg =
+          new InstantizeExpr(
+              new SelectorExpr("target_info", selector.matchers, selector.atTsMs, selector.offsetMs));
+
+    selector = (SelectorExpr) infoArg.inner;
+    requireFloatInfoSeries(selector, ctx);
+    var info = TypeChecks.requireInstantVector(eval(infoArg, ctx), e.name);
+    Map<InfoKey, Map<String, SeriesSample>> infoByKey = new HashMap<>();
+    for (var sample : info.data())
+      infoByKey
+          .computeIfAbsent(
+              new InfoKey(identifyingLabels(sample.series()), sample.sample().ts()),
+              ignored -> new LinkedHashMap<>())
+          .put(sample.series().metric(), sample);
+
+    List<SeriesSample> out = new ArrayList<>(base.data().size());
+    for (var sample : base.data()) {
+      if (matchesInfoMetricName(sample.series(), selector)) {
+        out.add(sample);
+        continue;
+      }
+      var infoSamples =
+          infoByKey.get(new InfoKey(identifyingLabels(sample.series()), sample.sample().ts()));
+      if (infoSamples == null) {
+        if (!requireInfoMatch) out.add(sample);
+        continue;
+      }
+      Map<String, String> labels = new HashMap<>(sample.series().labels().tags());
+      for (var infoSample : infoSamples.values()) {
+        for (var label : infoSample.series().labels().tags().entrySet()) {
+          if (!selectedDataLabels.isEmpty() && !selectedDataLabels.contains(label.getKey())) continue;
+          labels.putIfAbsent(label.getKey(), label.getValue());
+        }
+      }
+      out.add(
+          new SeriesSample(
+              new SeriesId(sample.series().metric(), new Labels(labels)), sample.sample()));
+    }
+    return new InstantVectorResult(out);
+  }
+
+  private InstantVectorResult rematerializePinnedInfoBase(InstantVectorResult base, EvalContext ctx) {
+    if (ctx.startMs == ctx.endMs) return base;
+    List<SeriesSample> out = new ArrayList<>();
+    for (var sample : base.data())
+      for (long t = ctx.startMs; t <= ctx.endMs; t += ctx.stepMs)
+        out.add(new SeriesSample(sample.series(), new Sample(t, sample.sample().value())));
+    return new InstantVectorResult(out);
+  }
+
+  private void requireFloatInfoSeries(SelectorExpr selector, EvalContext ctx) {
+    var fetchCtx = ctx.withWindow(Math.max(0L, ctx.startMs - STALENESS_MS), ctx.endMs);
+    var selected = (RangeVectorResult) evalSelector(selector, fetchCtx);
+    for (var window : selected.data())
+      if (!(window.scan() instanceof GaugeScan))
+        throw new EvaluationException("info: info metric must contain float samples");
+  }
+
+  private boolean matchesInfoMetricName(SeriesId id, SelectorExpr selector) {
+    if (selector.metricOrNull != null && !selector.metricOrNull.equals(id.metric())) return false;
+    for (var matcher : selector.matchers)
+      if ("__name__".equals(matcher.name()) && !matchesLabel(id.metric(), matcher)) return false;
+    return true;
+  }
+
+  private boolean matchesLabel(String actual, LabelMatcher matcher) {
+    return switch (matcher.op()) {
+      case EQ -> actual.equals(matcher.value());
+      case NE -> !actual.equals(matcher.value());
+      case RE -> Pattern.compile(matcher.value()).matcher(actual).matches();
+      case NRE -> !Pattern.compile(matcher.value()).matcher(actual).matches();
+    };
+  }
+
+  private InstantizeExpr requireInfoSelector(LogicalExpr arg) {
+    if (arg instanceof InstantizeExpr instantize && instantize.inner instanceof SelectorExpr)
+      return instantize;
+    throw new EvaluationException("info: second argument must be an instant selector");
+  }
+
+  private Map<String, String> identifyingLabels(SeriesId id) {
+    Map<String, String> labels = new HashMap<>();
+    for (String name : List.of("job", "instance")) {
+      String value = id.labels().tags().get(name);
+      if (value != null) labels.put(name, value);
+    }
+    return labels;
+  }
+
+  private record InfoKey(Map<String, String> labels, long ts) {}
+
+  private InstantVectorResult labelReplace(
+      InstantVectorResult iv, String dstLabel, String replacement, String srcLabel, String regex) {
+    Pattern p = Pattern.compile(regex);
+    List<SeriesSample> out = new ArrayList<>();
+    for (var s : iv.data()) {
+      Map<String, String> tags = new HashMap<>(s.series().labels().tags());
+      String srcVal = tags.getOrDefault(srcLabel, "");
+      Matcher m = p.matcher(srcVal);
+      if (m.matches()) {
+        String newVal = replacement;
+        for (int i = m.groupCount(); i >= 1; i--)
+          newVal = newVal.replace("$" + i, m.group(i) == null ? "" : m.group(i));
+        newVal = newVal.replace("$0", m.group(0));
+        if (newVal.isEmpty()) tags.remove(dstLabel);
+        else tags.put(dstLabel, newVal);
+      }
+      out.add(new SeriesSample(new SeriesId(s.series().metric(), new Labels(tags)), s.sample()));
+    }
+    return new InstantVectorResult(out);
+  }
+
+  private String summarize(ExpressionResult result) {
+    if (result instanceof InstantVectorResult iv) return "InstantVector" + iv.data();
+    if (result instanceof RangeVectorResult rv) return "RangeVector(size=" + rv.data().size() + ")";
+    return String.valueOf(result);
+  }
+
   private long rangeOf(FunctionExpr e, int argIdx) {
-    var arg = e.args.get(argIdx);
-    if (arg instanceof RangeSelectorExpr r) return r.rangeMs;
-    if (arg instanceof SubqueryExpr sq) return sq.rangeMs;
-    throw new EvaluationException(e.name + ": arg[" + argIdx + "] must be a range selector or subquery");
+    return rangeOfExpr(e.args.get(argIdx), e.name, argIdx);
+  }
+
+  private long rangeOfExpr(LogicalExpr expr, String fnName, int argIdx) {
+    if (expr instanceof RangeSelectorExpr r) return r.rangeMs;
+    if (expr instanceof SubqueryExpr sq) return sq.rangeMs;
+    if (expr instanceof AtExpr at) return rangeOfExpr(at.inner, fnName, argIdx);
+    if (expr instanceof OffsetExpr off) return rangeOfExpr(off.inner, fnName, argIdx);
+    throw new EvaluationException(fnName + ": arg[" + argIdx + "] must be a range selector or subquery");
+  }
+
+  // Returns the @ anchor in ms if the expression is wrapped in AtExpr, else -1.
+  private long anchorMsOf(LogicalExpr expr, EvalContext ctx) {
+    if (expr instanceof AtExpr at) {
+      try {
+        return (long) (TypeChecks.requireScalar(eval(at.atScalar, ctx), "@").value * 1000L);
+      } catch (EvaluationException ignored) { return -1L; }
+    }
+    return -1L;
   }
 
   private boolean isArithmetic(String op) {
@@ -511,18 +743,18 @@ public final class NodeEvaluator {
   private Map<JoinKey, List<SeriesSample>> indexByJoinKey(List<SeriesSample> samples, MatchSpec ms) {
     Map<JoinKey, List<SeriesSample>> map = new LinkedHashMap<>();
     for (var s : samples) {
-      var key = buildJoinKey(s.series().labels().tags(), ms);
+      var key = buildJoinKey(s.series().labels().tags(), s.sample().ts(), ms);
       if (key != null) map.computeIfAbsent(key, k -> new ArrayList<>()).add(s);
     }
     return map;
   }
 
-  private JoinKey buildJoinKey(Map<String, String> labels, MatchSpec ms) {
+  private JoinKey buildJoinKey(Map<String, String> labels, long ts, MatchSpec ms) {
     Map<String, String> key = new TreeMap<>();
     if (ms == null) {
       for (var e : labels.entrySet())
         if (!e.getKey().equals("__name__")) key.put(e.getKey(), e.getValue());
-      return new JoinKey(key);
+      return new JoinKey(key, ts);
     }
     if (ms.mode == MatchSpec.Mode.ON) {
       for (String k : ms.labels) {
@@ -530,19 +762,28 @@ public final class NodeEvaluator {
         if (v == null) return null;
         key.put(k, v);
       }
-      return new JoinKey(key);
+      return new JoinKey(key, ts);
     }
     for (var e : labels.entrySet()) {
       if (e.getKey().equals("__name__")) continue;
       if (!ms.labels.contains(e.getKey())) key.put(e.getKey(), e.getValue());
     }
-    return new JoinKey(key);
+    return new JoinKey(key, ts);
+  }
+
+  private long ceilToStep(long value, long step) {
+    long remainder = Math.floorMod(value, step);
+    return remainder == 0 ? value : value + step - remainder;
+  }
+
+  private long floorToStep(long value, long step) {
+    return value - Math.floorMod(value, step);
   }
 
   private SeriesId dropName(SeriesId id) {
     Map<String, String> tags = new HashMap<>(id.labels().tags());
     tags.remove("__name__");
-    return new SeriesId(null, new Labels(tags));
+    return new SeriesId("", new Labels(tags));
   }
 
   private SeriesId mergeLabels(SeriesId left, SeriesId right, MatchSpec ms) {
@@ -554,7 +795,7 @@ public final class NodeEvaluator {
         if (v != null) out.put(k, v);
       }
     }
-    return new SeriesId(null, new Labels(out));
+    return new SeriesId("", new Labels(out));
   }
 
   private static GroupKey groupKey(boolean isBy, List<String> groupLabels, Map<String, String> src) {
@@ -599,11 +840,11 @@ public final class NodeEvaluator {
     return (float) list.stream().mapToDouble(s -> { double d = s.sample().value() - mean; return d * d; }).average().orElse(Double.NaN);
   }
 
-  private record JoinKey(Map<String, String> labels) {
+  private record JoinKey(Map<String, String> labels, long ts) {
     @Override public boolean equals(Object o) {
-      return o instanceof JoinKey k && Objects.equals(labels, k.labels);
+      return o instanceof JoinKey k && Objects.equals(labels, k.labels) && ts == k.ts;
     }
-    @Override public int hashCode() { return Objects.hash(labels); }
+    @Override public int hashCode() { return Objects.hash(labels, ts); }
   }
 
   private record GroupKey(Map<String, String> labels) {}

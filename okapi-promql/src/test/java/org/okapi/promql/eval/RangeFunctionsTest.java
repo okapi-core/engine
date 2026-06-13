@@ -40,7 +40,7 @@ public class RangeFunctionsTest {
     var res = eval(evaluator, "irate(http_requests_counter[2m])", cm.t2, cm.t2, cm.step);
     assertEquals(ValueType.INSTANT_VECTOR, res.type());
     var iv = (InstantVectorResult) res;
-    assertEquals(3.0f, findValue(iv, cm.httpRequestsCounterApi, cm.t2), 1e-4);
+    assertEquals(3.0f, findValue(iv, new SeriesId("", new Labels(cm.httpRequestsCounterApiTags)), cm.t2), 1e-4);
   }
 
   @Test
@@ -54,7 +54,7 @@ public class RangeFunctionsTest {
     var res = eval(evaluator, "increase(http_requests_counter[2m])", cm.t2, cm.t2, cm.step);
     assertEquals(ValueType.INSTANT_VECTOR, res.type());
     var iv = (InstantVectorResult) res;
-    assertEquals(300f, findValue(iv, cm.httpRequestsCounterApi, cm.t2), 1e-4);
+    assertEquals(300f, findValue(iv, new SeriesId("", new Labels(cm.httpRequestsCounterApiTags)), cm.t2), 1e-4);
   }
 
   @Test
@@ -68,9 +68,9 @@ public class RangeFunctionsTest {
     var res = eval(evaluator, "delta(cpu_usage[2m])", cm.t2, cm.t2, cm.step);
     assertEquals(ValueType.INSTANT_VECTOR, res.type());
     var iv = (InstantVectorResult) res;
-    assertEquals(10f, findValue(iv, cm.cpuUsageApiI1, cm.t2), 1e-4);
+    assertEquals(10f, findValue(iv, new SeriesId("", new Labels(cm.cpuUsageApiI1Tags)), cm.t2), 1e-4);
     // i2: first=t1=60, last=t2=80 => delta=20
-    assertEquals(20f, findValue(iv, cm.cpuUsageApiI2, cm.t2), 1e-4);
+    assertEquals(20f, findValue(iv, new SeriesId("", new Labels(cm.cpuUsageApiI2Tags)), cm.t2), 1e-4);
   }
 
   @Test
@@ -84,7 +84,7 @@ public class RangeFunctionsTest {
     var res = eval(evaluator, "idelta(cpu_usage[2m])", cm.t2, cm.t2, cm.step);
     assertEquals(ValueType.INSTANT_VECTOR, res.type());
     var iv = (InstantVectorResult) res;
-    assertEquals(10f, findValue(iv, cm.cpuUsageApiI1, cm.t2), 1e-4);
+    assertEquals(10f, findValue(iv, new SeriesId("", new Labels(cm.cpuUsageApiI1Tags)), cm.t2), 1e-4);
   }
 
   @Test
@@ -99,7 +99,7 @@ public class RangeFunctionsTest {
     var res = eval(evaluator, "deriv(cpu_usage[2m])", cm.t2, cm.t2, cm.step);
     assertEquals(ValueType.INSTANT_VECTOR, res.type());
     var iv = (InstantVectorResult) res;
-    assertEquals(1f / 6f, findValue(iv, cm.cpuUsageApiI1, cm.t2), 1e-4);
+    assertEquals(1f / 6f, findValue(iv, new SeriesId("", new Labels(cm.cpuUsageApiI1Tags)), cm.t2), 1e-4);
   }
 
   @Test

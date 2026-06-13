@@ -40,8 +40,8 @@ public class OrSetOpTest {
         "avg_over_time(cpu_usage[2m]) or avg_over_time(mem_usage[2m])", cm.t2, cm.t2, cm.step);
     assertEquals(2, iv.data().size());
     // LHS cpu values kept
-    assertEquals(25f, findValue(iv, cm.cpuUsageApiI1, cm.t2), 1e-4);
-    assertEquals(70f, findValue(iv, cm.cpuUsageApiI2, cm.t2), 1e-4);
+    assertEquals(25f, findValue(iv, new SeriesId("", new Labels(cm.cpuUsageApiI1Tags)), cm.t2), 1e-4);
+    assertEquals(70f, findValue(iv, new SeriesId("", new Labels(cm.cpuUsageApiI2Tags)), cm.t2), 1e-4);
   }
 
   @Test
@@ -61,10 +61,10 @@ public class OrSetOpTest {
     // LHS: cpu_i1(25), cpu_i2(70). RHS: mem_i1 covered by cpu_i1 key; mem_i3 is new → added.
     assertEquals(3, iv.data().size());
     // cpu values
-    assertEquals(25f, findValue(iv, cm.cpuUsageApiI1, cm.t2), 1e-4);
-    assertEquals(70f, findValue(iv, cm.cpuUsageApiI2, cm.t2), 1e-4);
+    assertEquals(25f, findValue(iv, new SeriesId("", new Labels(cm.cpuUsageApiI1Tags)), cm.t2), 1e-4);
+    assertEquals(70f, findValue(iv, new SeriesId("", new Labels(cm.cpuUsageApiI2Tags)), cm.t2), 1e-4);
     // mem_i3 from RHS: avg(80,90)=85
-    assertEquals(85f, findValue(iv, memI3, cm.t2), 1e-4);
+    assertEquals(85f, findValue(iv, new SeriesId("", new Labels(memI3Tags)), cm.t2), 1e-4);
   }
 
   @Test

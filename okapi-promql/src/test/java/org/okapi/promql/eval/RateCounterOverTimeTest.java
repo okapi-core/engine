@@ -47,9 +47,10 @@ public class RateCounterOverTimeTest {
     // t1 window -> {t0,t1} sum=180 over 120s => 1.5/s
     // t2 window -> {t1,t2} sum=300 over 120s => 2.5/s
     // t3 window -> {t2,t3} sum=420 over 120s => 3.5/s
-    float r1 = findValue(iv, cm.httpRequestsCounterApi, cm.t1);
-    float r2 = findValue(iv, cm.httpRequestsCounterApi, cm.t2);
-    float r3 = findValue(iv, cm.httpRequestsCounterApi, cm.t3);
+    var http = new SeriesId("", new Labels(cm.httpRequestsCounterApiTags));
+    float r1 = findValue(iv, http, cm.t1);
+    float r2 = findValue(iv, http, cm.t2);
+    float r3 = findValue(iv, http, cm.t3);
 
     assertEquals(1.5f, r1, 1e-4);
     assertEquals(2.5f, r2, 1e-4);

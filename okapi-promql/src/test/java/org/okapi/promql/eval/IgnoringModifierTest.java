@@ -39,8 +39,8 @@ public class IgnoringModifierTest {
         "avg_over_time(cpu_usage[2m]) + ignoring (instance) group_left avg_over_time(pod_replicas[2m])";
     var iv = (InstantVectorResult) eval(ev, q, cm.t2, cm.t2, cm.step);
     assertEquals(2, iv.data().size());
-    var i1 = new SeriesId(null, new Labels(cm.cpuUsageApiI1Tags));
-    var i2 = new SeriesId(null, new Labels(cm.cpuUsageApiI2Tags));
+    var i1 = new SeriesId("",new Labels(cm.cpuUsageApiI1Tags));
+    var i2 = new SeriesId("",new Labels(cm.cpuUsageApiI2Tags));
     assertEquals(28f, findValue(iv, i1, cm.t2), 1e-4);
     assertEquals(73f, findValue(iv, i2, cm.t2), 1e-4);
   }

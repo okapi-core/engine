@@ -36,7 +36,7 @@ public class WindowStatsTest {
         new ExpressionEvaluator(
             cm.client, cm.discovery, Executors.newFixedThreadPool(2), new MockStatsMerger());
     var iv = (InstantVectorResult) eval(evaluator, "min_over_time(cpu_usage[2m])", cm.t2, cm.t2, cm.step);
-    assertEquals(20f, findValue(iv, cm.cpuUsageApiI1, cm.t2), 1e-4);
+    assertEquals(20f, findValue(iv, new SeriesId("", new Labels(cm.cpuUsageApiI1Tags)), cm.t2), 1e-4);
   }
 
   @Test
@@ -46,7 +46,7 @@ public class WindowStatsTest {
         new ExpressionEvaluator(
             cm.client, cm.discovery, Executors.newFixedThreadPool(2), new MockStatsMerger());
     var iv = (InstantVectorResult) eval(evaluator, "max_over_time(cpu_usage[2m])", cm.t2, cm.t2, cm.step);
-    assertEquals(30f, findValue(iv, cm.cpuUsageApiI1, cm.t2), 1e-4);
+    assertEquals(30f, findValue(iv, new SeriesId("", new Labels(cm.cpuUsageApiI1Tags)), cm.t2), 1e-4);
   }
 
   @Test
@@ -56,7 +56,7 @@ public class WindowStatsTest {
         new ExpressionEvaluator(
             cm.client, cm.discovery, Executors.newFixedThreadPool(2), new MockStatsMerger());
     var iv = (InstantVectorResult) eval(evaluator, "sum_over_time(cpu_usage[2m])", cm.t2, cm.t2, cm.step);
-    assertEquals(50f, findValue(iv, cm.cpuUsageApiI1, cm.t2), 1e-4);
+    assertEquals(50f, findValue(iv, new SeriesId("", new Labels(cm.cpuUsageApiI1Tags)), cm.t2), 1e-4);
   }
 
   @Test
@@ -66,7 +66,7 @@ public class WindowStatsTest {
         new ExpressionEvaluator(
             cm.client, cm.discovery, Executors.newFixedThreadPool(2), new MockStatsMerger());
     var iv = (InstantVectorResult) eval(evaluator, "count_over_time(cpu_usage[2m])", cm.t2, cm.t2, cm.step);
-    assertEquals(2f, findValue(iv, cm.cpuUsageApiI1, cm.t2), 1e-4);
+    assertEquals(2f, findValue(iv, new SeriesId("", new Labels(cm.cpuUsageApiI1Tags)), cm.t2), 1e-4);
   }
 
   @Test
@@ -76,7 +76,7 @@ public class WindowStatsTest {
         new ExpressionEvaluator(
             cm.client, cm.discovery, Executors.newFixedThreadPool(2), new MockStatsMerger());
     var iv = (InstantVectorResult) eval(evaluator, "last_over_time(cpu_usage[2m])", cm.t2, cm.t2, cm.step);
-    assertEquals(30f, findValue(iv, cm.cpuUsageApiI1, cm.t2), 1e-4);
+    assertEquals(30f, findValue(iv, new SeriesId("", new Labels(cm.cpuUsageApiI1Tags)), cm.t2), 1e-4);
   }
 
   @Test
@@ -86,7 +86,7 @@ public class WindowStatsTest {
         new ExpressionEvaluator(
             cm.client, cm.discovery, Executors.newFixedThreadPool(2), new MockStatsMerger());
     var iv = (InstantVectorResult) eval(evaluator, "present_over_time(cpu_usage[2m])", cm.t2, cm.t2, cm.step);
-    assertEquals(1f, findValue(iv, cm.cpuUsageApiI1, cm.t2), 1e-4);
+    assertEquals(1f, findValue(iv, new SeriesId("", new Labels(cm.cpuUsageApiI1Tags)), cm.t2), 1e-4);
   }
 
   @Test
@@ -97,6 +97,6 @@ public class WindowStatsTest {
             cm.client, cm.discovery, Executors.newFixedThreadPool(2), new MockStatsMerger());
     // Window {20, 30}: q=0.5, rank=0.5*(2-1)=0.5 → 20 + 0.5*(30-20) = 25
     var iv = (InstantVectorResult) eval(evaluator, "quantile_over_time(0.5, cpu_usage[2m])", cm.t2, cm.t2, cm.step);
-    assertEquals(25f, findValue(iv, cm.cpuUsageApiI1, cm.t2), 1e-4);
+    assertEquals(25f, findValue(iv, new SeriesId("", new Labels(cm.cpuUsageApiI1Tags)), cm.t2), 1e-4);
   }
 }

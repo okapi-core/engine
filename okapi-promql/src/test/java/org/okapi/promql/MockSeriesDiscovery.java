@@ -24,19 +24,19 @@ public final class MockSeriesDiscovery implements SeriesDiscovery {
     if (matchers == null || matchers.isEmpty()) return true;
     for (LabelMatcher m : matchers) {
       String actual = m.name().equals("__name__") ? metricOrNull : labels.get(m.name());
+      if (actual == null) actual = "";
       switch (m.op()) {
         case EQ -> {
-          if (actual == null || !actual.equals(m.value())) return false;
+          if (!actual.equals(m.value())) return false;
         }
         case NE -> {
-          if (actual != null && actual.equals(m.value())) return false;
+          if (actual.equals(m.value())) return false;
         }
         case RE -> {
-          if (actual == null) return false;
           if (!Pattern.compile(m.value()).matches(actual)) return false;
         }
         case NRE -> {
-          if (actual != null && Pattern.compile(m.value()).matches(actual)) return false;
+          if (Pattern.compile(m.value()).matches(actual)) return false;
         }
       }
     }

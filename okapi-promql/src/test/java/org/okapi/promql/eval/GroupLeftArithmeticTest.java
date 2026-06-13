@@ -74,8 +74,8 @@ public class GroupLeftArithmeticTest {
     // i1: avg(requests[2m]) at t2 => (200,300)->250 ; + replicas(3) => 253
     // i2: (20,30)->25 ; + 3 => 28
     // Arithmetic drops __name__: result metric is null per PromQL spec.
-    float i1 = findValue(iv, new SeriesId(null, new Labels(cm.cpuUsageApiI1Tags)), t);
-    float i2 = findValue(iv, new SeriesId(null, new Labels(cm.cpuUsageApiI2Tags)), t);
+    float i1 = findValue(iv, new SeriesId("",new Labels(cm.cpuUsageApiI1Tags)), t);
+    float i2 = findValue(iv, new SeriesId("",new Labels(cm.cpuUsageApiI2Tags)), t);
     assertEquals(253f, i1, 1e-4);
     assertEquals(28f, i2, 1e-4);
   }

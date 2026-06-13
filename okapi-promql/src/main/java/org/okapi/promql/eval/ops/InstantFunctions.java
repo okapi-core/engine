@@ -4,6 +4,9 @@
  */
 package org.okapi.promql.eval.ops;
 
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.function.Function;
 import org.okapi.promql.eval.*;
@@ -44,13 +47,68 @@ public final class InstantFunctions {
     return new InstantVectorResult(List.of());
   }
 
-  public static InstantVectorResult timestamp(InstantVectorResult iv) {
-    List<SeriesSample> out = new ArrayList<>(iv.data().size());
+  public static InstantVectorResult timestamp(
+      InstantVectorResult iv, EvalContext ctx, boolean pinnedArgument) {
+    return mapSamplesAtEvalSteps(iv, ctx, pinnedArgument, s -> s.sample().ts() / 1000f);
+  }
+
+  public static InstantVectorResult calendar(
+      String name, InstantVectorResult iv, EvalContext ctx, boolean pinnedArgument) {
+    List<SeriesSample> out = new ArrayList<>();
+    if (iv == null) {
+      for (long t = ctx.startMs; t <= ctx.endMs; t += ctx.stepMs) {
+        out.add(
+            new SeriesSample(
+                new SeriesId("", new Labels(Map.of())),
+                new Sample(t, calendarValue(name, t / 1000f))));
+      }
+      return new InstantVectorResult(out);
+    }
+
+    return mapSamplesAtEvalSteps(
+        iv, ctx, pinnedArgument, s -> calendarValue(name, s.sample().value()));
+  }
+
+  private static InstantVectorResult mapSamplesAtEvalSteps(
+      InstantVectorResult iv,
+      EvalContext ctx,
+      boolean pinnedArgument,
+      Function<SeriesSample, Float> valueFn) {
+    List<SeriesSample> out = new ArrayList<>();
     for (var s : iv.data()) {
-      float secs = s.sample().ts() / 1000f;
-      out.add(new SeriesSample(s.series(), new Sample(s.sample().ts(), secs)));
+      if (pinnedArgument && ctx.startMs != ctx.endMs) {
+        for (long t = ctx.startMs; t <= ctx.endMs; t += ctx.stepMs)
+          out.add(new SeriesSample(dropName(s.series()), new Sample(t, valueFn.apply(s))));
+        continue;
+      }
+      // For instant evals, the outer evaluation time is the output timestamp. This lets
+      // nested functions observe the eval time instead of an inner @-pinned timestamp.
+      long outputTs = (ctx.startMs == ctx.endMs) ? ctx.startMs : s.sample().ts();
+      out.add(new SeriesSample(dropName(s.series()), new Sample(outputTs, valueFn.apply(s))));
     }
     return new InstantVectorResult(out);
+  }
+
+  private static float calendarValue(String name, float unixSeconds) {
+    ZonedDateTime time =
+        ZonedDateTime.ofInstant(Instant.ofEpochSecond((long) unixSeconds), ZoneOffset.UTC);
+    return switch (name) {
+      case "year" -> time.getYear();
+      case "month" -> time.getMonthValue();
+      case "day_of_month" -> time.getDayOfMonth();
+      case "day_of_week" -> time.getDayOfWeek().getValue() % 7;
+      case "day_of_year" -> time.getDayOfYear();
+      case "days_in_month" -> time.toLocalDate().lengthOfMonth();
+      case "hour" -> time.getHour();
+      case "minute" -> time.getMinute();
+      default -> throw new IllegalArgumentException("unknown calendar function: " + name);
+    };
+  }
+
+  private static SeriesId dropName(SeriesId id) {
+    Map<String, String> tags = new HashMap<>(id.labels().tags());
+    tags.remove("__name__");
+    return new SeriesId("", new Labels(tags));
   }
 
   public static ScalarResult toScalar(InstantVectorResult iv) {

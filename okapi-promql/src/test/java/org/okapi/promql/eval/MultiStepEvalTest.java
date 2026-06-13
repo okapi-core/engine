@@ -41,15 +41,17 @@ public class MultiStepEvalTest {
     // 2 series × 3 steps = 6 samples total
     assertEquals(6, iv.data().size());
 
+    var i1 = new SeriesId("", new Labels(cm.cpuUsageApiI1Tags));
+    var i2 = new SeriesId("", new Labels(cm.cpuUsageApiI2Tags));
     // cpu_i1: t1→avg(t0=10,t1=20)=15; t2→avg(t1=20,t2=30)=25; t3→avg(t2=30,t3=40)=35
-    assertEquals(15f, findValue(iv, cm.cpuUsageApiI1, cm.t1), 1e-4);
-    assertEquals(25f, findValue(iv, cm.cpuUsageApiI1, cm.t2), 1e-4);
-    assertEquals(35f, findValue(iv, cm.cpuUsageApiI1, cm.t3), 1e-4);
+    assertEquals(15f, findValue(iv, i1, cm.t1), 1e-4);
+    assertEquals(25f, findValue(iv, i1, cm.t2), 1e-4);
+    assertEquals(35f, findValue(iv, i1, cm.t3), 1e-4);
 
     // cpu_i2: t1→avg(t0=40,t1=60)=50; t2→avg(t1=60,t2=80)=70; t3→avg(t2=80,t3=100)=90
-    assertEquals(50f, findValue(iv, cm.cpuUsageApiI2, cm.t1), 1e-4);
-    assertEquals(70f, findValue(iv, cm.cpuUsageApiI2, cm.t2), 1e-4);
-    assertEquals(90f, findValue(iv, cm.cpuUsageApiI2, cm.t3), 1e-4);
+    assertEquals(50f, findValue(iv, i2, cm.t1), 1e-4);
+    assertEquals(70f, findValue(iv, i2, cm.t2), 1e-4);
+    assertEquals(90f, findValue(iv, i2, cm.t3), 1e-4);
   }
 
   @Test
@@ -63,9 +65,10 @@ public class MultiStepEvalTest {
     // t3: {t2=180, t3=240} sum=420 / 120s = 3.5/s
     var iv = (InstantVectorResult) eval(ev, "rate(http_requests_counter[2m])", cm.t1, cm.t3, cm.step);
 
-    assertEquals(1.5f, findValue(iv, cm.httpRequestsCounterApi, cm.t1), 1e-4);
-    assertEquals(2.5f, findValue(iv, cm.httpRequestsCounterApi, cm.t2), 1e-4);
-    assertEquals(3.5f, findValue(iv, cm.httpRequestsCounterApi, cm.t3), 1e-4);
+    var http = new SeriesId("", new Labels(cm.httpRequestsCounterApiTags));
+    assertEquals(1.5f, findValue(iv, http, cm.t1), 1e-4);
+    assertEquals(2.5f, findValue(iv, http, cm.t2), 1e-4);
+    assertEquals(3.5f, findValue(iv, http, cm.t3), 1e-4);
   }
 
   @Test
@@ -81,8 +84,9 @@ public class MultiStepEvalTest {
 
     // 1 series (i2) × 3 steps = 3 samples
     assertEquals(3, iv.data().size());
-    assertEquals(50f, findValue(iv, cm.cpuUsageApiI2, cm.t1), 1e-4);
-    assertEquals(70f, findValue(iv, cm.cpuUsageApiI2, cm.t2), 1e-4);
-    assertEquals(90f, findValue(iv, cm.cpuUsageApiI2, cm.t3), 1e-4);
+    var i2u = new SeriesId("", new Labels(cm.cpuUsageApiI2Tags));
+    assertEquals(50f, findValue(iv, i2u, cm.t1), 1e-4);
+    assertEquals(70f, findValue(iv, i2u, cm.t2), 1e-4);
+    assertEquals(90f, findValue(iv, i2u, cm.t3), 1e-4);
   }
 }

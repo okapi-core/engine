@@ -42,8 +42,8 @@ public class SubqueryTest {
     // avg = 25
     var iv = (InstantVectorResult) eval(ev, "avg_over_time(cpu_usage[2m:1m])", cm.t2, cm.t2, cm.step);
     assertEquals(ValueType.INSTANT_VECTOR, iv.type());
-    assertEquals(25f, findValue(iv, cm.cpuUsageApiI1, cm.t2), 1e-4);
-    assertEquals(70f, findValue(iv, cm.cpuUsageApiI2, cm.t2), 1e-4);
+    assertEquals(25f, findValue(iv, new SeriesId("", new Labels(cm.cpuUsageApiI1Tags)), cm.t2), 1e-4);
+    assertEquals(70f, findValue(iv, new SeriesId("", new Labels(cm.cpuUsageApiI2Tags)), cm.t2), 1e-4);
   }
 
   @Test
@@ -59,7 +59,7 @@ public class SubqueryTest {
     // max_over_time (outer window (t0,t2]) of [10,20,30]: t0 excluded, t1=20 and t2=30 → max=30
     var iv = (InstantVectorResult) eval(ev,
         "max_over_time(avg_over_time(cpu_usage[1m])[2m:1m])", cm.t2, cm.t2, cm.step);
-    assertEquals(30f, findValue(iv, cm.cpuUsageApiI1, cm.t2), 1e-4);
+    assertEquals(30f, findValue(iv, new SeriesId("", new Labels(cm.cpuUsageApiI1Tags)), cm.t2), 1e-4);
   }
 
   @Test

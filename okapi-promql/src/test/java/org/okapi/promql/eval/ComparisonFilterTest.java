@@ -38,7 +38,7 @@ public class ComparisonFilterTest {
     // i1=25 > 25 false (filtered), i2=70 > 25 true (kept at 70)
     var iv = (InstantVectorResult) eval(ev, "avg_over_time(cpu_usage[2m]) > 25", cm.t2, cm.t2, cm.step);
     assertEquals(1, iv.data().size());
-    assertEquals(70f, findValue(iv, cm.cpuUsageApiI2, cm.t2), 1e-4);
+    assertEquals(70f, findValue(iv, new SeriesId("", new Labels(cm.cpuUsageApiI2Tags)),cm.t2), 1e-4);
   }
 
   @Test
@@ -48,8 +48,8 @@ public class ComparisonFilterTest {
     // i1=25 >= 25 true (kept at 25), i2=70 >= 25 true (kept at 70)
     var iv = (InstantVectorResult) eval(ev, "avg_over_time(cpu_usage[2m]) >= 25", cm.t2, cm.t2, cm.step);
     assertEquals(2, iv.data().size());
-    assertEquals(25f, findValue(iv, cm.cpuUsageApiI1, cm.t2), 1e-4);
-    assertEquals(70f, findValue(iv, cm.cpuUsageApiI2, cm.t2), 1e-4);
+    assertEquals(25f, findValue(iv, new SeriesId("", new Labels(cm.cpuUsageApiI1Tags)),cm.t2), 1e-4);
+    assertEquals(70f, findValue(iv, new SeriesId("", new Labels(cm.cpuUsageApiI2Tags)),cm.t2), 1e-4);
   }
 
   @Test
@@ -59,7 +59,7 @@ public class ComparisonFilterTest {
     // i1=25 < 50 true, i2=70 < 50 false
     var iv = (InstantVectorResult) eval(ev, "avg_over_time(cpu_usage[2m]) < 50", cm.t2, cm.t2, cm.step);
     assertEquals(1, iv.data().size());
-    assertEquals(25f, findValue(iv, cm.cpuUsageApiI1, cm.t2), 1e-4);
+    assertEquals(25f, findValue(iv, new SeriesId("", new Labels(cm.cpuUsageApiI1Tags)),cm.t2), 1e-4);
   }
 
   @Test
@@ -69,7 +69,7 @@ public class ComparisonFilterTest {
     // i1=25 == 25 → kept at 25; i2=70 == 25 → filtered
     var iv = (InstantVectorResult) eval(ev, "avg_over_time(cpu_usage[2m]) == 25", cm.t2, cm.t2, cm.step);
     assertEquals(1, iv.data().size());
-    assertEquals(25f, findValue(iv, cm.cpuUsageApiI1, cm.t2), 1e-4);
+    assertEquals(25f, findValue(iv, new SeriesId("", new Labels(cm.cpuUsageApiI1Tags)),cm.t2), 1e-4);
   }
 
   @Test
@@ -79,6 +79,6 @@ public class ComparisonFilterTest {
     // i1=25 != 25 false (filtered), i2=70 != 25 true (kept at 70)
     var iv = (InstantVectorResult) eval(ev, "avg_over_time(cpu_usage[2m]) != 25", cm.t2, cm.t2, cm.step);
     assertEquals(1, iv.data().size());
-    assertEquals(70f, findValue(iv, cm.cpuUsageApiI2, cm.t2), 1e-4);
+    assertEquals(70f, findValue(iv, new SeriesId("", new Labels(cm.cpuUsageApiI2Tags)),cm.t2), 1e-4);
   }
 }

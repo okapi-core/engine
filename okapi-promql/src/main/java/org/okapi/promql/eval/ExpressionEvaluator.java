@@ -23,27 +23,16 @@ public final class ExpressionEvaluator {
   private final SeriesDiscovery discovery;
   private final ExecutorService exec;
   private final StatisticsMerger statisticsMerger;
-  private final MetricTypeResolver metricTypeResolver;
 
   public ExpressionEvaluator(
       TsClient client,
       SeriesDiscovery discovery,
       ExecutorService exec,
       StatisticsMerger statisticsMerger) {
-    this(client, discovery, exec, statisticsMerger, null);
-  }
-
-  public ExpressionEvaluator(
-      TsClient client,
-      SeriesDiscovery discovery,
-      ExecutorService exec,
-      StatisticsMerger statisticsMerger,
-      MetricTypeResolver metricTypeResolver) {
     this.client = client;
     this.discovery = discovery;
     this.exec = exec;
     this.statisticsMerger = statisticsMerger;
-    this.metricTypeResolver = metricTypeResolver;
   }
 
   public ExpressionResult evaluate(
@@ -53,15 +42,9 @@ public final class ExpressionEvaluator {
     var logical = new ExpressionVisitor().visit(parser.expression());
     var ctx =
         new EvalContext(
-            startMs,
-            endMs,
-            stepMs,
-            chooseResolution(stepMs),
-            client,
-            discovery,
-            exec,
-            metricTypeResolver);
-    return logical.lower().eval(ctx);
+            startMs, endMs, stepMs, nowMs, chooseResolution(stepMs),
+            client, discovery, exec, statisticsMerger);
+    return new NodeEvaluator().eval(logical, ctx);
   }
 
   public ExpressionResult evaluateAt(String promql, long tsMs, PromQLParser parser)
@@ -70,16 +53,9 @@ public final class ExpressionEvaluator {
     var logical = new ExpressionVisitor().visit(parser.expression());
     var ctx =
         new EvalContext(
-            tsMs,
-            tsMs,
-            effStepMs,
-            chooseResolution(effStepMs),
-            client,
-            discovery,
-            exec,
-            metricTypeResolver);
-
-    return logical.lower().eval(ctx);
+            tsMs, tsMs, DEFAULT_INSTANT_STEP_MS, nowMs, chooseResolution(DEFAULT_INSTANT_STEP_MS),
+            client, discovery, exec, statisticsMerger);
+    return new NodeEvaluator().eval(logical, ctx);
   }
 
   public List<VectorData.SeriesId> find(PromQLParser parser, long start, long end) {

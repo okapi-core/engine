@@ -52,20 +52,17 @@ public class UtilFunctionsTest {
     // timestamp() replaces value with sample's unix timestamp in seconds
     var iv = (InstantVectorResult) eval(ev, "timestamp(avg_over_time(cpu_usage[2m]))", cm.t2, cm.t2, cm.step);
     float expected = cm.t2 / 1000f;
-    assertEquals(expected, findValue(iv, cm.cpuUsageApiI1, cm.t2), 1e-4);
-    assertEquals(expected, findValue(iv, cm.cpuUsageApiI2, cm.t2), 1e-4);
+    assertEquals(expected, findValue(iv, new SeriesId("", new Labels(cm.cpuUsageApiI1Tags)), cm.t2), 1e-4);
+    assertEquals(expected, findValue(iv, new SeriesId("", new Labels(cm.cpuUsageApiI2Tags)), cm.t2), 1e-4);
   }
 
   @Test
-  void time_returnsCurrentWallClockAsScalar() throws EvaluationException {
+  void time_returnsEvalTimestampAsScalar() throws EvaluationException {
     var cm = TestFixtures.buildCommonMocks();
     var ev = new ExpressionEvaluator(cm.client, cm.discovery, Executors.newFixedThreadPool(2), new MockStatsMerger());
-    long beforeMs = System.currentTimeMillis();
     var res = eval(ev, "time()", cm.t2, cm.t2, cm.step);
-    long afterMs = System.currentTimeMillis();
     assertEquals(ValueType.SCALAR, res.type());
-    float v = ((ScalarResult) res).getValue();
-    assertTrue(v >= beforeMs / 1000f && v <= afterMs / 1000f + 1f, "time() should be current wall-clock");
+    assertEquals(cm.t2 / 1000f, ((ScalarResult) res).getValue(), 1e-4f);
   }
 
   @Test

@@ -43,8 +43,8 @@ public class GroupRightArithmeticTest {
     var iv = (InstantVectorResult) eval(ev, q, cm.t2, cm.t2, cm.step);
 
     assertEquals(2, iv.data().size());
-    var ri1 = new SeriesId(null, new Labels(Map.of("job", "api", "instance", "i1")));
-    var ri2 = new SeriesId(null, new Labels(Map.of("job", "api", "instance", "i2")));
+    var ri1 = new SeriesId("",new Labels(Map.of("job", "api", "instance", "i1")));
+    var ri2 = new SeriesId("",new Labels(Map.of("job", "api", "instance", "i2")));
     assertEquals(28f, findValue(iv, ri1, cm.t2), 1e-4);
     assertEquals(73f, findValue(iv, ri2, cm.t2), 1e-4);
   }

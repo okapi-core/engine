@@ -35,8 +35,8 @@ public class InstantFunctionsTest {
     var cm = TestFixtures.buildCommonMocks();
     var ev = new ExpressionEvaluator(cm.client, cm.discovery, Executors.newFixedThreadPool(2), new MockStatsMerger());
     var iv = (InstantVectorResult) eval(ev, "abs(avg_over_time(cpu_usage[2m]))", cm.t2, cm.t2, cm.step);
-    assertEquals(25f, findValue(iv, cm.cpuUsageApiI1, cm.t2), 1e-4);
-    assertEquals(70f, findValue(iv, cm.cpuUsageApiI2, cm.t2), 1e-4);
+    assertEquals(25f, findValue(iv, new SeriesId("", new Labels(cm.cpuUsageApiI1Tags)), cm.t2), 1e-4);
+    assertEquals(70f, findValue(iv, new SeriesId("", new Labels(cm.cpuUsageApiI2Tags)), cm.t2), 1e-4);
   }
 
   @Test
@@ -46,8 +46,8 @@ public class InstantFunctionsTest {
     // 25/3 = 8.333... → ceil = 9; 70/3 = 23.333... → ceil = 24
     // division drops __name__, so look up by null-metric SeriesId
     var iv = (InstantVectorResult) eval(ev, "ceil(avg_over_time(cpu_usage[2m]) / 3)", cm.t2, cm.t2, cm.step);
-    var i1 = new SeriesId(null, new Labels(cm.cpuUsageApiI1Tags));
-    var i2 = new SeriesId(null, new Labels(cm.cpuUsageApiI2Tags));
+    var i1 = new SeriesId("",new Labels(cm.cpuUsageApiI1Tags));
+    var i2 = new SeriesId("",new Labels(cm.cpuUsageApiI2Tags));
     assertEquals(9f, findValue(iv, i1, cm.t2), 1e-4);
     assertEquals(24f, findValue(iv, i2, cm.t2), 1e-4);
   }
@@ -58,8 +58,8 @@ public class InstantFunctionsTest {
     var ev = new ExpressionEvaluator(cm.client, cm.discovery, Executors.newFixedThreadPool(2), new MockStatsMerger());
     // 25/3 = 8.333... → floor = 8; 70/3 = 23.333... → floor = 23
     var iv = (InstantVectorResult) eval(ev, "floor(avg_over_time(cpu_usage[2m]) / 3)", cm.t2, cm.t2, cm.step);
-    var i1 = new SeriesId(null, new Labels(cm.cpuUsageApiI1Tags));
-    var i2 = new SeriesId(null, new Labels(cm.cpuUsageApiI2Tags));
+    var i1 = new SeriesId("",new Labels(cm.cpuUsageApiI1Tags));
+    var i2 = new SeriesId("",new Labels(cm.cpuUsageApiI2Tags));
     assertEquals(8f, findValue(iv, i1, cm.t2), 1e-4);
     assertEquals(23f, findValue(iv, i2, cm.t2), 1e-4);
   }
@@ -70,8 +70,8 @@ public class InstantFunctionsTest {
     var ev = new ExpressionEvaluator(cm.client, cm.discovery, Executors.newFixedThreadPool(2), new MockStatsMerger());
     // clamp_min(25, 40) = 40; clamp_min(70, 40) = 70
     var iv = (InstantVectorResult) eval(ev, "clamp_min(avg_over_time(cpu_usage[2m]), 40)", cm.t2, cm.t2, cm.step);
-    assertEquals(40f, findValue(iv, cm.cpuUsageApiI1, cm.t2), 1e-4);
-    assertEquals(70f, findValue(iv, cm.cpuUsageApiI2, cm.t2), 1e-4);
+    assertEquals(40f, findValue(iv, new SeriesId("", new Labels(cm.cpuUsageApiI1Tags)), cm.t2), 1e-4);
+    assertEquals(70f, findValue(iv, new SeriesId("", new Labels(cm.cpuUsageApiI2Tags)), cm.t2), 1e-4);
   }
 
   @Test
@@ -80,8 +80,8 @@ public class InstantFunctionsTest {
     var ev = new ExpressionEvaluator(cm.client, cm.discovery, Executors.newFixedThreadPool(2), new MockStatsMerger());
     // clamp_max(25, 40) = 25; clamp_max(70, 40) = 40
     var iv = (InstantVectorResult) eval(ev, "clamp_max(avg_over_time(cpu_usage[2m]), 40)", cm.t2, cm.t2, cm.step);
-    assertEquals(25f, findValue(iv, cm.cpuUsageApiI1, cm.t2), 1e-4);
-    assertEquals(40f, findValue(iv, cm.cpuUsageApiI2, cm.t2), 1e-4);
+    assertEquals(25f, findValue(iv, new SeriesId("", new Labels(cm.cpuUsageApiI1Tags)), cm.t2), 1e-4);
+    assertEquals(40f, findValue(iv, new SeriesId("", new Labels(cm.cpuUsageApiI2Tags)), cm.t2), 1e-4);
   }
 
   @Test

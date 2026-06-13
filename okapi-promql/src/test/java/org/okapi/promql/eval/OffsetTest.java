@@ -38,12 +38,12 @@ public class OffsetTest {
 
     // Without offset at t2: window (t0,t2] → {t1=20, t2=30} → avg=25
     var noOffset = (InstantVectorResult) eval(ev, "avg_over_time(cpu_usage[2m])", cm.t2, cm.t2, cm.step);
-    assertEquals(25f, findValue(noOffset, cm.cpuUsageApiI1, cm.t2), 1e-4);
+    assertEquals(25f, findValue(noOffset, new SeriesId("", new Labels(cm.cpuUsageApiI1Tags)), cm.t2), 1e-4);
 
     // With offset 1m at t2: window (t2-1m-2m, t2-1m] = (t2-3m, t1] = (t0-1m, t1]
     // Data in (t0-1m, t1]: t0=10 and t1=20 → avg=15
     var withOffset = (InstantVectorResult) eval(ev, "avg_over_time(cpu_usage[2m] offset 1m)", cm.t2, cm.t2, cm.step);
-    assertEquals(15f, findValue(withOffset, cm.cpuUsageApiI1, cm.t2), 1e-4);
+    assertEquals(15f, findValue(withOffset, new SeriesId("", new Labels(cm.cpuUsageApiI1Tags)), cm.t2), 1e-4);
   }
 
   @Test
@@ -55,7 +55,7 @@ public class OffsetTest {
     // At t2 with offset: window (t0-1m, t1] → avg(10,20)=15
     // At t3 with offset: window (t1-1m, t2] = (t0, t2] → avg(20,30)=25
     var iv = (InstantVectorResult) eval(ev, "avg_over_time(cpu_usage[2m] offset 1m)", cm.t2, cm.t3, cm.step);
-    assertEquals(15f, findValue(iv, cm.cpuUsageApiI1, cm.t2), 1e-4);
-    assertEquals(25f, findValue(iv, cm.cpuUsageApiI1, cm.t3), 1e-4);
+    assertEquals(15f, findValue(iv, new SeriesId("", new Labels(cm.cpuUsageApiI1Tags)), cm.t2), 1e-4);
+    assertEquals(25f, findValue(iv, new SeriesId("", new Labels(cm.cpuUsageApiI1Tags)), cm.t3), 1e-4);
   }
 }

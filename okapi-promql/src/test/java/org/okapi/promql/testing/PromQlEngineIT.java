@@ -4,7 +4,7 @@
  */
 package org.okapi.promql.testing;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.net.URI;
@@ -14,7 +14,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.ArrayList;
 import java.util.List;
-import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PromQlEngineIT {
 
@@ -23,15 +24,28 @@ class PromQlEngineIT {
     List<Path> scripts = discoverTestScripts();
     assertTrue(!scripts.isEmpty(), "no promql test scripts discovered");
     for (Path script : scripts) {
+      System.out.println("Running script: " + script);
       String content = Files.readString(script, StandardCharsets.UTF_8);
-      System.out.println("Testing: " + script);
       testScript(content);
     }
   }
 
+  @Test
+  void testRun_SingleSuite() throws Exception {
+    var suite = "at_modifier.test";
+    List<Path> scripts = discoverTestScripts();
+    assertTrue(!scripts.isEmpty(), "no promql test scripts discovered");
+    for (Path script : scripts) {
+      String content = Files.readString(script, StandardCharsets.UTF_8);
+      if (script.endsWith(suite)) {
+        testScript(content);
+      }
+    }
+  }
+
   private void testScript(String script) {
-    PromQlTestPipeline pipeline = new PromQlTestPipeline();
-    List<TestExpectationDifference> diffs = pipeline.run(script);
+    TestEvaluator evaluator = new TestEvaluator();
+    List<TestExpectationDifference> diffs = evaluator.run(script);
     for (var diff : diffs) {
       System.out.println("Test failure with: " + diff);
     }

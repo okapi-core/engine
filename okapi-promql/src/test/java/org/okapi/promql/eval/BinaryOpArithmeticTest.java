@@ -38,8 +38,8 @@ public class BinaryOpArithmeticTest {
     var ev = new ExpressionEvaluator(cm.client, cm.discovery, Executors.newFixedThreadPool(2), new MockStatsMerger());
     var iv = (InstantVectorResult) eval(ev, "avg_over_time(cpu_usage[2m]) - 10", cm.t2, cm.t2, cm.step);
     // PromQL spec: scalar-vector arithmetic drops __name__
-    var i1 = new SeriesId(null, new Labels(cm.cpuUsageApiI1Tags));
-    var i2 = new SeriesId(null, new Labels(cm.cpuUsageApiI2Tags));
+    var i1 = new SeriesId("",new Labels(cm.cpuUsageApiI1Tags));
+    var i2 = new SeriesId("",new Labels(cm.cpuUsageApiI2Tags));
     assertEquals(15f, findValue(iv, i1, cm.t2), 1e-4);
     assertEquals(60f, findValue(iv, i2, cm.t2), 1e-4);
   }
@@ -50,8 +50,8 @@ public class BinaryOpArithmeticTest {
     var ev = new ExpressionEvaluator(cm.client, cm.discovery, Executors.newFixedThreadPool(2), new MockStatsMerger());
     var iv = (InstantVectorResult) eval(ev, "2 * avg_over_time(cpu_usage[2m])", cm.t2, cm.t2, cm.step);
     // LHS scalar, RHS vector: result drops __name__
-    var i1 = new SeriesId(null, new Labels(cm.cpuUsageApiI1Tags));
-    var i2 = new SeriesId(null, new Labels(cm.cpuUsageApiI2Tags));
+    var i1 = new SeriesId("",new Labels(cm.cpuUsageApiI1Tags));
+    var i2 = new SeriesId("",new Labels(cm.cpuUsageApiI2Tags));
     assertEquals(50f, findValue(iv, i1, cm.t2), 1e-4);
     assertEquals(140f, findValue(iv, i2, cm.t2), 1e-4);
   }
@@ -61,8 +61,8 @@ public class BinaryOpArithmeticTest {
     var cm = TestFixtures.buildCommonMocks();
     var ev = new ExpressionEvaluator(cm.client, cm.discovery, Executors.newFixedThreadPool(2), new MockStatsMerger());
     var iv = (InstantVectorResult) eval(ev, "avg_over_time(cpu_usage[2m]) % 10", cm.t2, cm.t2, cm.step);
-    var i1 = new SeriesId(null, new Labels(cm.cpuUsageApiI1Tags));
-    var i2 = new SeriesId(null, new Labels(cm.cpuUsageApiI2Tags));
+    var i1 = new SeriesId("",new Labels(cm.cpuUsageApiI1Tags));
+    var i2 = new SeriesId("",new Labels(cm.cpuUsageApiI2Tags));
     assertEquals(5f, findValue(iv, i1, cm.t2), 1e-4);  // 25 % 10 = 5
     assertEquals(0f, findValue(iv, i2, cm.t2), 1e-4);  // 70 % 10 = 0
   }
@@ -72,8 +72,8 @@ public class BinaryOpArithmeticTest {
     var cm = TestFixtures.buildCommonMocks();
     var ev = new ExpressionEvaluator(cm.client, cm.discovery, Executors.newFixedThreadPool(2), new MockStatsMerger());
     var iv = (InstantVectorResult) eval(ev, "avg_over_time(cpu_usage[2m]) ^ 2", cm.t2, cm.t2, cm.step);
-    var i1 = new SeriesId(null, new Labels(cm.cpuUsageApiI1Tags));
-    var i2 = new SeriesId(null, new Labels(cm.cpuUsageApiI2Tags));
+    var i1 = new SeriesId("",new Labels(cm.cpuUsageApiI1Tags));
+    var i2 = new SeriesId("",new Labels(cm.cpuUsageApiI2Tags));
     assertEquals(625f, findValue(iv, i1, cm.t2), 1e-4);   // 25^2
     assertEquals(4900f, findValue(iv, i2, cm.t2), 1e-4);  // 70^2
   }
@@ -83,8 +83,8 @@ public class BinaryOpArithmeticTest {
     var cm = TestFixtures.buildCommonMocks();
     var ev = new ExpressionEvaluator(cm.client, cm.discovery, Executors.newFixedThreadPool(2), new MockStatsMerger());
     var iv = (InstantVectorResult) eval(ev, "-avg_over_time(cpu_usage[2m])", cm.t2, cm.t2, cm.step);
-    var i1 = new SeriesId(null, new Labels(cm.cpuUsageApiI1Tags));
-    var i2 = new SeriesId(null, new Labels(cm.cpuUsageApiI2Tags));
+    var i1 = new SeriesId("",new Labels(cm.cpuUsageApiI1Tags));
+    var i2 = new SeriesId("",new Labels(cm.cpuUsageApiI2Tags));
     assertEquals(-25f, findValue(iv, i1, cm.t2), 1e-4);
     assertEquals(-70f, findValue(iv, i2, cm.t2), 1e-4);
   }
@@ -98,11 +98,11 @@ public class BinaryOpArithmeticTest {
         "avg_over_time(cpu_usage[2m]) + on(job,instance) avg_over_time(cpu_usage[2m])",
         cm.t2, cm.t2, cm.step);
     for (var s : iv.data()) {
-      assertNull(s.series().metric(), "arithmetic must drop __name__");
+      assertEquals("", s.series().metric(), "arithmetic must drop __name__");
     }
     // Values: 25+25=50 for i1, 70+70=140 for i2
-    var i1 = new SeriesId(null, new Labels(cm.cpuUsageApiI1Tags));
-    var i2 = new SeriesId(null, new Labels(cm.cpuUsageApiI2Tags));
+    var i1 = new SeriesId("",new Labels(cm.cpuUsageApiI1Tags));
+    var i2 = new SeriesId("",new Labels(cm.cpuUsageApiI2Tags));
     assertEquals(50f, findValue(iv, i1, cm.t2), 1e-4);
     assertEquals(140f, findValue(iv, i2, cm.t2), 1e-4);
   }

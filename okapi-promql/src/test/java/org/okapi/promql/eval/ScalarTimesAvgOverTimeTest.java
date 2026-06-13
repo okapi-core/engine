@@ -41,8 +41,8 @@ public class ScalarTimesAvgOverTimeTest {
     var iv = (InstantVectorResult) res;
 
     // Scalar * vector arithmetic drops __name__ per PromQL spec.
-    var i1 = new SeriesId(null, new Labels(cm.cpuUsageApiI1Tags));
-    var i2 = new SeriesId(null, new Labels(cm.cpuUsageApiI2Tags));
+    var i1 = new SeriesId("",new Labels(cm.cpuUsageApiI1Tags));
+    var i2 = new SeriesId("",new Labels(cm.cpuUsageApiI2Tags));
 
     // For cpu_usage{instance="i1"}: values per minute 10,20,30,40
     // avg_over_time[2m] at t1,t2,t3 -> (10,20)->15 ; (20,30)->25 ; (30,40)->35 ; times 2 => 30, 50,

@@ -38,8 +38,8 @@ public class ComparisonBoolTest {
     var iv = (InstantVectorResult) res;
 
     // Scalar * vector drops __name__; comparison preserves the (null) identity.
-    var i1 = new SeriesId(null, new Labels(cm.cpuUsageApiI1Tags));
-    var i2 = new SeriesId(null, new Labels(cm.cpuUsageApiI2Tags));
+    var i1 = new SeriesId("",new Labels(cm.cpuUsageApiI1Tags));
+    var i2 = new SeriesId("",new Labels(cm.cpuUsageApiI2Tags));
 
     // cpu i1 -> 2*avg = 30, 50, 70  => bool>60 -> 0,0,1
     assertEquals(0f, findValue(iv, i1, cm.t1), 1e-4);
