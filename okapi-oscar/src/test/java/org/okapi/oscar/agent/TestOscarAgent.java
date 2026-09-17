@@ -1,14 +1,17 @@
+/*
+ * Copyright The OkapiCore Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
 package org.okapi.oscar.agent;
 
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import lombok.AllArgsConstructor;
 import org.okapi.oscar.session.StreamMetaRepository;
 import org.okapi.oscar.tools.StatefulToolFactory;
 import org.okapi.oscar.tools.StatefulTools;
 import org.okapi.rest.session.STREAM_STATE;
 import org.springframework.stereotype.Component;
-
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 @Component
 @AllArgsConstructor
@@ -25,11 +28,13 @@ public class TestOscarAgent {
   private final StreamMetaRepository streamMetaRepository;
 
   public void submitFirstChunk(String sessionId, String streamId) {
-    CompletableFuture.runAsync(() -> runChunk(sessionId, Long.parseLong(streamId), this::writeFirstChunk));
+    CompletableFuture.runAsync(
+        () -> runChunk(sessionId, Long.parseLong(streamId), this::writeFirstChunk));
   }
 
   public void submitSecondChunk(String sessionId, String streamId) {
-    CompletableFuture.runAsync(() -> runChunk(sessionId, Long.parseLong(streamId), this::writeSecondChunk));
+    CompletableFuture.runAsync(
+        () -> runChunk(sessionId, Long.parseLong(streamId), this::writeSecondChunk));
   }
 
   private void runChunk(String sessionId, long streamId, ToolWriter writer) {

@@ -14,144 +14,169 @@ dashboard:
       panels:
         - id: backends-total
           title: Backends Total
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"postgresql.backends","start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"postgresql.backends","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: backends-active
           title: Backends Active
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"postgresql.backends.active","start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"postgresql.backends.active","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: backends-idle
           title: Backends Idle
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"postgresql.backends.idle","start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"postgresql.backends.idle","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: max-connections
           title: Max Connections
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"postgresql.max.connections","start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"postgresql.max.connections","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
     - id: postgres-transactions
       title: Transactions
       panels:
         - id: xact-commits
           title: Transactions Committed
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"postgresql.transactions.committed","start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"postgresql.transactions.committed","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: xact-rollbacks
           title: Transactions Rolled Back
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"postgresql.transactions.rolled_back","start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"postgresql.transactions.rolled_back","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: xact-total
           title: Transactions Total
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"postgresql.transactions","start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"postgresql.transactions","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
     - id: postgres-rows
       title: Row Activity
       panels:
         - id: rows-returned
           title: Rows Returned
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"postgresql.rows.returned","start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"postgresql.rows.returned","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: rows-fetched
           title: Rows Fetched
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"postgresql.rows.fetched","start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"postgresql.rows.fetched","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: rows-inserted
           title: Rows Inserted
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"postgresql.rows.inserted","start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"postgresql.rows.inserted","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: rows-updated
           title: Rows Updated
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"postgresql.rows.updated","start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"postgresql.rows.updated","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: rows-deleted
           title: Rows Deleted
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"postgresql.rows.deleted","start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"postgresql.rows.deleted","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
     - id: postgres-cache
       title: Cache and Blocks
       panels:
         - id: blocks-read
           title: Blocks Read
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"postgresql.blocks.read","start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"postgresql.blocks.read","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: blocks-hit
           title: Blocks Hit
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"postgresql.blocks.hit","start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"postgresql.blocks.hit","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: block-read-time
           title: Block Read Time
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"postgresql.blk.read.time","start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"postgresql.blk.read.time","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: block-write-time
           title: Block Write Time
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"postgresql.blk.write.time","start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"postgresql.blk.write.time","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
     - id: postgres-wal-temp
       title: WAL and Temp
       panels:
         - id: temp-files
           title: Temp Files
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"postgresql.temp.files","start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"postgresql.temp.files","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: temp-bytes
           title: Temp Bytes
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"postgresql.temp.bytes","start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"postgresql.temp.bytes","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: wal-bytes
           title: WAL Bytes
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"postgresql.wal.bytes","start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"postgresql.wal.bytes","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: checkpoints-timed
           title: Checkpoints Timed
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"postgresql.checkpoints.timed","start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"postgresql.checkpoints.timed","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: checkpoints-requested
           title: Checkpoints Requested
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"postgresql.checkpoints.req","start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"postgresql.checkpoints.req","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
     - id: postgres-locks
       title: Locks and Conflicts
       panels:
         - id: deadlocks
           title: Deadlocks
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"postgresql.deadlocks","start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"postgresql.deadlocks","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: conflicts
           title: Conflicts
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"postgresql.conflicts","start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"postgresql.conflicts","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: lock-waits
           title: Lock Waits
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"postgresql.lock.waits","start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"postgresql.lock.waits","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
     - id: postgres-storage
       title: Storage
       panels:
         - id: db-size
           title: Database Size
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"postgresql.database.size","start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"postgresql.database.size","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}

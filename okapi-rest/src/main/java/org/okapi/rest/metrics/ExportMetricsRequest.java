@@ -5,14 +5,13 @@
 package org.okapi.rest.metrics;
 
 import jakarta.validation.constraints.NotNull;
-import lombok.*;
-import org.okapi.rest.metrics.payloads.Gauge;
-import org.okapi.rest.metrics.payloads.ExponentialHisto;
-import org.okapi.rest.metrics.payloads.Histo;
-import org.okapi.rest.metrics.payloads.Sum;
-
 import java.util.Map;
 import java.util.TreeMap;
+import lombok.*;
+import org.okapi.rest.metrics.payloads.ExponentialHisto;
+import org.okapi.rest.metrics.payloads.Gauge;
+import org.okapi.rest.metrics.payloads.Histo;
+import org.okapi.rest.metrics.payloads.Sum;
 
 @NoArgsConstructor
 @Getter

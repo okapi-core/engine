@@ -4,73 +4,47 @@
  */
 package org.okapi.web.auth;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
+import static org.okapi.data.model.EntityType.ORG;
+import static org.okapi.data.model.EntityType.USER;
+import static org.okapi.data.model.RelationType.ORG_ADMIN;
+import static org.okapi.data.model.RelationType.ORG_MEMBER;
+
+import lombok.RequiredArgsConstructor;
+import org.okapi.data.dao.OrgDao;
 import org.okapi.data.dao.RelationGraphDao;
-import org.okapi.data.model.EntityType;
 import org.okapi.data.model.EntityId;
-import org.okapi.data.model.RelationType;
+import org.okapi.exceptions.NotFoundException;
 import org.okapi.exceptions.UnAuthorizedException;
 import org.springframework.stereotype.Service;
 
-@AllArgsConstructor
+@RequiredArgsConstructor
 @Service
 public class AccessManager {
 
-  RelationGraphDao relationGraphDao;
+  private final OrgDao orgDao;
+  private final RelationGraphDao relationGraphDao;
 
-  @Builder
-  public record AuthContext(String userId, String orgId) {}
-
-  public void checkUserHasIsOrgAdmin(String userId, String org) throws UnAuthorizedException {
-    var isAdmin =
-        relationGraphDao.hasRelationBetween(
-            EntityId.of(EntityType.USER, userId),
-            EntityId.of(EntityType.ORG, org),
-            RelationType.ORG_ADMIN);
-    if (!isAdmin) throw new UnAuthorizedException("User is not an org admin");
+  public void checkOrgMember(String userId, String orgId) {
+    checkOrganizationExists(orgId);
+    var user = EntityId.of(USER, userId);
+    var org = EntityId.of(ORG, orgId);
+    if (!relationGraphDao.hasRelationBetween(user, org, ORG_MEMBER)
+        && !relationGraphDao.hasRelationBetween(user, org, ORG_ADMIN)) {
+      throw new UnAuthorizedException("User is not a member of this organization.");
+    }
   }
 
-  public void checkUserHasIsOrgMember(String userId, String org) throws UnAuthorizedException {
-    var isAdmin =
-        relationGraphDao.hasRelationBetween(
-            EntityId.of(EntityType.USER, userId),
-            EntityId.of(EntityType.ORG, org),
-            RelationType.ORG_ADMIN);
-    var isMember =
-        relationGraphDao.hasRelationBetween(
-            EntityId.of(EntityType.USER, userId),
-            EntityId.of(EntityType.ORG, org),
-            RelationType.ORG_MEMBER);
-    if (!isAdmin && !isMember) throw new UnAuthorizedException("User is not in org.");
+  public void checkOrgAdmin(String userId, String orgId) {
+    checkOrganizationExists(orgId);
+    if (!relationGraphDao.hasRelationBetween(
+        EntityId.of(USER, userId), EntityId.of(ORG, orgId), ORG_ADMIN)) {
+      throw new UnAuthorizedException("User is not an administrator of this organization.");
+    }
   }
 
-  public AuthContext checkUserIsOrgAdmin(AuthContext authContext) {
-    var isAdmin =
-        relationGraphDao.hasRelationBetween(
-            EntityId.of(EntityType.USER, authContext.userId()),
-            EntityId.of(EntityType.ORG, authContext.orgId()),
-            RelationType.ORG_ADMIN);
-    if (!isAdmin) throw new UnAuthorizedException("User is not an org admin");
-    return authContext;
-  }
-
-  public void checkUserIsOrgMember(String userId, String orgId) {
-    var isAdmin =
-        relationGraphDao.hasRelationBetween(
-            EntityId.of(EntityType.USER, userId),
-            EntityId.of(EntityType.ORG, orgId),
-            RelationType.ORG_ADMIN);
-    var isMember =
-        relationGraphDao.hasRelationBetween(
-            EntityId.of(EntityType.USER, userId),
-            EntityId.of(EntityType.ORG, orgId),
-            RelationType.ORG_MEMBER);
-    if (!isAdmin && !isMember) throw new UnAuthorizedException("User is not in org.");
-  }
-
-  public AuthContext checkUserIsOrgMember(AuthContext authContext) {
-    checkUserIsOrgMember(authContext.userId, authContext.orgId);
-    return authContext;
+  private void checkOrganizationExists(String orgId) {
+    if (orgDao.findById(orgId).isEmpty()) {
+      throw new NotFoundException("Organization not found: " + orgId);
+    }
   }
 }

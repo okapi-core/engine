@@ -5,7 +5,6 @@
 package org.okapi.web.controller;
 
 import lombok.AllArgsConstructor;
-import org.okapi.headers.CookiesAndHeaders;
 import org.okapi.rest.session.CreateSessionBlindRequest;
 import org.okapi.rest.session.ListSessionsBlindRequest;
 import org.okapi.rest.session.ListSessionsResponse;
@@ -21,30 +20,22 @@ public class SessionController {
   OscarService oscarService;
 
   @PostMapping
-  public SessionMetaResponse createSession(
-      @RequestHeader(CookiesAndHeaders.HEADER_TEMP_TOKEN) String tempToken,
-      @RequestBody CreateSessionBlindRequest request) {
-    return oscarService.createSession(tempToken, request);
+  public SessionMetaResponse createSession(@RequestBody CreateSessionBlindRequest request) {
+    return oscarService.createSession(request);
   }
 
   @PostMapping("/list")
-  public ListSessionsResponse listSessions(
-      @RequestHeader(CookiesAndHeaders.HEADER_TEMP_TOKEN) String tempToken,
-      @RequestBody ListSessionsBlindRequest request) {
-    return oscarService.listSessions(tempToken, request);
+  public ListSessionsResponse listSessions(@RequestBody ListSessionsBlindRequest request) {
+    return oscarService.listSessions(request);
   }
 
   @GetMapping("/{sessionId}/meta")
-  public SessionMetaResponse getSessionMeta(
-      @RequestHeader(CookiesAndHeaders.HEADER_TEMP_TOKEN) String tempToken,
-      @PathVariable("sessionId") String sessionId) {
-    return oscarService.getSessionMeta(tempToken, sessionId);
+  public SessionMetaResponse getSessionMeta(@PathVariable("sessionId") String sessionId) {
+    return oscarService.getSessionMeta(sessionId);
   }
 
   @PostMapping("/{sessionId}/ping")
-  public SessionMetaResponse pingSession(
-      @RequestHeader(CookiesAndHeaders.HEADER_TEMP_TOKEN) String tempToken,
-      @PathVariable("sessionId") String sessionId) {
-    return oscarService.pingSession(tempToken, sessionId);
+  public SessionMetaResponse pingSession(@PathVariable("sessionId") String sessionId) {
+    return oscarService.pingSession(sessionId);
   }
 }

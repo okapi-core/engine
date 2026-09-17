@@ -1,13 +1,16 @@
+/*
+ * Copyright The OkapiCore Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
 package org.okapi.oscar.integ.corpus;
 
 import com.clickhouse.client.api.Client;
 import com.clickhouse.client.api.enums.Protocol;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 import org.awaitility.Awaitility;
 import org.okapi.ingester.client.IngesterClient;
 import org.okapi.rest.search.SearchMetricsRequest;
-
-import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 public class CorpusAwait {
 
@@ -27,8 +30,7 @@ public class CorpusAwait {
           .addEndpoint(
               Protocol.HTTP,
               System.getenv().getOrDefault("OKAPI_TEST_CLICKHOUSE_HOST", "127.0.0.1"),
-              Integer.parseInt(
-                  System.getenv().getOrDefault("OKAPI_TEST_CLICKHOUSE_PORT", "8123")),
+              Integer.parseInt(System.getenv().getOrDefault("OKAPI_TEST_CLICKHOUSE_PORT", "8123")),
               false)
           .setUsername("default")
           .setPassword("okapi_testing_password")

@@ -25,11 +25,7 @@ public final class EndpointWaiter {
     var deadline = System.nanoTime() + timeout.toNanos();
     var client = HttpClient.newBuilder().connectTimeout(interval).build();
     var request =
-        HttpRequest.newBuilder()
-            .uri(URI.create(endpoint))
-            .timeout(interval)
-            .GET()
-            .build();
+        HttpRequest.newBuilder().uri(URI.create(endpoint)).timeout(interval).GET().build();
     while (System.nanoTime() < deadline) {
       try {
         client.send(request, HttpResponse.BodyHandlers.discarding());

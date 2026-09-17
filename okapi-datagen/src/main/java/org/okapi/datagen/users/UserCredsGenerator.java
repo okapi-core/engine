@@ -4,30 +4,28 @@
  */
 package org.okapi.datagen.users;
 
-import java.util.ArrayList;
 import java.util.List;
-import net.datafaker.Faker;
 import org.okapi.web.dtos.auth.CreateUserRequest;
 
 public class UserCredsGenerator {
-  public static List<CreateUserRequest> createUsers(int total) {
-    var faker = new Faker();
-    var reqs = new ArrayList<CreateUserRequest>();
-    for (int i = 0; i < total; i++) {
-      var fname = faker.name().firstName();
-      var second = faker.name().lastName();
-      var email = fname + "." + second + "@acme.org";
-      var pw = fname + "@" + second;
-      var request =
-          CreateUserRequest.builder()
-              .firstName(fname)
-              .email(email)
-              .lastName(second)
-              .password(pw)
-              .build();
-      reqs.add(request);
-    }
+  public static final String KUSHAL_EMAIL = "kushal@okapi.test";
+  public static final String KUSHAL_PASSWORD = "password123";
+  public static final String OSCAR_EMAIL = "oscar@okapi.test";
+  public static final String OSCAR_PASSWORD = "oscar123";
 
-    return reqs;
+  public static List<CreateUserRequest> createDefaultUsers() {
+    return List.of(
+        CreateUserRequest.builder()
+            .firstName("Kushal")
+            .lastName("Sharma")
+            .email(KUSHAL_EMAIL)
+            .password(KUSHAL_PASSWORD)
+            .build(),
+        CreateUserRequest.builder()
+            .firstName("Oscar")
+            .lastName("TheOkapi")
+            .email(OSCAR_EMAIL)
+            .password(OSCAR_PASSWORD)
+            .build());
   }
 }

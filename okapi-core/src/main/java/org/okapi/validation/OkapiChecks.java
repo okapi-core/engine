@@ -21,11 +21,4 @@ public class OkapiChecks {
       throw elseThrow.get();
     }
   }
-
-  public static <T extends Exception> void throwIf(boolean condition, Supplier<T> elseThrow)
-      throws T {
-    if (condition) {
-      throw elseThrow.get();
-    }
-  }
 }

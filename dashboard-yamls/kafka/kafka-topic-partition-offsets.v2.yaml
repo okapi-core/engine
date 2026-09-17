@@ -20,16 +20,19 @@ dashboard:
       panels:
         - id: log-end-offset
           title: Log End Offset
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"kafka.log.end_offset","topic":"$__{topic}","partition":"$__{partition}"},"start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"kafka.log.end_offset","tags":{"topic":"$__{topic}","partition":"$__{partition}"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: log-start-offset
           title: Log Start Offset
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"kafka.log.start_offset","topic":"$__{topic}","partition":"$__{partition}"},"start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"kafka.log.start_offset","tags":{"topic":"$__{topic}","partition":"$__{partition}"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: log-size
           title: Log Size
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"kafka.log.size","topic":"$__{topic}","partition":"$__{partition}"},"start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"kafka.log.size","tags":{"topic":"$__{topic}","partition":"$__{partition}"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}

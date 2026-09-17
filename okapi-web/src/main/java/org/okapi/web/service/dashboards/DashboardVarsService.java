@@ -4,62 +4,62 @@
  */
 package org.okapi.web.service.dashboards;
 
-import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 import org.okapi.data.dao.DashboardDao;
 import org.okapi.data.dao.DashboardVarDao;
-import org.okapi.data.model.DashboardVariable;
 import org.okapi.data.exceptions.ResourceNotFoundException;
+import org.okapi.data.model.DashboardVariable;
 import org.okapi.validation.OkapiChecks;
+import org.okapi.web.auth.AccessManager;
 import org.okapi.web.dtos.dashboards.vars.CreateDashboardVarRequest;
 import org.okapi.web.dtos.dashboards.vars.DASH_VAR_TYPE;
-import org.okapi.web.dtos.dashboards.vars.DeleteDashboardVarRequest;
 import org.okapi.web.dtos.dashboards.vars.GetVarResponse;
 import org.okapi.web.dtos.dashboards.vars.ListVarsResponse;
+import org.okapi.web.security.CurrentUserProvider;
 import org.okapi.web.service.Mappers;
-import org.okapi.web.service.access.OrgMemberChecker;
+import org.okapi.web.service.context.DashboardRequestContext;
 import org.springframework.stereotype.Service;
 
 @Service
-@AllArgsConstructor
+@RequiredArgsConstructor
 public class DashboardVarsService {
-  OrgMemberChecker orgMemberChecker;
-  DashboardDao dashboardDao;
-  DashboardVarDao dashboardVarDao;
+  private final AccessManager accessManager;
+  private final CurrentUserProvider currentUserProvider;
+  private final DashboardDao dashboardDao;
+  private final DashboardVarDao dashboardVarDao;
 
-  public GetVarResponse createVar(String tempToken, CreateDashboardVarRequest request) {
-    var ctx = orgMemberChecker.checkUserIsOrgMember(tempToken);
-    var boardOpt = dashboardDao.get(ctx.getOrgId(), request.getDashboardId());
-    OkapiChecks.checkArgument(boardOpt.isPresent(), ResourceNotFoundException::new);
-    var versionId = boardOpt.get().getActiveVersion();
-    var varType = toDashboardVarType(request.getDashVarType());
+  public GetVarResponse createVar(
+      DashboardRequestContext context, CreateDashboardVarRequest request) {
+    var versionId = activeVersion(context);
     var dashVar =
         DashboardVariable.builder()
             .varName(request.getName())
             .tag(request.getTag())
-            .varType(varType)
+            .varType(toDashboardVarType(request.getDashVarType()))
             .build();
-    dashboardVarDao.save(ctx.getOrgId(), request.getDashboardId(), versionId, dashVar);
+    dashboardVarDao.save(context.orgId(), context.dashboardId(), versionId, dashVar);
     return Mappers.mapDashboardVarToResponse(dashVar);
   }
 
-  public void deleteVar(String tempToken, DeleteDashboardVarRequest request) {
-    var ctx = orgMemberChecker.checkUserIsOrgMember(tempToken);
-    var boardOpt = dashboardDao.get(ctx.getOrgId(), request.getDashboardId());
-    OkapiChecks.checkArgument(boardOpt.isPresent(), ResourceNotFoundException::new);
-    var versionId = boardOpt.get().getActiveVersion();
-    dashboardVarDao.delete(ctx.getOrgId(), request.getDashboardId(), versionId, request.getName());
+  public void deleteVar(DashboardRequestContext context, String name) {
+    var versionId = activeVersion(context);
+    dashboardVarDao.delete(context.orgId(), context.dashboardId(), versionId, name);
   }
 
-  public ListVarsResponse listVar(String tempToken, String dashboardId) {
-    var ctx = orgMemberChecker.checkUserIsOrgMember(tempToken);
-    var boardOpt = dashboardDao.get(ctx.getOrgId(), dashboardId);
-    OkapiChecks.checkArgument(boardOpt.isPresent(), ResourceNotFoundException::new);
-    var versionId = boardOpt.get().getActiveVersion();
+  public ListVarsResponse listVars(DashboardRequestContext context) {
+    var versionId = activeVersion(context);
     var vars =
-        dashboardVarDao.list(ctx.getOrgId(), dashboardId, versionId).stream()
+        dashboardVarDao.list(context.orgId(), context.dashboardId(), versionId).stream()
             .map(Mappers::mapDashboardVarToResponse)
             .toList();
     return ListVarsResponse.builder().vars(vars).build();
+  }
+
+  private String activeVersion(DashboardRequestContext context) {
+    accessManager.checkOrgMember(currentUserProvider.userId(), context.orgId());
+    var dashboard = dashboardDao.get(context.orgId(), context.dashboardId());
+    OkapiChecks.checkArgument(dashboard.isPresent(), ResourceNotFoundException::new);
+    return dashboard.get().getActiveVersion();
   }
 
   private static DashboardVariable.Type toDashboardVarType(DASH_VAR_TYPE type) {

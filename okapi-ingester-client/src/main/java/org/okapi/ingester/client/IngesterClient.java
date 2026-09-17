@@ -7,9 +7,11 @@ package org.okapi.ingester.client;
 import com.google.gson.Gson;
 import io.opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceRequest;
 import io.opentelemetry.proto.collector.trace.v1.ExportTraceServiceRequest;
+import java.io.IOException;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
+import org.okapi.rest.logs.*;
 import org.okapi.rest.metrics.exemplar.GetExemplarsRequest;
 import org.okapi.rest.metrics.exemplar.GetExemplarsResponse;
 import org.okapi.rest.metrics.query.GetMetricsRequest;
@@ -20,8 +22,6 @@ import org.okapi.rest.traces.red.ListServicesRequest;
 import org.okapi.rest.traces.red.ServiceListResponse;
 import org.okapi.rest.traces.red.ServiceRedRequest;
 import org.okapi.rest.traces.red.ServiceRedResponse;
-
-import java.io.IOException;
 
 public class IngesterClient {
 
@@ -41,7 +41,7 @@ public class IngesterClient {
     RequestBody body = RequestBody.create(gson.toJson(requestBody).getBytes());
     Request request =
         new Request.Builder()
-            .url(safeUrlConcat(endpoint, path))
+            .url(ClientUrls.concat(endpoint, path))
             .header("Content-Type", "application/json")
             .post(body)
             .build();
@@ -50,24 +50,6 @@ public class IngesterClient {
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
-  }
-
-  public String safeUrlConcat(String endpoint, String path) {
-    var sb = new StringBuilder();
-    var arr = endpoint.toCharArray();
-    int n = arr.length;
-    if (endpoint.endsWith("/")) {
-      n--;
-    }
-    for (int i = 0; i < n; i++) {
-      sb.append(arr[i]);
-    }
-    if (path.startsWith("/")) {
-      sb.append(path);
-    } else {
-      sb.append('/').append(path);
-    }
-    return sb.toString();
   }
 
   public GetMetricsHintsResponse getMetricHints(GetMetricNameHints request) {
@@ -128,37 +110,45 @@ public class IngesterClient {
     return postRequest("/api/v1/metrics/search", request, SearchMetricsV2Response.class);
   }
 
-  public void ingestOtelMetrics(ExportMetricsServiceRequest request) {
-    ingestOtelMetrics(request.toByteArray());
+  public ChLogsQueryResponse searchLogs(ChLogsQueryRequest request) {
+    return postRequest("/api/v1/logs/query", request, ChLogsQueryResponse.class);
   }
 
-  public void ingestOtelMetrics(byte[] payload) {
-    RequestBody body = RequestBody.create(payload);
-    Request request =
-        new Request.Builder()
-            .url(endpoint + "/v1/metrics")
-            .header("Content-Type", "application/octet-stream")
-            .post(body)
-            .build();
-    try (var response = client.newCall(request).execute()) {
-      if (!response.isSuccessful()) {
-        String msg = response.body() == null ? "" : response.body().string();
-        throw new RuntimeException("Ingester OTEL ingest failed: " + response.code() + " " + msg);
-      }
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
+  public ChLogsFieldsResponse getLogsFields(ChLogsFieldsRequest request) {
+    return postRequest("/api/v1/logs/fields", request, ChLogsFieldsResponse.class);
+  }
+
+  public ChLogsFieldValuesResponse getLogsFieldValues(ChLogsFieldValuesRequest request) {
+    return postRequest("/api/v1/logs/field-values", request, ChLogsFieldValuesResponse.class);
+  }
+
+  public OkapiLogQlResponse queryLogsQl(OkapiLogQlRequest request) {
+    return postRequest("/api/v1/logs/query/logql", request, OkapiLogQlResponse.class);
+  }
+
+  public OkapiTraceQlResponse queryTraceQl(OkapiTraceQlRequest request) {
+    return postRequest("/api/v1/spans/query/traceql", request, OkapiTraceQlResponse.class);
+  }
+
+  public ChLogsSummaryResponse getLogsSummary(ChLogsSummaryRequest request) {
+    return postRequest("/api/v1/logs/summary", request, ChLogsSummaryResponse.class);
+  }
+
+  public void ingestOtelMetrics(ExportMetricsServiceRequest request) {
+    var ep = endpoint + "/v1/metrics";
+    ingestPayload(ep, request.toByteArray());
   }
 
   public void ingestOtelTraces(ExportTraceServiceRequest request) {
-    ingestOtelTraces(request.toByteArray());
+    var ep = endpoint + "/v1/traces";
+    ingestPayload(ep, request.toByteArray());
   }
 
-  private void ingestOtelTraces(byte[] payload) {
+  private void ingestPayload(String endpoint, byte[] payload) {
     RequestBody body = RequestBody.create(payload);
     Request request =
         new Request.Builder()
-            .url(endpoint + "/v1/traces")
+            .url(endpoint)
             .header("Content-Type", "application/octet-stream")
             .post(body)
             .build();

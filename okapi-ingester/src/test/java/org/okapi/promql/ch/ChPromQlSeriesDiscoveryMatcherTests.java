@@ -4,8 +4,8 @@
  */
 package org.okapi.promql.ch;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -44,7 +44,6 @@ class ChPromQlSeriesDiscoveryMatcherTests {
   }
 
   private static boolean matches(LabelOp op, String value) {
-    return ChPromQlSeriesDiscovery.matches(
-        LABELS, List.of(new LabelMatcher("zone", op, value)));
+    return ChPromQlSeriesDiscovery.matches(LABELS, List.of(new LabelMatcher("zone", op, value)));
   }
 }

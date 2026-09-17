@@ -1,175 +1,127 @@
-# Okapi - an observability stack built for fast queries and compatibility with existing systems
+# Okapi
 
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](./LICENSE)
 [![Community](https://img.shields.io/badge/community-discussions-green)](https://github.com/okapi-core/okapi/discussions)
 
-Okapi is an observability stack.
+Okapi is an OpenTelemetry-native observability platform for AI-assisted
+incident investigation. It ingests metrics, logs, and traces in OpenTelemetry
+format, stores them in a ClickHouse-backed data lake, and makes that context
+available to people and AI agents.
 
-It stores metrics and traces collected in OpenTelemetry format and allows users to create dashboards, explore metrics,
-query spans in a UI.
-Okapi also exposes a PromQl querying system meaning metrics ingested in Okapi can be visualized on
-Grafana or Perses.
+Okapi includes Oscar, its built-in AI incident-triage agent.
 
-Okapi is built to be easy to self-host and manage. Getting started is easy with the `okapi-cp` CLI.
-Please refer to the Quickstart for options on how deploy Okapi.
+## Capabilities
 
----
+- Ingest OpenTelemetry metrics, logs, and traces over OTLP/HTTP.
+- Consume telemetry directly or through Kafka-based pipelines.
+- Query metrics with PromQL, traces with TraceQL, and logs with Okapi LogQL.
+- Explore dashboards, metric and attribute hints, trace flame graphs, and
+  RED/service-overview data.
+- Ask questions and steer Oscar’s investigation through a chat interface.
+- Investigate incidents with Oscar using correlated metrics, logs, and traces.
+- Access telemetry through an API-backed pathway, giving Oscar a defined
+  interface for querying data stored in Okapi rather than unfettered access to
+  the underlying telemetry store.
+- Connect external AI agents through MCP.
+- Retrieve relevant code context from GitHub and GitLab while investigating
+  application errors.
 
-## (Quicker) Very fast quickstart
-The fastest way to try out Okapi is with Okapi's fork of the Otel Demo. An OpenAI API key is needed to run Oscar.
+## Choose an installation path
 
-```shell
-export OPENAI_API_KEY=<your-openai-api-key>
-git clone https://github.com/okapi-core/opentelemetry-demo.git
-cd opentelemetry-demo
-make start-minimal
-```
+The intended user-facing interface is `okapictl`.
 
-## Why and when to use Okapi ?
+### Try the complete demo locally
 
-Existing observability are usually bursting at the seams, there's either too much data or too many dollars involved.
-Okapi is built to augment existing observability deployments with additional capacity.
-This is why "play-nice" is an explicit goal so teams can start using Okapi with minimal disruption and onboarding.
-
-## Feature list
-- 🪄**Oscar an AI SRE agent** : Okapi has a research agent called Oscar. Its aim is to remove grunt work associated with data collection while debugging production issues. Oscar can either do simple tasks such as finding metrics, error traces, summarizing service or do multistep debugging (upto a point) such as correlating host specific metrics with slow database queries. The best way to test it capabilities is to run Oscar on the Otel demo.
-- 🔌 **OpenTelemetry native** : Okapi is compatible with OTLP meaning any collector that emits metrics as OTel or submits
-  spans via OTel can leverage Okapi as a storage and analysis layer.
-- 📈 **PromQl** : Okapi has its own implementation of PromQl. Metrics stored in Okapi can be
-  visualized using existing solutions such as Grafana and Perses.
-- 🧩 **Dashboard designer** : Okapi has its own dashboard designer should you choose to just use our own UI.
-- 🧱 **Dashboards as code and templates** : Dashboards can be expressed as intuitive YAML. Refer to templates for examples
-  on how to monitor Clickhouse, Postgres, Kafka.
-- 🔍 **Spans Browser and Visualizer** : Okapi comes with its own browser for Spans. Users can search spans, visualize span attributes, view attributes of a span.
-- ✨ **Autocomplete almost everywhere** : Nearly every form field in the Okapi UI has autocomplete minimizing the
-  need for copy-paste.
-- 🧷 **Support for arbitrary span fields** : Traces forwarded to Okapi can contain spans with arbitrary attributes.
-- 🩺 **Out of box service healths** : Get golden metrics in one place with Service health boards.
-- 🎯 **Granular REDs** : Okapi calculates golden signals not just for the aggregate service, all its service-peer paths and all associated operations. This data is picked up automatically from spans submitted to Okapi.
-
-
-## (Slower) Quickstart
-
-### Deploy on local machine (for testing)
-
-Install the CLI:
+The local demo runs Okapi together with the OpenTelemetry Astronomy Shop and
+requires Docker. It is the recommended way to evaluate Okapi without creating
+cloud infrastructure:
 
 ```sh
-pip install okapi-cp
+pip install okapi-ctl
+okapictl demo --local
 ```
 
-Local deployment (testing):
+The command prints the URLs for the Okapi UI and the OpenTelemetry demo when
+the services are ready. The demo can be stopped and removed with:
 
 ```sh
-# note these keys will need to be changed for a production deployment.
-okapi-cp deploy local --hmac-key 5e1a04d3 --api-key a2991d99
+okapictl demo stop --local
+okapictl demo destroy --local
 ```
 
-Okapi will be available at `http://localhost:9001` once the healthcheck succeeds.
+### Try the complete demo on AWS
 
-### Development test infrastructure
-
-The repository uses Docker Compose for the local services required by integration tests:
-ClickHouse, LocalStack, PostgreSQL, and Vault.
+The AWS demo provisions the OpenTelemetry demo and Okapi on AWS using the
+public `okapi-demo-tf` deployment repository. It requires an AWS account and
+credentials, and creates billable resources:
 
 ```sh
-export OPENAI_API_KEY=<your-openai-api-key>
-make test-infra
+pip install okapi-ctl
+okapictl demo --aws
 ```
 
-`make test-infra` builds the operations artifact, waits for each container to become healthy,
-initializes Vault, and runs the ClickHouse and DynamoDB migrations. Stop the stack with:
+When finished, stop or destroy the environment explicitly:
 
 ```sh
-make stop-test-infra
+okapictl demo stop --aws
+okapictl demo destroy --aws
 ```
 
-ClickHouse data remains under `${HOME}/.okapi-data` when the stack is stopped. Set `ch_dir`
-when invoking Make to use another location. The existing `make ch`, `make localstack`,
-`make postgres`, and `make oscar-vault-dev` targets start individual Compose services.
+### Install Okapi locally
 
-### Deploy on Kubernetes (sample production deployment)
-
-Full deployment with LocalStack and a new ClickHouse install:
+Use this path when you want Okapi itself but do not need the complete
+OpenTelemetry demo:
 
 ```sh
-helm repo add clickhouse https://charts.clickhouse.com
-helm install clickhouse clickhouse/clickhouse --namespace okapi --create-namespace
-okapi-cp deploy k8s \
-  --chart-repo oci://ghcr.io/okapi-core \
-  --namespace okapi \
-  --aws-mode localstack \
-  --aws-endpoint http://localstack.okapi.svc.cluster.local:4566 \
-  --clickhouse-host clickhouse.okapi.svc.cluster.local \
-  --clickhouse-port 8123 \
-  --ingester-service-type ClusterIP \
-  --web-service-type LoadBalancer
+pip install okapi-ctl
+okapictl install --local
 ```
 
-Using an existing ClickHouse deployment:
+### Install Okapi on Kubernetes
+
+Use this path for a Kubernetes cluster. The installation uses the Okapi Helm
+charts and requires a ClickHouse deployment, either an existing one or one
+provided by the installation workflow:
 
 ```sh
-okapi-cp deploy k8s \
-  --chart-repo oci://ghcr.io/okapi-core \
-  --namespace okapi \
-  --aws-mode localstack \
-  --aws-endpoint http://localstack.okapi.svc.cluster.local:4566 \
-  --clickhouse-host <CLICKHOUSE_HOST> \
-  --clickhouse-port 8123
+pip install okapi-ctl
+okapictl install --k8s
 ```
 
-Note: the Okapi Helm charts are published in GHCR at `oci://ghcr.io/okapi-core`.
+For direct Helm usage and configuration options, see the [Helm documentation](./helm/README.md).
 
-### Helm charts (OCI)
+## Configure OpenTelemetry to send data to Okapi
 
-Okapi Helm charts are published to GHCR:
+Okapi accepts OTLP/HTTP on the ingester endpoint. For a local installation,
+the endpoint is typically:
 
-- `oci://ghcr.io/okapi-core/okapi-ingester`
-- `oci://ghcr.io/okapi-core/okapi-web`
-
-Sample Helm deploy (assumes ClickHouse and LocalStack are already running in `okapi`):
-
-```sh
-helm upgrade --install okapi-ingester oci://ghcr.io/okapi-core/okapi-ingester \
-  --namespace okapi --create-namespace \
-  --set springOverrides.okapi.clickhouse.host=clickhouse.okapi.svc.cluster.local \
-  --set springOverrides.okapi.clickhouse.port=8123 \
-  --set springOverrides.okapi.clickhouse.username=default \
-  --set springOverrides.okapi.clickhouse.password=YOUR_CLICKHOUSE_PASSWORD \
-  --set springOverrides.okapi.clickhouse.secure=false \
-  --set springOverrides.okapi.aws.endpoint=http://localstack.okapi.svc.cluster.local:4566
-
-helm upgrade --install okapi-web oci://ghcr.io/okapi-core/okapi-web \
-  --namespace okapi --create-namespace \
-  --set springOverrides.clusterEndpoint=http://okapi-ingester.okapi.svc.cluster.local:9009 \
-  --set springOverrides.okapi.aws.endpoint=http://localstack.okapi.svc.cluster.local:4566
+```text
+http://localhost:9009
 ```
 
-## OTLP/HTTP Ingest (OpenTelemetry)
+The OTLP/HTTP exporter appends the signal-specific paths automatically:
 
-### Example: Setting up OTel collector with okapi export
+```text
+/v1/metrics
+/v1/traces
+/v1/logs
+```
 
-Assuming a local deployment, here's how to forward host metrics via OTel collector to Okapi.
-Collector config (`otel-collector.yaml`):
+For example, an OpenTelemetry Collector can forward all three signal types to
+Okapi with this configuration:
 
 ```yaml
 receivers:
-  hostmetrics:
-    collection_interval: 10s
-    scrapers:
-      cpu: { }
-      memory: { }
-      disk: { }
-      filesystem: { }
-      load: { }
-      network: { }
+  otlp:
+    protocols:
+      grpc:
+      http:
 
 processors:
-  batch: { }
+  batch:
 
 exporters:
   otlphttp/okapi:
-    # Base endpoint; exporter appends /v1/metrics for metrics
     endpoint: http://localhost:9009
     compression: none
     headers:
@@ -178,19 +130,54 @@ exporters:
 service:
   pipelines:
     metrics:
-      receivers: [ hostmetrics ]
-      processors: [ batch ]
-      exporters: [ otlphttp/okapi ]
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlphttp/okapi]
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlphttp/okapi]
+    logs:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlphttp/okapi]
 ```
 
-Run the collector:
+Run the collector with:
 
-```bash
+```sh
 otelcol --config otel-collector.yaml
 ```
 
-You can then start making dashboards in the Okapi UI.
-`http://localhost:9001`
+For a remote or Kubernetes installation, replace `http://localhost:9009` with
+the externally reachable Okapi ingester endpoint. Keep the tenant header
+consistent with the tenant used by the Okapi installation.
+
+## OpenTelemetry demo harness
+
+For development and benchmark work, the repository also contains a pinned
+OpenTelemetry demo harness:
+
+```sh
+make docker-all
+make otel-harness
+```
+
+The harness checks out a pinned OpenTelemetry demo revision, adds the Okapi
+collector and Compose configuration, and starts the demo without the demo's
+other observability backends.
+
+To check that telemetry is flowing into Okapi:
+
+```sh
+curl -s \
+  -H 'Content-Type: application/json' \
+  -d '{"window":"5m"}' \
+  http://localhost:9009/api/v1/overview
+```
+
+The setup is ready when the response reports non-zero metrics and trace event
+counts.
 
 ## License
 

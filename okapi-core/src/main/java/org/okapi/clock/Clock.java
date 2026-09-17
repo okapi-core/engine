@@ -8,6 +8,4 @@ public interface Clock {
   long currentTimeMillis();
 
   long getTime();
-
-  Clock setTime(long time);
 }

@@ -1,5 +1,12 @@
+/*
+ * Copyright The OkapiCore Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
 package org.okapi.oscar.tools;
 
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.okapi.ingester.client.IngesterClient;
 import org.okapi.metrics.pojos.RES_TYPE;
@@ -10,10 +17,6 @@ import org.okapi.rest.traces.red.ServiceRedRequest;
 import org.okapi.rest.traces.red.ServiceRedResponse;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
-
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
 
 @Slf4j
 public class TracingTools {
@@ -35,13 +38,13 @@ Timestampfilter is always required without which the call will fail. To set time
 2. Usually a time interval of 1 hr is enough. You can use timeRange tool with the appropriate duration to get a time range that can be used to populate this filter.
 """)
   public SpanQueryV2Response getSpans(@ToolParam SpanQueryV2Request request) {
-    log.info("Calling {}", request);
+    log.debug("Calling {}", request);
     toolCallReporter.reportRequest(
         "getSpans", request, ToolCallSummaries.summarizeSpanQueryRequest(request));
     var response = client.querySpans(request);
     toolCallReporter.reportResponseSummaryOnly(
         "getSpans", ToolCallSummaries.summarizeSpanQueryResponse(response));
-    log.info("Response: {}", response);
+    log.debug("Response: {}", response);
     return response;
   }
 

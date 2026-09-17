@@ -16,7 +16,8 @@ import org.okapi.promql.eval.VectorData.*;
 public final class InstantFunctions {
   private InstantFunctions() {}
 
-  public static InstantVectorResult mapSamples(InstantVectorResult iv, Function<Double, Double> fn) {
+  public static InstantVectorResult mapSamples(
+      InstantVectorResult iv, Function<Double, Double> fn) {
     return mapSamples(iv, fn, false);
   }
 
@@ -64,8 +65,7 @@ public final class InstantFunctions {
         (left, right) -> {
           for (String label : labels) {
             int compared =
-                compareNatural(
-                    labelValue(left.series(), label), labelValue(right.series(), label));
+                compareNatural(labelValue(left.series(), label), labelValue(right.series(), label));
             if (compared != 0) return compared;
           }
           return 0;
@@ -107,8 +107,7 @@ public final class InstantFunctions {
     if (iv.data().isEmpty())
       return new InstantVectorResult(
           List.of(
-              new SeriesSample(
-                  new SeriesId("", new Labels(labels)), new Sample(ctx.endMs, 1f))));
+              new SeriesSample(new SeriesId("", new Labels(labels)), new Sample(ctx.endMs, 1f))));
     return new InstantVectorResult(List.of());
   }
 

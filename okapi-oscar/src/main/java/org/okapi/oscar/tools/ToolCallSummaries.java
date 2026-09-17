@@ -1,18 +1,43 @@
+/*
+ * Copyright The OkapiCore Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
 package org.okapi.oscar.tools;
 
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+import org.okapi.rest.logs.ChLogsQueryRequest;
+import org.okapi.rest.logs.ChLogsQueryResponse;
 import org.okapi.rest.metrics.query.*;
 import org.okapi.rest.search.SearchMetricsRequest;
 import org.okapi.rest.search.SearchMetricsV2Response;
 import org.okapi.rest.traces.SpanQueryV2Request;
 import org.okapi.rest.traces.SpanQueryV2Response;
 
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
-
 public final class ToolCallSummaries {
 
   private ToolCallSummaries() {}
+
+  public static String summarizeLogSearchRequest(ChLogsQueryRequest request) {
+    if (request == null) {
+      return "Searching logs.";
+    }
+    int filterCount = request.getFilters() == null ? 0 : request.getFilters().size();
+    return "Searching logs: timeNs=["
+        + request.getTsStartNanos()
+        + ","
+        + request.getTsEndNanos()
+        + "] filters="
+        + filterCount
+        + " limit="
+        + request.getLimit();
+  }
+
+  public static String summarizeLogSearchResponse(ChLogsQueryResponse response) {
+    int count = response == null || response.getItems() == null ? 0 : response.getItems().size();
+    return "Search logs results: logs=" + count;
+  }
 
   public static String summarizeSpanQueryRequest(SpanQueryV2Request request) {
     if (request == null) {
@@ -169,7 +194,8 @@ public final class ToolCallSummaries {
         + " time-ms="
         + timeWindow
         + " metric="
-        + metricPath + " "
+        + metricPath
+        + " "
         + summarizeResponse(type, response);
   }
 
@@ -194,7 +220,7 @@ public final class ToolCallSummaries {
     sb.append("results=").append(histogramResponse.getSeries().size());
     sb.append(" histos=");
     for (var s : histogramResponse.getSeries()) {
-      if(s.getHistogram().getBuckets() == null){
+      if (s.getHistogram().getBuckets() == null) {
         sb.append(" malformed-histogram");
         continue;
       }

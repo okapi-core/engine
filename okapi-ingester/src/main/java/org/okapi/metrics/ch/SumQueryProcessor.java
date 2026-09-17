@@ -9,16 +9,18 @@ import com.clickhouse.client.api.query.GenericRecord;
 import com.google.common.collect.ArrayListMultimap;
 import gg.jte.TemplateOutput;
 import gg.jte.output.StringOutput;
+import java.util.*;
 import org.okapi.ch.ChTemplateFiles;
 import org.okapi.metrics.ch.template.ChGetSumQueryTemplate;
 import org.okapi.metrics.ch.template.ChMetricTemplateEngine;
 import org.okapi.rest.metrics.query.*;
+import org.okapi.spring.configs.Profiles;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
-
-import java.util.*;
 
 /** Handles sum query execution and aggregation. */
 @Service
+@Profile(Profiles.PROFILE_CH)
 public class SumQueryProcessor {
   private final Client client;
   private final ChMetricTemplateEngine templateEngine;
@@ -80,8 +82,7 @@ public class SumQueryProcessor {
                   .sum();
           long aggTsStart = group.stream().mapToLong(ChSumSample::tsStart).min().orElse(ts);
           long aggTsEnd = group.stream().mapToLong(ChSumSample::tsEnd).max().orElse(te);
-          sums.add(
-              Sum.builder().ts(aggTsStart).te(aggTsEnd).unit(key.unit()).count(total).build());
+          sums.add(Sum.builder().ts(aggTsStart).te(aggTsEnd).unit(key.unit()).count(total).build());
         }
       }
     }

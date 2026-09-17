@@ -20,31 +20,37 @@ dashboard:
       panels:
         - id: cpu-user-peak
           title: CPU User Utilization (Peak)
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"system.cpu.utilization","tags":{"host.name":"$__{host}","state":"user"},"start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"MAX"}}
+                {"metric":"system.cpu.utilization","tags":{"host.name":"$__{host}","state":"user"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"MAX"}}
         - id: cpu-system-peak
           title: CPU System Utilization (Peak)
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"system.cpu.utilization","tags":{"host.name":"$__{host}","state":"system"},"start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"MAX"}}
+                {"metric":"system.cpu.utilization","tags":{"host.name":"$__{host}","state":"system"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"MAX"}}
         - id: memory-utilization-peak
           title: Memory Utilization (Peak)
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"system.memory.utilization","tags":{"host.name":"$__{host}","state":"used"},"start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"MAX"}}
+                {"metric":"system.memory.utilization","tags":{"host.name":"$__{host}","state":"used"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"MAX"}}
         - id: disk-io-time-peak
           title: Disk I/O Time (Peak)
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"system.disk.io_time","tags":{"host.name":"$__{host}","device":"$__{device}"},"start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"MAX"}}
+                {"metric":"system.disk.io_time","tags":{"host.name":"$__{host}","device":"$__{device}"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"MAX"}}
         - id: filesystem-utilization-peak
           title: Filesystem Utilization (Peak)
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"system.filesystem.utilization","tags":{"host.name":"$__{host}","mountpoint":"$__{mountpoint}"},"start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"MAX"}}
+                {"metric":"system.filesystem.utilization","tags":{"host.name":"$__{host}","mountpoint":"$__{mountpoint}"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"MAX"}}
         - id: network-errors-peak
           title: Network Errors (Peak)
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"system.network.errors","tags":{"host.name":"$__{host}"},"start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"MAX"}}
+                {"metric":"system.network.errors","tags":{"host.name":"$__{host}"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"MAX"}}

@@ -1,0 +1,151 @@
+# Copyright The OkapiCore Authors
+# SPDX-License-Identifier: Apache-2.0
+
+services:
+  clickhouse:
+    build:
+      context: ${OKAPI_REPO_ROOT:?OKAPI_REPO_ROOT must point at the Okapi checkout}
+      dockerfile: test-infra/clickhouse/Dockerfile
+    image: okapi-test-clickhouse:25.12
+    container_name: okapi-otel-clickhouse
+    environment:
+      CLICKHOUSE_PASSWORD: okapi_testing_password
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    volumes:
+      - "${OKAPI_OTEL_CH_DIR:-${HOME}/.okapi-otel-data}/ch_data:/var/lib/clickhouse"
+      - "${OKAPI_OTEL_CH_DIR:-${HOME}/.okapi-otel-data}/ch_logs:/var/log/clickhouse-server"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "clickhouse-client --password \"$${CLICKHOUSE_PASSWORD}\" --query 'SELECT 1'",
+        ]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+      start_period: 5s
+
+  postgres:
+    build:
+      context: ${OKAPI_REPO_ROOT:?OKAPI_REPO_ROOT must point at the Okapi checkout}
+      dockerfile: test-infra/postgres/Dockerfile
+    image: okapi-test-postgres:16
+    container_name: okapi-otel-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-okapi_oscar}
+      POSTGRES_USER: ${POSTGRES_USER:-okapi_oscar_user_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-okapi_oscar_password}
+      OKAPI_WEB_DB_USER: ${OKAPI_WEB_DB_USER:-okapi_web_user}
+      OKAPI_WEB_DB_PASSWORD: ${OKAPI_WEB_DB_PASSWORD:-okapi_web_password}
+      OKAPI_WEB_DB_MIGRATION_USER: ${OKAPI_WEB_DB_MIGRATION_USER:-okapi_web_migration_user}
+      OKAPI_WEB_DB_MIGRATION_PASSWORD: ${OKAPI_WEB_DB_MIGRATION_PASSWORD:-okapi_web_migration_password}
+    ports:
+      - "5432:5432"
+    volumes:
+      - "${OKAPI_REPO_ROOT:?OKAPI_REPO_ROOT must point at the Okapi checkout}/postgres-init/init.sql:/docker-entrypoint-initdb.d/init.sql:ro"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\"",
+        ]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+      start_period: 5s
+
+  okapi-migrate:
+    image: ${OKAPI_IMAGE_REPO:-ghcr.io/okapi-core}/okapi-ops:${TAG:-latest}
+    container_name: okapi-otel-migrate
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    environment:
+      OKAPI_WEB_DB_MIGRATION_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-okapi_oscar}?currentSchema=${OKAPI_WEB_DB_SCHEMA:-okapi_web}
+      OKAPI_WEB_DB_MIGRATION_USER: ${OKAPI_WEB_DB_MIGRATION_USER:-okapi_web_migration_user}
+      OKAPI_WEB_DB_MIGRATION_PASSWORD: ${OKAPI_WEB_DB_MIGRATION_PASSWORD:-okapi_web_migration_password}
+    entrypoint:
+      - /bin/sh
+      - -ec
+    command:
+      - |
+        java -jar /app/app.jar ch-migrate --host clickhouse --port 8123 --user default --password okapi_testing_password
+        java -jar /app/app.jar pg-migrate
+
+  okapi-ingester:
+    image: ${OKAPI_IMAGE_REPO:-ghcr.io/okapi-core}/okapi-ingester:${TAG:-latest}
+    container_name: okapi-otel-ingester
+    depends_on:
+      okapi-migrate:
+        condition: service_completed_successfully
+    environment:
+      OKAPI_CLICKHOUSE_HOST: clickhouse
+      OKAPI_CLICKHOUSE_PORT: 8123
+    command:
+      - --okapi.clickhouse.host=clickhouse
+      - --okapi.clickhouse.port=8123
+      - --okapi.clickhouse.secure=false
+      - --okapi.clickhouse.username=default
+      - --okapi.clickhouse.password=okapi_testing_password
+      - --okapi.clickhouse.chMetricsWal=/wal/metrics
+      - --okapi.clickhouse.chLogsWal=/wal/logs
+      - --okapi.clickhouse.chTracesWal=/wal/traces
+    ports:
+      - "9009:9009"
+    volumes:
+      - okapi-ingester-wal:/wal
+
+  okapi-web:
+    image: ${OKAPI_IMAGE_REPO:-ghcr.io/okapi-core}/okapi-web:${TAG:-latest}
+    container_name: okapi-otel-web
+    depends_on:
+      okapi-migrate:
+        condition: service_completed_successfully
+      okapi-ingester:
+        condition: service_started
+      okapi-oscar:
+        condition: service_started
+    environment:
+      OKAPI_CLUSTER_ENDPOINT: http://okapi-ingester:9009
+      OKAPI_OSCAR_ENDPOINT: http://okapi-oscar:9002
+      OKAPI_WEB_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-okapi_oscar}?currentSchema=${OKAPI_WEB_DB_SCHEMA:-okapi_web}
+      OKAPI_WEB_DB_USER: ${OKAPI_WEB_DB_USER:-okapi_web_user}
+      OKAPI_WEB_DB_PASSWORD: ${OKAPI_WEB_DB_PASSWORD:-okapi_web_password}
+    ports:
+      - "9001:9001"
+
+  okapi-oscar:
+    image: ${OKAPI_IMAGE_REPO:-ghcr.io/okapi-core}/okapi-oscar:${TAG:-latest}
+    container_name: okapi-otel-oscar
+    depends_on:
+      postgres:
+        condition: service_healthy
+      okapi-ingester:
+        condition: service_started
+    environment:
+      OKAPI_CLUSTER_ENDPOINT: http://okapi-ingester:9009
+      OSCAR_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-okapi_oscar}?currentSchema=okapi_oscar
+      OSCAR_DB_USER: ${OSCAR_DB_USER:-okapi_oscar_user}
+      OSCAR_DB_PASSWORD: ${OSCAR_DB_PASSWORD:-okapi_oscar_password}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    command:
+      - --okapi.oscar.vault.address=
+      - --okapi.oscar.openai.api-key-path=env://OPENAI_API_KEY
+    ports:
+      - "9002:9002"
+
+  otel-collector:
+    depends_on:
+      okapi-ingester:
+        condition: service_started
+
+volumes:
+  okapi-ingester-wal:

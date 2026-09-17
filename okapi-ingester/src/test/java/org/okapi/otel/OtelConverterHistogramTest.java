@@ -4,17 +4,17 @@
  */
 package org.okapi.otel;
 
+import static org.junit.jupiter.api.Assertions.*;
+
+import com.google.protobuf.ByteString;
 import io.opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceRequest;
 import io.opentelemetry.proto.metrics.v1.*;
 import io.opentelemetry.proto.resource.v1.Resource;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.okapi.metrics.otel.OtelConverter;
 import org.okapi.rest.metrics.ExportMetricsRequest;
 import org.okapi.rest.metrics.MetricType;
-
-import java.util.List;
-
-import static org.junit.jupiter.api.Assertions.*;
 
 public class OtelConverterHistogramTest {
 
@@ -27,6 +27,13 @@ public class OtelConverterHistogramTest {
             .setTimeUnixNano(4_000_000L)
             .setSum(42.5)
             .setCount(14L)
+            .addExemplars(
+                Exemplar.newBuilder()
+                    .setTimeUnixNano(3_000_000L)
+                    .setAsDouble(12.5)
+                    .setTraceId(ByteString.copyFrom(new byte[16]))
+                    .setSpanId(ByteString.copyFrom(new byte[8]))
+                    .build())
             .addAllExplicitBounds(List.of(10.0, 20.0))
             .addAllBucketCounts(List.of(5L, 7L, 2L))
             .build();
@@ -66,5 +73,7 @@ public class OtelConverterHistogramTest {
     assertArrayEquals(new long[] {5, 7, 2}, hp.getBucketCounts());
     assertEquals(42.5, hp.getSum());
     assertEquals(14L, hp.getCount());
+    assertEquals(1, r.getHisto().getExemplars().size());
+    assertEquals(3_000_000L, r.getHisto().getExemplars().get(0).getTsNanos());
   }
 }

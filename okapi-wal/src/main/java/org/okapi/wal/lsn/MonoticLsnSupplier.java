@@ -10,10 +10,6 @@ import org.okapi.wal.LsnSupplier;
 public class MonoticLsnSupplier implements LsnSupplier {
   AtomicLong lsnSupplier;
 
-  public MonoticLsnSupplier() {
-    this(0);
-  }
-
   public MonoticLsnSupplier(long startingPoint) {
     lsnSupplier = new AtomicLong(startingPoint);
   }

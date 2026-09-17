@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Optional;
 import org.okapi.data.dao.DashboardPanelDao;
 import org.okapi.data.model.DashboardPanel;
-import org.okapi.data.model.MultiQueryPanelConfig;
+import org.okapi.data.model.PanelQueryConfig;
 import org.okapi.data.pg.entity.DashboardPanelEntity;
 import org.okapi.data.pg.repository.DashboardPanelRepository;
 
@@ -62,7 +62,7 @@ public final class DashboardPanelDaoPg implements DashboardPanelDao {
         .queryConfig(
             entity.getQueryConfig() == null
                 ? null
-                : gson.fromJson(entity.getQueryConfig(), MultiQueryPanelConfig.class))
+                : gson.fromJson(entity.getQueryConfig(), PanelQueryConfig.class))
         .build();
   }
 }

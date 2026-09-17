@@ -10,10 +10,10 @@ import org.okapi.data.dao.DashboardVersionDao;
 import org.okapi.data.exceptions.ResourceNotFoundException;
 import org.okapi.exceptions.UnAuthorizedException;
 import org.okapi.web.auth.AccessManager;
-import org.okapi.web.auth.TokenManager;
 import org.okapi.web.dtos.dashboards.versions.GetDashboardVersionResponse;
 import org.okapi.web.dtos.dashboards.versions.ListDashboardVersionsResponse;
 import org.okapi.web.dtos.dashboards.versions.PublishDashboardVersionResponse;
+import org.okapi.web.security.CurrentUserProvider;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -21,14 +21,13 @@ import org.springframework.stereotype.Service;
 public class DashboardVersionService {
   private final DashboardVersionDao dashboardVersionDao;
   private final DashboardDao dashboardDao;
-  private final TokenManager tokenManager;
   private final AccessManager accessManager;
+  private final CurrentUserProvider currentUserProvider;
 
-  public ListDashboardVersionsResponse list(String tempToken, String dashboardId)
+  public ListDashboardVersionsResponse list(String orgId, String dashboardId)
       throws UnAuthorizedException, ResourceNotFoundException {
-    var userId = tokenManager.getUserId(tempToken);
-    var orgId = tokenManager.getOrgId(tempToken);
-    accessManager.checkUserIsOrgMember(new AccessManager.AuthContext(userId, orgId));
+    var userId = currentUserProvider.userId();
+    accessManager.checkOrgMember(userId, orgId);
     var dash = dashboardDao.get(orgId, dashboardId);
     if (dash.isEmpty()) {
       throw new ResourceNotFoundException("Dashboard not found: " + dashboardId);
@@ -50,12 +49,10 @@ public class DashboardVersionService {
     return ListDashboardVersionsResponse.builder().versions(versions).build();
   }
 
-  public PublishDashboardVersionResponse publish(
-      String tempToken, String dashboardId, String versionId)
+  public PublishDashboardVersionResponse publish(String orgId, String dashboardId, String versionId)
       throws UnAuthorizedException, ResourceNotFoundException {
-    var userId = tokenManager.getUserId(tempToken);
-    var orgId = tokenManager.getOrgId(tempToken);
-    accessManager.checkUserIsOrgMember(new AccessManager.AuthContext(userId, orgId));
+    var userId = currentUserProvider.userId();
+    accessManager.checkOrgMember(userId, orgId);
     var dashOpt = dashboardDao.get(orgId, dashboardId);
     if (dashOpt.isEmpty()) {
       throw new ResourceNotFoundException("Dashboard not found: " + dashboardId);

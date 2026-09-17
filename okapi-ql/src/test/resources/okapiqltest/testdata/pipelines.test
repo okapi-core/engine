@@ -1,0 +1,32 @@
+parse with condition and select query
+query
+  with (ts >= now() - 1d)
+  (level = 'info' and content ~= '.*error$') or
+  (level = 'WARN' and content !~ 'successfully')
+  | select (level, message, content)
+end
+
+parse with condition and remove query
+query
+  with (ts >= now() - 1d)
+  (level = 'info' and content ~= '.*error$') or
+  (level = 'WARN' and content !~ 'successfully')
+  | remove (dedup_token)
+end
+
+parse list existence sort and limit
+query
+  service in ('checkout', 'payment') and trace_id exists
+  | sort ts desc
+  | limit 100
+end
+
+parse uppercase select keyword
+query
+  level = info | SELECT (level)
+end
+
+fail malformed count pipeline
+query
+  | count (service)
+end

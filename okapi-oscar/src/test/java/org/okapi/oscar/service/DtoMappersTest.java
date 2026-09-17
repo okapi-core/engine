@@ -1,13 +1,17 @@
+/*
+ * Copyright The OkapiCore Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
 package org.okapi.oscar.service;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import org.junit.jupiter.api.Test;
 import org.okapi.oscar.chat.ChatMessageEntity;
 import org.okapi.rest.chat.CHAT_RESPONSE_TYPE;
 import org.okapi.rest.chat.CHAT_ROLE;
 import org.okapi.rest.chat.ChatMessageResponse;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 
 public class DtoMappersTest {
 

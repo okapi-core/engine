@@ -1,9 +1,12 @@
+/*
+ * Copyright The OkapiCore Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
 package org.okapi.oscar.session;
 
+import java.util.function.Supplier;
 import lombok.AllArgsConstructor;
 import org.springframework.stereotype.Component;
-
-import java.util.function.Supplier;
 
 @Component
 @AllArgsConstructor

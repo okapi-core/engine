@@ -13,6 +13,7 @@ import org.okapi.promql.eval.ts.TsClient;
 public final class EvalContext {
   public final long startMs, endMs, stepMs;
   public final long queryStartMs, queryEndMs;
+
   /** Wall-clock time captured once at evaluation entry. Used by time() and staleness checks. */
   public final long nowMs;
 
@@ -32,7 +33,18 @@ public final class EvalContext {
       SeriesDiscovery discovery,
       ExecutorService exec,
       StatisticsMerger statisticsMerger) {
-    this(startMs, endMs, stepMs, startMs, endMs, nowMs, res, client, discovery, exec, statisticsMerger);
+    this(
+        startMs,
+        endMs,
+        stepMs,
+        startMs,
+        endMs,
+        nowMs,
+        res,
+        client,
+        discovery,
+        exec,
+        statisticsMerger);
   }
 
   private EvalContext(
@@ -62,11 +74,31 @@ public final class EvalContext {
 
   public EvalContext withWindow(long newStartMs, long newEndMs) {
     return new EvalContext(
-        newStartMs, newEndMs, stepMs, queryStartMs, queryEndMs, nowMs, resolution, client, discovery, exec, statisticsMerger);
+        newStartMs,
+        newEndMs,
+        stepMs,
+        queryStartMs,
+        queryEndMs,
+        nowMs,
+        resolution,
+        client,
+        discovery,
+        exec,
+        statisticsMerger);
   }
 
   public EvalContext withWindow(long newStartMs, long newEndMs, long newStepMs) {
     return new EvalContext(
-        newStartMs, newEndMs, newStepMs, queryStartMs, queryEndMs, nowMs, resolution, client, discovery, exec, statisticsMerger);
+        newStartMs,
+        newEndMs,
+        newStepMs,
+        queryStartMs,
+        queryEndMs,
+        nowMs,
+        resolution,
+        client,
+        discovery,
+        exec,
+        statisticsMerger);
   }
 }

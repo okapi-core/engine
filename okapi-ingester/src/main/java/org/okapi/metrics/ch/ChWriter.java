@@ -9,8 +9,7 @@ import com.clickhouse.client.api.insert.InsertResponse;
 import com.clickhouse.data.ClickHouseFormat;
 import com.google.common.collect.Multimap;
 import com.google.gson.Gson;
-import org.okapi.futures.OkapiFutures;
-
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.io.ByteArrayInputStream;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -20,15 +19,23 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.Future;
+import org.okapi.futures.OkapiFutures;
+import org.okapi.telemetry.OkapiInternalMetrics;
 
 public class ChWriter {
   private final Client client;
+  private final OkapiInternalMetrics metrics;
   private final Gson gson = new Gson();
   private static final DateTimeFormatter TS_FMT =
       DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS").withZone(ZoneOffset.UTC);
 
   public ChWriter(Client client) {
+    this(client, new OkapiInternalMetrics(new SimpleMeterRegistry()));
+  }
+
+  public ChWriter(Client client, OkapiInternalMetrics metrics) {
     this.client = client;
+    this.metrics = metrics;
   }
 
   public String toJsonEachRow(Collection<String> rows) {
@@ -55,8 +62,13 @@ public class ChWriter {
   }
 
   public void writeSyncWithBestEffort(Multimap<String, String> writeLoad) {
+    var startNanos = System.nanoTime();
     var futures = writeAll(writeLoad);
     OkapiFutures.fireAndForgetWait(futures);
+    var durationNanos = System.nanoTime() - startNanos;
+    for (var table : writeLoad.keySet()) {
+      metrics.recordStorageWrite(table, writeLoad.get(table).size(), durationNanos);
+    }
   }
 
   public Future<InsertResponse> writeHistoSamplesBinary(List<ChHistoSample> rows) {

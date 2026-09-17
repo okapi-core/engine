@@ -4,7 +4,10 @@
  */
 package org.okapi.rest.promql;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import org.okapi.promql.eval.ExpressionResult;
 import org.okapi.promql.eval.InstantVectorResult;
 import org.okapi.promql.eval.ScalarResult;
@@ -14,50 +17,45 @@ public class PromQlResponseMapper {
 
   public static final String NAME = "__name__";
 
-  public static GetPromQlResponse<List<String>> mapStringList(List<String> list) {
-    var response = new GetPromQlResponse<List<String>>();
+  public static PromQlStringListResponse mapStringList(List<String> list) {
+    var response = new PromQlStringListResponse();
     response.setStatus("success");
     response.setData(list);
     return response;
   }
 
-  public static GetPromQlResponse<PromQlData<?>> toResult(
-      ExpressionResult result, RETURN_TYPE returnType) {
+  public static GetPromQlResponse toResult(ExpressionResult result, RETURN_TYPE returnType) {
     if (returnType == RETURN_TYPE.VECTOR_OR_SCALAR) {
-      var response = new GetPromQlResponse<PromQlData<?>>();
       if (result instanceof InstantVectorResult) {
-        var data = mapInstanceVector(result);
+        var response = new PromQlVectorResponse();
         response.setStatus("success");
-        response.setData(data);
+        response.setData(mapInstanceVector(result));
         return response;
       } else if (result instanceof ScalarResult) {
-        var data = mapScalar(result);
+        var response = new PromQlScalarResponse();
         response.setStatus("success");
-        response.setData(data);
+        response.setData(mapScalar(result));
         return response;
       }
     } else if (returnType == RETURN_TYPE.MATRIX) {
-      var response = new GetPromQlResponse<PromQlData<?>>();
-      var data = mapMatrixSeries(result);
+      var response = new PromQlMatrixResponse();
       response.setStatus("success");
-      response.setData(data);
+      response.setData(mapMatrixSeries(result));
       return response;
     }
     throw new IllegalStateException();
   }
 
-  public static PromQlData<List<VectorSeries>> mapInstanceVector(ExpressionResult result) {
+  public static PromQlVectorData mapInstanceVector(ExpressionResult result) {
     var iv = (InstantVectorResult) result;
-    var promQlResponse = new PromQlData<List<VectorSeries>>();
-    promQlResponse.setResultType(PromQlResultType.MATRIX);
+    var promQlResponse = new PromQlVectorData();
     List<VectorSeries> asVectorSeriesList =
         iv.data().stream()
             .map(
                 seriesSample -> {
                   var metric = toPrometheusName(seriesSample.id());
                   var sample = fromEngineSampleToRestSample(seriesSample.sample());
-                  var series = new VectorSeries(metric, sample);
-                  return series;
+                  return new VectorSeries(metric, sample);
                 })
             .toList();
     promQlResponse.setResultType(PromQlResultType.VECTOR);
@@ -65,19 +63,18 @@ public class PromQlResponseMapper {
     return promQlResponse;
   }
 
-  public static PromQlData<Sample> mapScalar(ExpressionResult result) {
+  public static PromQlScalarData mapScalar(ExpressionResult result) {
     var scalar = (ScalarResult) result;
-    var promQlData = new PromQlData<Sample>();
-    promQlData.setResultType(PromQlResultType.SCALAR);
+    var promQlData = new PromQlScalarData();
     var now = System.currentTimeMillis() / 1000.;
     promQlData.setResult(new Sample(now, Double.toString(scalar.getValue())));
     return promQlData;
   }
 
-  public static PromQlData<List<MatrixSeries>> mapMatrixSeries(ExpressionResult result) {
+  public static PromQlMatrixData mapMatrixSeries(ExpressionResult result) {
     var asIv = (InstantVectorResult) result;
     var asMat = asIv.toMatrix();
-    var promQlData = new PromQlData<List<MatrixSeries>>();
+    var promQlData = new PromQlMatrixData();
     List<MatrixSeries> asMatSeries =
         asMat.entrySet().stream()
             .map(
@@ -91,7 +88,6 @@ public class PromQlResponseMapper {
                 })
             .toList();
     promQlData.setResult(asMatSeries);
-    promQlData.setResultType(PromQlResultType.MATRIX);
     return promQlData;
   }
 

@@ -1,8 +1,22 @@
+/*
+ * Copyright The OkapiCore Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
 package org.okapi.oscar.integ;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.okapi.oscar.integ.OtelHelpers.kv;
+import static org.okapi.oscar.integ.OtelHelpers.resourceSpans;
+import static org.okapi.oscar.integ.OtelHelpers.spanId;
+import static org.okapi.oscar.integ.OtelHelpers.traceId;
+import static org.okapi.oscar.integ.OtelHelpers.traceRequest;
 
 import com.google.gson.Gson;
 import io.opentelemetry.proto.trace.v1.Span;
 import io.opentelemetry.proto.trace.v1.Status;
+import java.time.Duration;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -16,8 +30,8 @@ import org.okapi.rest.chat.payload.PostResponsePayload;
 import org.okapi.rest.chat.payload.PostToolCallRequestPayload;
 import org.okapi.rest.chat.payload.PostToolCallResponsePayload;
 import org.okapi.rest.session.CreateSessionRequest;
-import org.okapi.rest.session.SessionMetaResponse;
 import org.okapi.rest.session.STREAM_STATE;
+import org.okapi.rest.session.SessionMetaResponse;
 import org.okapi.rest.traces.SpanQueryV2Request;
 import org.okapi.rest.traces.TimestampFilter;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,17 +39,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.web.client.RestClient;
-
-import java.time.Duration;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.okapi.oscar.integ.OtelHelpers.kv;
-import static org.okapi.oscar.integ.OtelHelpers.resourceSpans;
-import static org.okapi.oscar.integ.OtelHelpers.spanId;
-import static org.okapi.oscar.integ.OtelHelpers.traceId;
-import static org.okapi.oscar.integ.OtelHelpers.traceRequest;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("dummy")
@@ -91,7 +94,8 @@ class DummyToolCallFlowIT {
     var messages = pollUntilFin(sessionId);
 
     assertThat(messages).allMatch(msg -> msg.getResponseType() != null);
-    assertThat(messages).extracting(ChatMessageResponse::getResponseType)
+    assertThat(messages)
+        .extracting(ChatMessageResponse::getResponseType)
         .containsExactly(
             CHAT_RESPONSE_TYPE.MARKDOWN_TEXT,
             CHAT_RESPONSE_TYPE.TOOL_CALL_REQUEST,
@@ -107,12 +111,10 @@ class DummyToolCallFlowIT {
         GSON.fromJson(messages.get(2).getContents(), PostToolCallResponsePayload.class);
     assertThat(toolResponse.getSummary()).isNotBlank();
 
-    var followUp =
-        GSON.fromJson(messages.get(3).getContents(), GetTraceFollowUpPayload.class);
+    var followUp = GSON.fromJson(messages.get(3).getContents(), GetTraceFollowUpPayload.class);
     assertThat(followUp.traceId()).isEqualTo(traceIdHex);
 
-    var response =
-        GSON.fromJson(messages.get(4).getContents(), PostResponsePayload.class);
+    var response = GSON.fromJson(messages.get(4).getContents(), PostResponsePayload.class);
     assertThat(response.response()).contains("Found");
   }
 

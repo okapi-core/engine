@@ -10,9 +10,5 @@ import lombok.Getter;
 @Builder
 @Getter
 public class ChLogFilterClause {
-  String column;
-  String operator;
-  String value;
-  boolean numeric;
-  boolean regex;
+  String sql;
 }

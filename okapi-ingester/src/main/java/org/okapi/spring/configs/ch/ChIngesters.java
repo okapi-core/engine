@@ -8,9 +8,11 @@ import org.okapi.logs.ch.ChLogsIngester;
 import org.okapi.metrics.ch.ChMetricsIngester;
 import org.okapi.metrics.ch.ChWalResources;
 import org.okapi.metrics.otel.OtelConverter;
+import org.okapi.spring.configs.Profiles;
 import org.okapi.spring.configs.Qualifiers;
 import org.okapi.spring.configs.properties.LogsConsumptionCfg;
 import org.okapi.spring.configs.properties.MetricsConsumptionCfg;
+import org.okapi.spring.configs.properties.TracesConsumptionCfg;
 import org.okapi.traces.ch.ChTracesIngester;
 import org.okapi.traces.ch.NoopSpanFilterStrategy;
 import org.okapi.traces.ch.NoopTraceFilterStrategy;
@@ -21,8 +23,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 
 @Configuration
+@Profile(Profiles.PROFILE_CH)
 public class ChIngesters {
 
   @Bean
@@ -30,8 +34,7 @@ public class ChIngesters {
       @Autowired @Qualifier(Qualifiers.LOGS_CH_WAL_RESOURCES)
           ObjectProvider<ChWalResources> chWalResources,
       @Autowired LogsConsumptionCfg cfg) {
-    var directIngestionEnabled =
-        cfg.getConsumptionType() == LogsConsumptionCfg.ConsumptionType.WAL;
+    var directIngestionEnabled = cfg.getConsumptionType() == LogsConsumptionCfg.ConsumptionType.WAL;
     return new ChLogsIngester(chWalResources.getIfAvailable(), directIngestionEnabled);
   }
 
@@ -47,8 +50,12 @@ public class ChIngesters {
 
   @Bean
   public ChTracesIngester tracesIngester(
-      @Autowired @Qualifier(Qualifiers.TRACES_CH_WAL_RESOURCES) ChWalResources walResources) {
-    return new ChTracesIngester(walResources);
+      @Autowired @Qualifier(Qualifiers.TRACES_CH_WAL_RESOURCES)
+          ObjectProvider<ChWalResources> chWalResources,
+      @Autowired TracesConsumptionCfg cfg) {
+    var directIngestionEnabled =
+        cfg.getConsumptionType() == TracesConsumptionCfg.ConsumptionType.WAL;
+    return new ChTracesIngester(chWalResources.getIfAvailable(), directIngestionEnabled);
   }
 
   @Bean

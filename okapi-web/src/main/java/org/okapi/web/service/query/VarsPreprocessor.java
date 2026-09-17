@@ -4,9 +4,8 @@
  */
 package org.okapi.web.service.query;
 
-import org.okapi.exceptions.MalformedQueryException;
-
 import java.util.Map;
+import org.okapi.exceptions.MalformedQueryException;
 
 public class VarsPreprocessor {
 

@@ -22,7 +22,7 @@ import picocli.CommandLine;
     name = "users-gen",
     mixinStandardHelpOptions = true,
     version = "spans-gen 0.1",
-    description = "Generates a set of 5 test users that can we used to test an Okapi deployment.")
+    description = "Creates the default local Okapi test users.")
 public class UserGenerator implements Callable<Integer> {
 
   @CommandLine.Option(
@@ -38,7 +38,7 @@ public class UserGenerator implements Callable<Integer> {
 
   @Override
   public Integer call() throws Exception {
-    var requests = UserCredsGenerator.createUsers(10);
+    var requests = UserCredsGenerator.createDefaultUsers();
     var okHttp = new OkHttpClient();
     var url = host + ":" + port + "/api/v1/users";
     var partialRequest = new Request.Builder().header("Content-Type", "application/json").url(url);

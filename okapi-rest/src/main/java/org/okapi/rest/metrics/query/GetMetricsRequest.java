@@ -5,10 +5,9 @@
 package org.okapi.rest.metrics.query;
 
 import jakarta.validation.constraints.NotNull;
+import java.util.Map;
 import lombok.*;
 import org.springframework.ai.tool.annotation.ToolParam;
-
-import java.util.Map;
 
 @AllArgsConstructor
 @Builder(toBuilder = true)
@@ -53,20 +52,23 @@ then query will look for a metric cpu_usage with tags container=container-abc an
 """
 Configuration for gauge queries: time bucket resolution and aggregation function. Required when metricType is GAUGE.
 Ignored for any other type. Conditionally required if metricType is GAUGE
-  """, required = false)
+  """,
+      required = false)
   GaugeQueryConfig gaugeQueryConfig;
 
   @ToolParam(
       description =
 """
 Configuration for histogram queries: temporality mode. Conditionally required when metricType is HISTO.
-  """, required = false)
+  """,
+      required = false)
   HistoQueryConfig histoQueryConfig;
 
   @ToolParam(
       description =
 """
 Configuration for sum queries: temporality mode. Conditionally required when metricType is SUM.
-""", required = false)
+""",
+      required = false)
   GetSumsQueryConfig sumsQueryConfig;
 }

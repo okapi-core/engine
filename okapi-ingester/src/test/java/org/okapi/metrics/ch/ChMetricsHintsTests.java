@@ -115,8 +115,7 @@ public class ChMetricsHintsTests {
         nullFilterMetricResp.getMetricHints().containsAll(List.of("metric.cpu", "metric.mem")));
 
     var histoReq =
-        new GetMetricNameHints(
-            "metric.la", interval, new MetricEventFilter(METRIC_TYPE.HISTO));
+        new GetMetricNameHints("metric.la", interval, new MetricEventFilter(METRIC_TYPE.HISTO));
     var histoResp = qp.getMetricHints(histoReq);
     assertNotNull(histoResp.getMetricHints());
     assertEquals(1, histoResp.getMetricHints().size());
@@ -147,11 +146,7 @@ public class ChMetricsHintsTests {
 
     var nullFilterReq =
         new GetTagHintsRequest(
-            "metric.cpu",
-            Map.of("env", "dev", "test-session", testSession),
-            "re",
-            interval,
-            null);
+            "metric.cpu", Map.of("env", "dev", "test-session", testSession), "re", interval, null);
     var nullFilterResp = qp.getTagHints(nullFilterReq);
     assertNotNull(nullFilterResp);
     assertNotNull(nullFilterResp.getTagHints());
@@ -189,11 +184,7 @@ public class ChMetricsHintsTests {
 
     var noSvcMetricReq =
         new GetTagValueHintsRequest(
-            null,
-            Map.of("env", "dev", "test-session", testSession),
-            "region",
-            interval,
-            null);
+            null, Map.of("env", "dev", "test-session", testSession), "region", interval, null);
     var noSvcMetricResp = qp.getTagValueHints(noSvcMetricReq);
     assertNotNull(noSvcMetricResp);
     assertNotNull(noSvcMetricResp.getTagValueHints());

@@ -42,11 +42,6 @@ ch_logs/**/*
 # Fe setup tools
 fe-setup.json
 
-# Fe copied files
-okapi-web/**/*.js
-okapi-web/**/*.html
-okapi-web/**/*.css
-
 # PromQL upstream cache
 scripts/.cache/prometheus-promqltest/
 

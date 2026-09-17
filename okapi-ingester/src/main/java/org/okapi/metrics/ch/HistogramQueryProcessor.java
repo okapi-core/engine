@@ -11,14 +11,13 @@ import com.google.common.primitives.Floats;
 import com.google.common.primitives.Longs;
 import gg.jte.TemplateOutput;
 import gg.jte.output.StringOutput;
+import java.util.*;
 import org.okapi.ch.ChTemplateFiles;
 import org.okapi.ds.HistogramMerger;
 import org.okapi.ds.TwoAtATimeMerger;
 import org.okapi.metrics.ch.template.ChGetHistoQueryTemplate;
 import org.okapi.metrics.ch.template.ChMetricTemplateEngine;
 import org.okapi.rest.metrics.query.*;
-
-import java.util.*;
 
 /** Handles histogram query execution and aggregation. */
 public class HistogramQueryProcessor {
@@ -40,7 +39,7 @@ public class HistogramQueryProcessor {
           case MERGED -> ChHistoSample.HISTO_TYPE.DELTA;
         };
     var readings = scanSamples(ts, te, query.getMetric(), query.getTags(), histoType);
-    if(readings.isEmpty()){
+    if (readings.isEmpty()) {
       return CannedResponses.noMetricsResponse(query.getMetric(), query.getTags());
     }
     var series = buildSeries(readings, query, histoType);
@@ -124,7 +123,7 @@ public class HistogramQueryProcessor {
     return series;
   }
 
-  private record HistogramKey(String unit, Map<String, String> tags){}
+  private record HistogramKey(String unit, Map<String, String> tags) {}
 
   private static Histogram toHistogram(ChHistoSample chHistoSample) {
     return Histogram.builder()

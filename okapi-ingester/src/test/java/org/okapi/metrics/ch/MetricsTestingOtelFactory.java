@@ -1,16 +1,19 @@
+/*
+ * Copyright The OkapiCore Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
 package org.okapi.metrics.ch;
 
 import com.google.protobuf.ByteString;
 import io.opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceRequest;
 import io.opentelemetry.proto.metrics.v1.*;
 import io.opentelemetry.proto.resource.v1.Resource;
-import lombok.AllArgsConstructor;
-import org.okapi.bytes.OkapiBytes;
-import org.okapi.timeutils.TimeUtils;
-import org.okapi.traces.testutil.OtelShortHands;
-
 import java.util.List;
 import java.util.Map;
+import lombok.AllArgsConstructor;
+import org.okapi.bytes.OkapiBytes;
+import org.okapi.otelshorthand.OtelShortHands;
+import org.okapi.timeutils.TimeUtils;
 
 @AllArgsConstructor
 public class MetricsTestingOtelFactory {
@@ -121,7 +124,12 @@ public class MetricsTestingOtelFactory {
     if (baseHex.length() < 2) {
       throw new IllegalArgumentException("base hex must be at least 2 chars");
     }
-    var suffix = String.format("%02x", index);
-    return baseHex.substring(0, baseHex.length() - 2) + suffix;
+    var suffix = Integer.toHexString(index);
+    var suffixLength = Math.max(2, suffix.length());
+    if (suffixLength > baseHex.length()) {
+      throw new IllegalArgumentException("index does not fit in base hex value");
+    }
+    return baseHex.substring(0, baseHex.length() - suffixLength)
+        + String.format("%0" + suffixLength + "x", index);
   }
 }

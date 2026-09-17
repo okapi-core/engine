@@ -1,3 +1,7 @@
+/*
+ * Copyright The OkapiCore Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
 package org.okapi.oscar.memory;
 
 import org.springframework.ai.chat.memory.ChatMemory;
@@ -10,7 +14,6 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @ConditionalOnProperty(prefix = "okapi.oscar.memory", name = "enabled", havingValue = "true")
 public class JdbcChatMemory {
-
 
   @Bean
   public ChatMemory chatMemory(JdbcChatMemoryRepository repository) {

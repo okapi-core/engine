@@ -1,11 +1,14 @@
+/*
+ * Copyright The OkapiCore Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
 package org.okapi.rest.search;
 
 import com.fasterxml.jackson.annotation.JsonClassDescription;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
+import java.util.Map;
 import lombok.*;
 import org.okapi.rest.metrics.query.METRIC_TYPE;
-
-import java.util.Map;
 
 @AllArgsConstructor
 @Getter

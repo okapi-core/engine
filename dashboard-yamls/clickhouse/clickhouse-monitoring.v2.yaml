@@ -14,126 +14,148 @@ dashboard:
       panels:
         - id: queries-total
           title: Queries Total
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"clickhouse.queries.total","start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"clickhouse.queries.total","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: queries-failed
           title: Queries Failed
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"clickhouse.queries.failed","start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"clickhouse.queries.failed","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: query-read-rows
           title: Query Read Rows
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"clickhouse.query.read.rows","start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"clickhouse.query.read.rows","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: query-written-rows
           title: Query Written Rows
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"clickhouse.query.written.rows","start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"clickhouse.query.written.rows","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: query-read-bytes
           title: Query Read Bytes
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"clickhouse.query.read.bytes","start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"clickhouse.query.read.bytes","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: query-written-bytes
           title: Query Written Bytes
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"clickhouse.query.written.bytes","start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"clickhouse.query.written.bytes","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
     - id: clickhouse-concurrency
       title: Concurrency
       panels:
         - id: current-connections
           title: Current Connections
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"clickhouse.current.connections","start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"clickhouse.current.connections","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: current-queries
           title: Current Queries
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"clickhouse.current.queries","start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"clickhouse.current.queries","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: query-queue
           title: Query Queue Size
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"clickhouse.query.queue.size","start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"clickhouse.query.queue.size","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: threads-in-use
           title: Threads In Use
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"clickhouse.threads.in_use","start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"clickhouse.threads.in_use","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
     - id: clickhouse-parts
       title: Parts and Merges
       panels:
         - id: parts-total
           title: Parts Total
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"clickhouse.parts","start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"clickhouse.parts","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: merges-in-progress
           title: Merges In Progress
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"clickhouse.merges","start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"clickhouse.merges","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: mutations-in-progress
           title: Mutations In Progress
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"clickhouse.mutations","start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"clickhouse.mutations","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
     - id: clickhouse-replication
       title: Replication
       panels:
         - id: replication-queue
           title: Replication Queue Size
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"clickhouse.replication.queue.size","start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"clickhouse.replication.queue.size","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: replication-lag
           title: Replication Lag
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"clickhouse.replication.lag","start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"clickhouse.replication.lag","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: replica-errors
           title: Replica Errors
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"clickhouse.replica.errors","start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"clickhouse.replica.errors","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
     - id: clickhouse-memory
       title: Memory and Cache
       panels:
         - id: memory-usage
           title: Memory Usage
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"clickhouse.memory.usage","start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"clickhouse.memory.usage","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: mark-cache-hit
           title: Mark Cache Hit Ratio
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"clickhouse.mark.cache.hit_ratio","start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"clickhouse.mark.cache.hit_ratio","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: uncompressed-cache-size
           title: Uncompressed Cache Size
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"clickhouse.uncompressed.cache.size","start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"clickhouse.uncompressed.cache.size","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
     - id: clickhouse-storage
       title: Storage
       panels:
         - id: data-size
           title: Data Size
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"clickhouse.data.size","start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"clickhouse.data.size","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: disk-used
           title: Disk Used
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"clickhouse.disk.used","start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"clickhouse.disk.used","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: disk-free
           title: Disk Free
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"clickhouse.disk.free","start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"clickhouse.disk.free","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}

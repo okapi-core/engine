@@ -5,9 +5,12 @@
 package org.okapi.datagen.executables;
 
 import com.google.gson.Gson;
+import io.opentelemetry.proto.collector.logs.v1.ExportLogsServiceRequest;
+import io.opentelemetry.proto.collector.trace.v1.ExportTraceServiceRequest;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.List;
 import java.util.concurrent.Callable;
 import lombok.extern.slf4j.Slf4j;
 import okhttp3.OkHttpClient;
@@ -55,21 +58,40 @@ public class AstronomySpansGen implements Callable<Integer> {
   @Override
   public Integer call() throws Exception {
     var generator = new OtelAstronomyShopSpansGenerator(getConfig());
-    var requests = generator.generate();
+    var telemetry = generator.generateTelemetry();
     var okHttp = new OkHttpClient();
-    var url = host + ":" + port + "/v1/traces";
-    var partialRequest = new Request.Builder().url(url);
+    submitTraces(okHttp, telemetry.getTraces());
+    submitLogs(okHttp, telemetry.getLogs());
+    return 0;
+  }
 
+  private void submitTraces(OkHttpClient okHttp, List<ExportTraceServiceRequest> requests)
+      throws IOException {
+    var partialRequest = new Request.Builder().url(host + ":" + port + "/v1/traces");
     for (var req : requests) {
       var request = partialRequest.post(RequestBody.create(req.toByteArray())).build();
       try (var resp = okHttp.newCall(request).execute()) {
         if (resp.isSuccessful()) {
-          log.info("Submitted span successfully, moving on.");
+          log.info("Submitted spans successfully, moving on.");
         } else {
-          log.error("Could not ingest: {} due to : {}", req, resp.body().string());
+          log.error("Could not ingest spans: {} due to : {}", req, resp.body().string());
         }
       }
     }
-    return 0;
+  }
+
+  private void submitLogs(OkHttpClient okHttp, List<ExportLogsServiceRequest> requests)
+      throws IOException {
+    var partialRequest = new Request.Builder().url(host + ":" + port + "/v1/logs");
+    for (var req : requests) {
+      var request = partialRequest.post(RequestBody.create(req.toByteArray())).build();
+      try (var resp = okHttp.newCall(request).execute()) {
+        if (resp.isSuccessful()) {
+          log.info("Submitted logs successfully, moving on.");
+        } else {
+          log.error("Could not ingest logs: {} due to : {}", req, resp.body().string());
+        }
+      }
+    }
   }
 }

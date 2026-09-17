@@ -1,7 +1,10 @@
+/*
+ * Copyright The OkapiCore Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
 package org.okapi.ch;
 
 import com.clickhouse.client.api.query.GenericRecord;
-
 import java.util.Map;
 import java.util.function.Function;
 
@@ -22,5 +25,4 @@ public class GenericRecordReader {
       return (Map<String, String>) valInMap;
     } else return null;
   }
-
 }

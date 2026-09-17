@@ -15,7 +15,9 @@ import org.okapi.metrics.ch.template.ChMetricTemplateEngine;
 class ChSqlEscaperTests {
   @Test
   void escapesClickHouseStringLiteralCharacters() {
-    assertEquals("O\\'Reilly\\\\tmp\\nnext\\rline\\tend\\0", ChSqlEscaper.escapeLiteral("O'Reilly\\tmp\nnext\rline\tend\0"));
+    assertEquals(
+        "O\\'Reilly\\\\tmp\\nnext\\rline\\tend\\0",
+        ChSqlEscaper.escapeLiteral("O'Reilly\\tmp\nnext\rline\tend\0"));
   }
 
   @Test

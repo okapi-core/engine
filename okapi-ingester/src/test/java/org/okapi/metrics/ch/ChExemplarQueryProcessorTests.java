@@ -1,3 +1,7 @@
+/*
+ * Copyright The OkapiCore Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
 package org.okapi.metrics.ch;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -10,6 +14,8 @@ import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.DoubleStream;
+import java.util.stream.LongStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -83,17 +89,26 @@ public class ChExemplarQueryProcessorTests {
     var tagsWest = tagsWithSession("us-west");
     ingester.ingestOtelProtobuf(
         otelFactory.buildGaugeWithExemplarData(
-            metric, tagsEast, List.of(1_000L, 2_000L, 3_000L), List.of(1.0, 2.0, 3.0), "0000000000000002", "00000000000000000000000000000002"));
+            metric,
+            tagsEast,
+            List.of(1_000L, 2_000L, 3_000L),
+            List.of(1.0, 2.0, 3.0),
+            "0000000000000002",
+            "00000000000000000000000000000002"));
     ingester.ingestOtelProtobuf(
         otelFactory.buildGaugeWithExemplarData(
-            metric, tagsWest, List.of(2_000L), List.of(9.0), "0000000000000003", "00000000000000000000000000000003"));
+            metric,
+            tagsWest,
+            List.of(2_000L),
+            List.of(9.0),
+            "0000000000000003",
+            "00000000000000000000000000000003"));
     driver.onTick();
 
-    var resp = qp.getExemplars(buildRequest(metric, tagsEast, 1_500, 2_500));
+    var resp = qp.getExemplars(buildRequest(metric, Map.of("region", "us-east"), 1_500, 2_500));
     assertNotNull(resp);
     assertEquals(1, resp.getExemplars().size());
     assertEquals(TimeUtils.millisToNanos(2_000L), resp.getExemplars().get(0).getTsNanos());
-
   }
 
   @Test
@@ -106,14 +121,18 @@ public class ChExemplarQueryProcessorTests {
     var tags = tagsWithSession("us-east");
     ingester.ingestOtelProtobuf(
         otelFactory.buildGaugeWithExemplarData(
-            metric, tags, List.of(1_000L), List.of(1.0), "0000000000000004", "00000000000000000000000000000004"));
+            metric,
+            tags,
+            List.of(1_000L),
+            List.of(1.0),
+            "0000000000000004",
+            "00000000000000000000000000000004"));
     driver.onTick();
 
     var mismatchTags = tagsWithSession("us-west");
     var resp = qp.getExemplars(buildRequest(metric, mismatchTags, 0, 2_000));
     assertNotNull(resp);
     assertEquals(0, resp.getExemplars().size());
-
   }
 
   @Test
@@ -126,13 +145,17 @@ public class ChExemplarQueryProcessorTests {
     var tags = tagsWithSession("us-east");
     ingester.ingestOtelProtobuf(
         otelFactory.buildGaugeWithExemplarData(
-            metric, tags, List.of(1_000L), List.of(1.0), "0000000000000005", "00000000000000000000000000000005"));
+            metric,
+            tags,
+            List.of(1_000L),
+            List.of(1.0),
+            "0000000000000005",
+            "00000000000000000000000000000005"));
     driver.onTick();
 
     var resp = qp.getExemplars(buildRequest("metric.exemplar.other", tags, 0, 2_000));
     assertNotNull(resp);
     assertEquals(0, resp.getExemplars().size());
-
   }
 
   @Test
@@ -157,8 +180,7 @@ public class ChExemplarQueryProcessorTests {
     assertNotNull(resp);
     assertEquals(3, resp.getExemplars().size());
 
-    var ts =
-        resp.getExemplars().stream().map(Exemplar::getTsNanos).sorted().toList();
+    var ts = resp.getExemplars().stream().map(Exemplar::getTsNanos).sorted().toList();
     assertEquals(
         List.of(
             TimeUtils.millisToNanos(1_000L),
@@ -172,7 +194,68 @@ public class ChExemplarQueryProcessorTests {
             .sorted()
             .toList();
     assertEquals(List.of("0", "1", "2"), indices);
+  }
 
+  @Test
+  void queryCapsResultsAtOneThousandExemplars() throws Exception {
+    var ingester = injector.getInstance(ChMetricsIngester.class);
+    var driver = injector.getInstance(ChMetricsWalConsumerDriver.class);
+    var qp = injector.getInstance(ChMetricsQueryProcessor.class);
+
+    var metric = "metric.exemplar.limit";
+    var tags = tagsWithSession("us-east");
+    var timestamps = LongStream.rangeClosed(1, 1_001).boxed().toList();
+    var values = DoubleStream.iterate(1.0, value -> value + 1.0).limit(1_001).boxed().toList();
+
+    ingester.ingestOtelProtobuf(
+        otelFactory.buildGaugeWithExemplarData(
+            metric,
+            tags,
+            timestamps,
+            values,
+            "0000000000000007",
+            "00000000000000000000000000000007"));
+    driver.onTick();
+
+    var resp = qp.getExemplars(buildRequest(metric, Map.of("region", "us-east"), 0, 2_000));
+
+    assertEquals(1_000, resp.getExemplars().size());
+  }
+
+  @Test
+  void queryExactMatchWithCompleteLabels() throws Exception {
+    var metric = "metric.exemplar.explicit.exact";
+    var tags = tagsWithSession("us-east");
+    var qp = ingestSeries(metric, tags, "0000000000000008", "00000000000000000000000000000008");
+
+    var resp = qp.getExemplars(buildRequest(metric, tags, 0, 2_000));
+
+    assertEquals(1, resp.getExemplars().size());
+    assertEquals(tags, resp.getExemplars().get(0).getTags());
+  }
+
+  @Test
+  void querySubsetMatchWithOmittedLabels() throws Exception {
+    var metric = "metric.exemplar.explicit.subset";
+    var tagsEast = tagsWithSession("us-east");
+    var tagsWest = tagsWithSession("us-west");
+    var qp = ingestSeries(metric, tagsEast, "0000000000000009", "00000000000000000000000000000009");
+    ingestSeries(metric, tagsWest, "000000000000000a", "0000000000000000000000000000000a");
+
+    var resp = qp.getExemplars(buildRequest(metric, Map.of("env", "dev"), 0, 2_000));
+
+    assertEquals(2, resp.getExemplars().size());
+  }
+
+  private ChMetricsQueryProcessor ingestSeries(
+      String metric, Map<String, String> tags, String spanId, String traceId) throws Exception {
+    var ingester = injector.getInstance(ChMetricsIngester.class);
+    var driver = injector.getInstance(ChMetricsWalConsumerDriver.class);
+    ingester.ingestOtelProtobuf(
+        otelFactory.buildGaugeWithExemplarData(
+            metric, tags, List.of(1_000L), List.of(1.0), spanId, traceId));
+    driver.onTick();
+    return injector.getInstance(ChMetricsQueryProcessor.class);
   }
 
   private GetExemplarsRequest buildRequest(

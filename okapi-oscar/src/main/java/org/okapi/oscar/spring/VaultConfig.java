@@ -1,5 +1,10 @@
+/*
+ * Copyright The OkapiCore Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
 package org.okapi.oscar.spring;
 
+import java.net.URI;
 import lombok.extern.slf4j.Slf4j;
 import org.okapi.oscar.spring.cfg.VaultCfg;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -9,8 +14,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.vault.authentication.TokenAuthentication;
 import org.springframework.vault.client.VaultEndpoint;
 import org.springframework.vault.core.VaultTemplate;
-
-import java.net.URI;
 
 @Slf4j
 @Configuration

@@ -18,7 +18,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
 @Controller
 public class SpaForwardFilter extends OncePerRequestFilter {
 
-  private static final Set<String> NON_SPA_PREFIXES = Set.of("/api", "/internal", "/assets", "/ui");
+  private static final Set<String> NON_SPA_PREFIXES =
+      Set.of("/api", "/internal", "/assets", "/ui", "/v3/api-docs");
 
   @Override
   protected void doFilterInternal(

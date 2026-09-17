@@ -21,11 +21,6 @@ public class Gauge {
   private List<? extends Number> value;
   private List<Exemplar> exemplars;
 
-  public void lock() {
-    ts = Collections.unmodifiableList(ts);
-    value = Collections.unmodifiableList(value);
-  }
-
   public Gauge(List<Long> ts, List<? extends Number> value) {
     this.ts = ts;
     this.value = value;

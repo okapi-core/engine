@@ -117,7 +117,6 @@ public class WalManager implements Closeable {
     Files.writeString(walDirectory.getWalCommit(), json);
   }
 
-  ///  todo: unit test
   public Optional<WalCommit> getCommittedLsn() throws IOException {
     var walCommitPath = walDirectory.getWalCommit();
     if (!Files.exists(walCommitPath)) return Optional.empty();

@@ -5,7 +5,6 @@
 package org.okapi.promql.testing;
 
 import java.util.List;
-
 import org.okapi.promql.testing.PromQlTestAst.LoadCmd;
 
 public interface PromQlTestIngestor {

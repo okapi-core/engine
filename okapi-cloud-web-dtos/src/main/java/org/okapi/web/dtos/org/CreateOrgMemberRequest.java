@@ -14,7 +14,6 @@ import lombok.Setter;
 @NoArgsConstructor
 @Getter
 public class CreateOrgMemberRequest {
-  @NotNull private String orgId;
   @NotNull private String email;
   @Setter private boolean admin;
 }

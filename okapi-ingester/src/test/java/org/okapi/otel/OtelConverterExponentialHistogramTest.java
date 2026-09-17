@@ -45,8 +45,7 @@ class OtelConverterExponentialHistogramTest {
             .setUnit("ms")
             .setExponentialHistogram(
                 ExponentialHistogram.newBuilder()
-                    .setAggregationTemporality(
-                        AggregationTemporality.AGGREGATION_TEMPORALITY_DELTA)
+                    .setAggregationTemporality(AggregationTemporality.AGGREGATION_TEMPORALITY_DELTA)
                     .addDataPoints(point))
             .build();
     var request =

@@ -1,0 +1,7 @@
+<clickhouse>
+    <profiles>
+        <default>
+            <enable_full_text_index>1</enable_full_text_index>
+        </default>
+    </profiles>
+</clickhouse>

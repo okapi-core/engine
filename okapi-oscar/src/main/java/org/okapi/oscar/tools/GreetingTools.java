@@ -1,13 +1,16 @@
+/*
+ * Copyright The OkapiCore Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
 package org.okapi.oscar.tools;
 
+import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.okapi.oscar.spring.cfg.OkapiOscarGreetingCfg;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.stereotype.Component;
-
-import java.util.List;
-import java.util.concurrent.ThreadLocalRandom;
 
 @Slf4j
 @Component
@@ -22,8 +25,11 @@ public class GreetingTools {
           """
   Return a random greeting from a preconfigured list.
   Use this tool whenever the user submits a greeting.
-  The return value of this tool should be your response.
-  Note users always expect a response.
+  This tool only selects the greeting; it does not send the greeting to the user.
+  After this tool returns, you MUST call postResponse with the exact returned greeting.
+  Do not return DONE until postResponse has been called.
+  Use the pre-approved greeting instead of generating a free-form response.
+  This applies to greetings such as `hello`, `Hi!`, or other open-ended messages unrelated to root-cause analysis.
   """)
   public String randomGreeting() {
     List<String> greetings = cfg.getGreetings();

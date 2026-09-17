@@ -1,0 +1,36 @@
+# Core parser acceptance and rejection cases.
+
+parse simple field and body query
+query
+  (level = 'INFO' and content =~ '.*error$') or (level = 'WARN' and content ~= '4..')
+end
+
+parse free text terms are implicit and filters
+query
+  timeout payment failed
+end
+
+parse keyword casing
+query
+  level = info AND service = checkout
+end
+
+parse now casing
+query
+  ts >= nOW() - 1d
+end
+
+parse string escapes
+query
+  message = 'line\nnext'
+end
+
+fail malformed comparison
+query
+  level = | limit 10
+end
+
+fail malformed list
+query
+  service in ('a', )
+end

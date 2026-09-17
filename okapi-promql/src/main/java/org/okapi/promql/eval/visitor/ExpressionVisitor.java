@@ -165,7 +165,8 @@ public class ExpressionVisitor extends PromQLParserBaseVisitor<LogicalExpr> {
     DurationExpr offset = parseOffsetDurationExpr(ctx.offset().offsetDurationExpr());
     if (ctx.offset().instantSelector() != null) {
       var base = (SelectorExpr) buildInstantSelector(ctx.offset().instantSelector());
-      return new InstantizeExpr(new SelectorExpr(base.metricOrNull, base.matchers, base.atTsMs, offset));
+      return new InstantizeExpr(
+          new SelectorExpr(base.metricOrNull, base.matchers, base.atTsMs, offset));
     } else {
       var ms = ctx.offset().matrixSelector();
       var base = (SelectorExpr) buildInstantSelector(ms.instantSelector());
@@ -224,7 +225,9 @@ public class ExpressionVisitor extends PromQLParserBaseVisitor<LogicalExpr> {
     for (int i = 1; i < ctx.durationMultExpr().size(); i++) {
       expr =
           new DurationExpr.Binary(
-              ctx.getChild(2 * i - 1).getText(), expr, parseDurationMultExpr(ctx.durationMultExpr(i)));
+              ctx.getChild(2 * i - 1).getText(),
+              expr,
+              parseDurationMultExpr(ctx.durationMultExpr(i)));
     }
     return expr;
   }
@@ -234,7 +237,9 @@ public class ExpressionVisitor extends PromQLParserBaseVisitor<LogicalExpr> {
     for (int i = 1; i < ctx.durationUnaryExpr().size(); i++) {
       expr =
           new DurationExpr.Binary(
-              ctx.getChild(2 * i - 1).getText(), expr, parseDurationUnaryExpr(ctx.durationUnaryExpr(i)));
+              ctx.getChild(2 * i - 1).getText(),
+              expr,
+              parseDurationUnaryExpr(ctx.durationUnaryExpr(i)));
     }
     return expr;
   }
@@ -248,7 +253,8 @@ public class ExpressionVisitor extends PromQLParserBaseVisitor<LogicalExpr> {
 
   private DurationExpr parseDurationUnaryExpr(PromQLParser.DurationUnaryExprContext ctx) {
     if (ctx.durationUnaryExpr() != null) {
-      return new DurationExpr.Unary(ctx.getChild(0).getText(), parseDurationUnaryExpr(ctx.durationUnaryExpr()));
+      return new DurationExpr.Unary(
+          ctx.getChild(0).getText(), parseDurationUnaryExpr(ctx.durationUnaryExpr()));
     }
     return parseDurationPowExpr(ctx.durationPowExpr());
   }
@@ -342,8 +348,7 @@ public class ExpressionVisitor extends PromQLParserBaseVisitor<LogicalExpr> {
     if (s.startsWith("\"")) return new StringLiteralExpr(stripQuotes(s));
     if ("nan".equalsIgnoreCase(s)) return new LiteralExpr(Double.NaN);
     if ("inf".equalsIgnoreCase(s)) return new LiteralExpr(Double.POSITIVE_INFINITY);
-    if (lit.DURATION() != null)
-      return new LiteralExpr(DurationUtil.parseToMillis(s) / 1000.0d);
+    if (lit.DURATION() != null) return new LiteralExpr(DurationUtil.parseToMillis(s) / 1000.0d);
     return new LiteralExpr(Double.parseDouble(s));
   }
 
@@ -367,7 +372,7 @@ public class ExpressionVisitor extends PromQLParserBaseVisitor<LogicalExpr> {
       String val = stripQuotes(lm.STRING().getText());
       LabelOp op =
           switch (lm.labelMatcherOperator().getText()) {
-            case "="  -> LabelOp.EQ;
+            case "=" -> LabelOp.EQ;
             case "!=" -> LabelOp.NE;
             case "=~" -> LabelOp.RE;
             case "!~" -> LabelOp.NRE;
@@ -401,7 +406,8 @@ public class ExpressionVisitor extends PromQLParserBaseVisitor<LogicalExpr> {
     boolean groupRight = g.groupRight() != null;
     boolean hasOn = g.on_() != null;
     MatchSpec.Mode mode = hasOn ? MatchSpec.Mode.ON : MatchSpec.Mode.IGNORING;
-    List<String> labels = hasOn ? labelList(g.on_().labelNameList()) : labelList(g.ignoring().labelNameList());
+    List<String> labels =
+        hasOn ? labelList(g.on_().labelNameList()) : labelList(g.ignoring().labelNameList());
     List<String> include = new ArrayList<>();
     if (groupLeft && g.groupLeft().labelNameList() != null)
       include = labelList(g.groupLeft().labelNameList());

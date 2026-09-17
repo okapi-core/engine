@@ -19,5 +19,5 @@ public class DashboardPanel {
   private String panelId;
   private String note;
   private String title;
-  private MultiQueryPanelConfig queryConfig;
+  private PanelQueryConfig queryConfig;
 }

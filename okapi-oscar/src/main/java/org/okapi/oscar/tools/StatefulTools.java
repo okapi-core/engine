@@ -1,3 +1,7 @@
+/*
+ * Copyright The OkapiCore Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
 package org.okapi.oscar.tools;
 
 import com.google.gson.Gson;
@@ -54,6 +58,8 @@ public class StatefulTools {
 """
 Send a response to the user. This is the only way to communicate answers to the user.
 You must always call this tool with a final response for the user as users always expect a response.
+Note: the only way to respond to a user is by calling this tool. As such never return free text expressions as those would be ignored.
+All your responses should be tool calls.
 """)
   public void postResponse(
       @ToolParam(description = "The response to send to the user.") String response) {

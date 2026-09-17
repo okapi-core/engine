@@ -6,10 +6,9 @@ package org.okapi.rest.metrics.query;
 
 import com.fasterxml.jackson.annotation.JsonClassDescription;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
-import lombok.*;
-
 import java.util.List;
 import java.util.Map;
+import lombok.*;
 
 @AllArgsConstructor
 @Builder

@@ -4,9 +4,14 @@
  */
 package org.okapi.datagen.spans;
 
+import com.google.protobuf.ByteString;
 import io.opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceRequest;
 import io.opentelemetry.proto.metrics.v1.*;
 import io.opentelemetry.proto.resource.v1.Resource;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import org.apache.commons.math3.distribution.BetaDistribution;
 import org.apache.commons.math3.distribution.LogNormalDistribution;
 import org.apache.commons.math3.distribution.PoissonDistribution;
@@ -14,11 +19,6 @@ import org.apache.commons.math3.random.MersenneTwister;
 import org.okapi.collections.OkapiLists;
 import org.okapi.datagen.spans.MetricsDataGenConfig.DistributionSpec;
 import org.okapi.datagen.spans.MetricsDataGenConfig.MetricSpec;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 public class MetricsDataGenerator {
   private final MetricsDataGenConfig config;
@@ -37,6 +37,33 @@ public class MetricsDataGenerator {
     out.add(buildMetrics(config.getSpanMetrics(), startMs, endMs));
 
     return out;
+  }
+
+  public long countExemplars(List<ExportMetricsServiceRequest> requests) {
+    return requests.stream()
+        .flatMap(request -> request.getResourceMetricsList().stream())
+        .flatMap(resourceMetrics -> resourceMetrics.getScopeMetricsList().stream())
+        .flatMap(scopeMetrics -> scopeMetrics.getMetricsList().stream())
+        .mapToLong(
+            metric -> {
+              if (metric.hasGauge()) {
+                return metric.getGauge().getDataPointsList().stream()
+                    .mapToLong(NumberDataPoint::getExemplarsCount)
+                    .sum();
+              }
+              if (metric.hasSum()) {
+                return metric.getSum().getDataPointsList().stream()
+                    .mapToLong(NumberDataPoint::getExemplarsCount)
+                    .sum();
+              }
+              if (metric.hasHistogram()) {
+                return metric.getHistogram().getDataPointsList().stream()
+                    .mapToLong(HistogramDataPoint::getExemplarsCount)
+                    .sum();
+              }
+              return 0L;
+            })
+        .sum();
   }
 
   private ExportMetricsServiceRequest buildMetrics(
@@ -64,8 +91,10 @@ public class MetricsDataGenerator {
     long intervalMs = gaugeIntervalMs();
     var points = new ArrayList<NumberDataPoint>();
     var sampler = samplerFor(spec.getDistribution());
+    var rng = exemplarRng(spec);
     for (long ts = startMs; ts <= endMs; ts += intervalMs) {
-      points.add(numberPoint(ts, sampler.sample(), spec.getTags()));
+      double value = sampler.sample();
+      points.add(numberPoint(ts, value, spec.getTags(), exemplar(spec, rng, ts, value)));
     }
     return Gauge.newBuilder().addAllDataPoints(points).build();
   }
@@ -74,9 +103,17 @@ public class MetricsDataGenerator {
     long intervalMs = config.getSumHistogramIntervalMs();
     var points = new ArrayList<NumberDataPoint>();
     var sampler = samplerFor(spec.getDistribution());
+    var rng = exemplarRng(spec);
     for (long intervalStart = startMs; intervalStart < endMs; intervalStart += intervalMs) {
       long intervalEnd = Math.min(intervalStart + intervalMs, endMs);
-      points.add(sumPoint(intervalStart, intervalEnd, sampler.sample(), spec.getTags()));
+      double value = sampler.sample();
+      points.add(
+          sumPoint(
+              intervalStart,
+              intervalEnd,
+              value,
+              spec.getTags(),
+              exemplar(spec, rng, intervalEnd, value)));
     }
     return Sum.newBuilder()
         .setAggregationTemporality(AggregationTemporality.AGGREGATION_TEMPORALITY_DELTA)
@@ -93,6 +130,7 @@ public class MetricsDataGenerator {
             ? config.getDefaultHistogramBounds()
             : spec.getHistogramBounds();
     var rng = new MersenneTwister(config.getSeed() + spec.getName().hashCode());
+    var exemplarRng = exemplarRng(spec);
     var dist =
         new LogNormalDistribution(
             rng, spec.getDistribution().getMu(), spec.getDistribution().getSigma());
@@ -105,7 +143,15 @@ public class MetricsDataGenerator {
       long intervalEnd = Math.min(intervalStart + intervalMs, endMs);
       int sampleCount = new PoissonDistribution(rng, countMean, 1e-12, 100000).sample();
       points.add(
-          histogramPoint(intervalStart, intervalEnd, bounds, dist, sampleCount, spec.getTags()));
+          histogramPoint(
+              intervalStart,
+              intervalEnd,
+              bounds,
+              dist,
+              sampleCount,
+              spec.getTags(),
+              spec,
+              exemplarRng));
     }
     return Histogram.newBuilder()
         .setAggregationTemporality(AggregationTemporality.AGGREGATION_TEMPORALITY_DELTA)
@@ -121,22 +167,27 @@ public class MetricsDataGenerator {
     return ExportMetricsServiceRequest.newBuilder().addResourceMetrics(resourceMetrics).build();
   }
 
-  private NumberDataPoint numberPoint(long tsMs, double value, Map<String, String> attrs) {
-    return NumberDataPoint.newBuilder()
-        .setTimeUnixNano(TimeUnit.MILLISECONDS.toNanos(tsMs))
-        .setAsDouble(value)
-        .addAllAttributes(OtelShorthand.toKvList(attrs))
-        .build();
+  private NumberDataPoint numberPoint(
+      long tsMs, double value, Map<String, String> attrs, Exemplar exemplar) {
+    var builder =
+        NumberDataPoint.newBuilder()
+            .setTimeUnixNano(TimeUnit.MILLISECONDS.toNanos(tsMs))
+            .setAsDouble(value)
+            .addAllAttributes(OtelShorthand.toKvList(attrs));
+    if (exemplar != null) builder.addExemplars(exemplar);
+    return builder.build();
   }
 
   private NumberDataPoint sumPoint(
-      long startMs, long endMs, double value, Map<String, String> attrs) {
-    return NumberDataPoint.newBuilder()
-        .setStartTimeUnixNano(TimeUnit.MILLISECONDS.toNanos(startMs))
-        .setTimeUnixNano(TimeUnit.MILLISECONDS.toNanos(endMs))
-        .setAsDouble(value)
-        .addAllAttributes(OtelShorthand.toKvList(attrs))
-        .build();
+      long startMs, long endMs, double value, Map<String, String> attrs, Exemplar exemplar) {
+    var builder =
+        NumberDataPoint.newBuilder()
+            .setStartTimeUnixNano(TimeUnit.MILLISECONDS.toNanos(startMs))
+            .setTimeUnixNano(TimeUnit.MILLISECONDS.toNanos(endMs))
+            .setAsDouble(value)
+            .addAllAttributes(OtelShorthand.toKvList(attrs));
+    if (exemplar != null) builder.addExemplars(exemplar);
+    return builder.build();
   }
 
   private HistogramDataPoint histogramPoint(
@@ -145,24 +196,57 @@ public class MetricsDataGenerator {
       List<Double> bounds,
       LogNormalDistribution dist,
       int sampleCount,
-      Map<String, String> attrs) {
+      Map<String, String> attrs,
+      MetricSpec spec,
+      MersenneTwister exemplarRng) {
     var counts = new long[bounds.size() + 1];
     double sum = 0.0;
     int safeCount = Math.max(0, sampleCount);
+    Exemplar exemplar = null;
     for (int i = 0; i < safeCount; i++) {
       double value = dist.sample();
       sum += value;
       int bucket = bucketIndex(bounds, value);
       counts[bucket] += 1;
+      if (exemplar == null) {
+        exemplar = exemplar(spec, exemplarRng, endMs, value);
+      }
     }
-    return HistogramDataPoint.newBuilder()
-        .setStartTimeUnixNano(TimeUnit.MILLISECONDS.toNanos(startMs))
-        .setTimeUnixNano(TimeUnit.MILLISECONDS.toNanos(endMs))
-        .addAllExplicitBounds(bounds)
-        .addAllBucketCounts(OkapiLists.toList(toBoxed(counts)))
-        .setCount(safeCount)
-        .setSum(sum)
-        .addAllAttributes(OtelShorthand.toKvList(attrs))
+    var builder =
+        HistogramDataPoint.newBuilder()
+            .setStartTimeUnixNano(TimeUnit.MILLISECONDS.toNanos(startMs))
+            .setTimeUnixNano(TimeUnit.MILLISECONDS.toNanos(endMs))
+            .addAllExplicitBounds(bounds)
+            .addAllBucketCounts(OkapiLists.toList(toBoxed(counts)))
+            .setCount(safeCount)
+            .setSum(sum)
+            .addAllAttributes(OtelShorthand.toKvList(attrs));
+    if (exemplar != null) builder.addExemplars(exemplar);
+    return builder.build();
+  }
+
+  private MersenneTwister exemplarRng(MetricSpec spec) {
+    return new MersenneTwister(config.getSeed() ^ spec.getName().hashCode());
+  }
+
+  private Exemplar exemplar(MetricSpec spec, MersenneTwister rng, long tsMs, double value) {
+    // Gson leaves omitted JSON fields null. Keep the default active for those configs,
+    // while an explicit 0 remains an opt-out.
+    double configuredProbability =
+        spec.getExemplarProbability() == null
+            ? MetricsDataGenConfig.DEFAULT_EXEMPLAR_PROBABILITY
+            : spec.getExemplarProbability();
+    double probability = Math.max(0.0, Math.min(1.0, configuredProbability));
+    if (probability <= 0.0 || rng.nextDouble() >= probability) return null;
+    byte[] traceId = new byte[16];
+    byte[] spanId = new byte[8];
+    rng.nextBytes(traceId);
+    rng.nextBytes(spanId);
+    return Exemplar.newBuilder()
+        .setTimeUnixNano(TimeUnit.MILLISECONDS.toNanos(tsMs))
+        .setAsDouble(value)
+        .setTraceId(ByteString.copyFrom(traceId))
+        .setSpanId(ByteString.copyFrom(spanId))
         .build();
   }
 

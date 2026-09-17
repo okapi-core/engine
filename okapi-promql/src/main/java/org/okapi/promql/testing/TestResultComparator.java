@@ -4,6 +4,12 @@
  */
 package org.okapi.promql.testing;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import org.okapi.metrics.pojos.results.GaugeScan;
 import org.okapi.promql.eval.*;
 import org.okapi.promql.eval.ScalarResult;
@@ -12,16 +18,9 @@ import org.okapi.promql.eval.VectorData.SeriesSample;
 import org.okapi.promql.eval.VectorData.SeriesWindow;
 import org.okapi.promql.testing.PromQlTestAst.*;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
 /**
- * Compares a PromQL {@link ExpressionResult} against the expected results declared in an
- * {@link EvalCmd}. Returns a list of differences; empty means the eval passed.
+ * Compares a PromQL {@link ExpressionResult} against the expected results declared in an {@link
+ * EvalCmd}. Returns a list of differences; empty means the eval passed.
  */
 final class TestResultComparator {
 
@@ -33,13 +32,15 @@ final class TestResultComparator {
       return compareRangeFromInstant(cmd, iv);
     }
     return switch (result) {
-      case ScalarResult s          -> compareScalar(cmd, s);
-      case StringResult s          -> compareString(cmd, s);
-      case InstantVectorResult iv  -> compareInstantVector(cmd, iv);
-      case RangeVectorResult rv    -> compareRangeVector(cmd, rv);
+      case ScalarResult s -> compareScalar(cmd, s);
+      case StringResult s -> compareString(cmd, s);
+      case InstantVectorResult iv -> compareInstantVector(cmd, iv);
+      case RangeVectorResult rv -> compareRangeVector(cmd, rv);
       case HistogramVectorResult h -> compareHistogramVector(cmd, h);
-      default -> List.of(TestExpectationDifference.of(
-          cmd.expression(), "unsupported result type", null, result.toString()));
+      default ->
+          List.of(
+              TestExpectationDifference.of(
+                  cmd.expression(), "unsupported result type", null, result.toString()));
     };
   }
 
@@ -54,7 +55,10 @@ final class TestResultComparator {
     }
     return List.of(
         TestExpectationDifference.of(
-            cmd.expression(), "expected no string result but got value", "none", actual.getValue()));
+            cmd.expression(),
+            "expected no string result but got value",
+            "none",
+            actual.getValue()));
   }
 
   // ---------- Scalar ----------
@@ -62,26 +66,36 @@ final class TestResultComparator {
   private List<TestExpectationDifference> compareScalar(EvalCmd cmd, ScalarResult scalar) {
     List<ExpectedResult> expected = cmd.results();
     if (expected.isEmpty()) {
-      return List.of(TestExpectationDifference.of(
-          cmd.expression(), "expected no scalar result but got value", "none",
-          String.valueOf(scalar.getValue())));
+      return List.of(
+          TestExpectationDifference.of(
+              cmd.expression(),
+              "expected no scalar result but got value",
+              "none",
+              String.valueOf(scalar.getValue())));
     }
     if (!(expected.get(0) instanceof PromQlTestAst.ScalarResult exp)) {
-      return List.of(TestExpectationDifference.of(
-          cmd.expression(), "expected scalar result but got series",
-          expected.get(0).toString(), String.valueOf(scalar.getValue())));
+      return List.of(
+          TestExpectationDifference.of(
+              cmd.expression(),
+              "expected scalar result but got series",
+              expected.get(0).toString(),
+              String.valueOf(scalar.getValue())));
     }
     if (!floatEquals((float) exp.value(), (float) scalar.getValue())) {
-      return List.of(TestExpectationDifference.of(
-          cmd.expression(), "scalar value mismatch",
-          String.valueOf(exp.value()), String.valueOf(scalar.getValue())));
+      return List.of(
+          TestExpectationDifference.of(
+              cmd.expression(),
+              "scalar value mismatch",
+              String.valueOf(exp.value()),
+              String.valueOf(scalar.getValue())));
     }
     return List.of();
   }
 
   // ---------- Instant vector ----------
 
-  private List<TestExpectationDifference> compareInstantVector(EvalCmd cmd, InstantVectorResult iv) {
+  private List<TestExpectationDifference> compareInstantVector(
+      EvalCmd cmd, InstantVectorResult iv) {
     Long evalTime = null;
     if (cmd.evalType() instanceof InstantEval instant && !cmd.expression().contains("@")) {
       evalTime = DurationParser.toMillis(instant.at().text());
@@ -99,7 +113,8 @@ final class TestResultComparator {
       if (res instanceof SeriesResult sr) {
         List<Float> values = expandExpectedPoints(sr.series().points());
         float value = values.isEmpty() ? Float.NaN : values.get(0);
-        expected.put(InMemoryTimeSeriesStore.normalize((SeriesDef) sr.series()),
+        expected.put(
+            InMemoryTimeSeriesStore.normalize((SeriesDef) sr.series()),
             new ExpectedValue(value, containsHistogramPoint(sr.series().points())));
       }
     }
@@ -110,12 +125,17 @@ final class TestResultComparator {
       ExpectedValue exp = entry.getValue();
       Float actualValue = actual.get(id);
       if (actualValue == null) {
-        diffs.add(TestExpectationDifference.of(cmd.expression(), "missing series", id.toString(), null));
+        diffs.add(
+            TestExpectationDifference.of(cmd.expression(), "missing series", id.toString(), null));
         continue;
       }
       if (!floatEquals(exp.value(), actualValue)) {
-        diffs.add(TestExpectationDifference.of(cmd.expression(), "instant vector value mismatch",
-            String.valueOf(exp.value()), String.valueOf(actualValue)));
+        diffs.add(
+            TestExpectationDifference.of(
+                cmd.expression(),
+                "instant vector value mismatch",
+                String.valueOf(exp.value()),
+                String.valueOf(actualValue)));
       }
     }
     return diffs;
@@ -123,11 +143,13 @@ final class TestResultComparator {
 
   // ---------- Range from instant (RangeEval → InstantVectorResult) ----------
 
-  private List<TestExpectationDifference> compareRangeFromInstant(EvalCmd cmd, InstantVectorResult iv) {
+  private List<TestExpectationDifference> compareRangeFromInstant(
+      EvalCmd cmd, InstantVectorResult iv) {
     Map<SeriesId, List<Float>> expected = new HashMap<>();
     for (ExpectedResult res : cmd.results()) {
       if (res instanceof SeriesResult sr) {
-        expected.put(InMemoryTimeSeriesStore.normalize((SeriesDef) sr.series()),
+        expected.put(
+            InMemoryTimeSeriesStore.normalize((SeriesDef) sr.series()),
             expandExpectedPointsForRange(sr.series().points()));
       }
     }
@@ -135,7 +157,8 @@ final class TestResultComparator {
     RangeSpec range = rangeSpec(cmd);
     Map<SeriesId, Map<Long, Float>> actualBySeries = new HashMap<>();
     for (SeriesSample s : iv) {
-      actualBySeries.computeIfAbsent(s.series(), k -> new HashMap<>())
+      actualBySeries
+          .computeIfAbsent(s.series(), k -> new HashMap<>())
           .put(s.sample().ts(), (float) s.sample().value());
     }
 
@@ -145,27 +168,37 @@ final class TestResultComparator {
       List<Float> exp = entry.getValue();
       Map<Long, Float> actualSeries = actualBySeries.get(id);
       if (actualSeries == null) {
-        diffs.add(TestExpectationDifference.of(cmd.expression(), "missing series", id.toString(), null));
+        diffs.add(
+            TestExpectationDifference.of(cmd.expression(), "missing series", id.toString(), null));
         continue;
       }
       List<Float> actual = trimTrailingMissing(alignRangeValues(actualSeries, range), exp.size());
       if (actual.size() != exp.size()) {
-        diffs.add(TestExpectationDifference.of(cmd.expression(), "range vector length mismatch",
-            String.valueOf(exp.size()), String.valueOf(actual.size())));
+        diffs.add(
+            TestExpectationDifference.of(
+                cmd.expression(),
+                "range vector length mismatch",
+                String.valueOf(exp.size()),
+                String.valueOf(actual.size())));
         continue;
       }
       for (int i = 0; i < actual.size(); i++) {
         if (!floatEquals(exp.get(i), actual.get(i))) {
-          diffs.add(TestExpectationDifference.of(cmd.expression(),
-              "range vector value mismatch at index " + i,
-              String.valueOf(exp.get(i)), String.valueOf(actual.get(i))));
+          diffs.add(
+              TestExpectationDifference.of(
+                  cmd.expression(),
+                  "range vector value mismatch at index " + i,
+                  String.valueOf(exp.get(i)),
+                  String.valueOf(actual.get(i))));
           break;
         }
       }
     }
     for (SeriesId id : actualBySeries.keySet()) {
       if (!expected.containsKey(id)) {
-        diffs.add(TestExpectationDifference.of(cmd.expression(), "unexpected series", null, id.toString()));
+        diffs.add(
+            TestExpectationDifference.of(
+                cmd.expression(), "unexpected series", null, id.toString()));
       }
     }
     return diffs;
@@ -177,7 +210,8 @@ final class TestResultComparator {
     Map<SeriesId, List<Float>> expected = new HashMap<>();
     for (ExpectedResult res : cmd.results()) {
       if (res instanceof SeriesResult sr) {
-        expected.put(InMemoryTimeSeriesStore.normalize((SeriesDef) sr.series()),
+        expected.put(
+            InMemoryTimeSeriesStore.normalize((SeriesDef) sr.series()),
             expandExpectedPointsForRange(sr.series().points()));
       }
     }
@@ -190,54 +224,72 @@ final class TestResultComparator {
       actualIds.add(id);
       List<Float> exp = expected.get(id);
       if (exp == null) {
-        diffs.add(TestExpectationDifference.of(cmd.expression(), "unexpected series", null, id.toString()));
+        diffs.add(
+            TestExpectationDifference.of(
+                cmd.expression(), "unexpected series", null, id.toString()));
         continue;
       }
       if (window.scan() instanceof GaugeScan gs) {
         List<Float> actual = alignRangeValues(gs, range, exp.size());
         if (actual.size() != exp.size()) {
-          diffs.add(TestExpectationDifference.of(cmd.expression(), "range vector length mismatch",
-              String.valueOf(exp.size()), String.valueOf(actual.size())));
+          diffs.add(
+              TestExpectationDifference.of(
+                  cmd.expression(),
+                  "range vector length mismatch",
+                  String.valueOf(exp.size()),
+                  String.valueOf(actual.size())));
           continue;
         }
         for (int i = 0; i < actual.size(); i++) {
           if (!floatEquals(exp.get(i), actual.get(i))) {
-            diffs.add(TestExpectationDifference.of(cmd.expression(),
-                "range vector value mismatch at index " + i,
-                String.valueOf(exp.get(i)), String.valueOf(actual.get(i))));
+            diffs.add(
+                TestExpectationDifference.of(
+                    cmd.expression(),
+                    "range vector value mismatch at index " + i,
+                    String.valueOf(exp.get(i)),
+                    String.valueOf(actual.get(i))));
             break;
           }
         }
       } else if (window.scan() instanceof HistogramSeries hs) {
         List<HistogramCounts> expHist = expectedHistogram(id, cmd);
         if (expHist == null) {
-          diffs.add(TestExpectationDifference.of(cmd.expression(), "unexpected series", null, id.toString()));
+          diffs.add(
+              TestExpectationDifference.of(
+                  cmd.expression(), "unexpected series", null, id.toString()));
           continue;
         }
         List<HistogramCounts> actual = alignHistogramValues(hs, range, expHist.size());
         compareHistogramList(cmd, expHist, actual, diffs);
       } else {
-        diffs.add(TestExpectationDifference.of(cmd.expression(), "unsupported scan type", null,
-            window.scan().getClass().getSimpleName()));
+        diffs.add(
+            TestExpectationDifference.of(
+                cmd.expression(),
+                "unsupported scan type",
+                null,
+                window.scan().getClass().getSimpleName()));
       }
     }
     for (SeriesId id : expected.keySet()) {
       if (!actualIds.contains(id))
-        diffs.add(TestExpectationDifference.of(cmd.expression(), "missing series", id.toString(), null));
+        diffs.add(
+            TestExpectationDifference.of(cmd.expression(), "missing series", id.toString(), null));
     }
     return diffs;
   }
 
   // ---------- Histogram vector ----------
 
-  private List<TestExpectationDifference> compareHistogramVector(EvalCmd cmd, HistogramVectorResult hv) {
+  private List<TestExpectationDifference> compareHistogramVector(
+      EvalCmd cmd, HistogramVectorResult hv) {
     Map<SeriesId, HistogramVectorResult.HistogramValue> actual = new HashMap<>();
     for (var s : hv.data()) actual.put(s.id(), s.sample().value());
 
     Map<SeriesId, HistogramVectorResult.HistogramValue> expected = new HashMap<>();
     for (ExpectedResult res : cmd.results()) {
       if (res instanceof SeriesResult sr) {
-        expected.put(InMemoryTimeSeriesStore.normalize((SeriesDef) sr.series()),
+        expected.put(
+            InMemoryTimeSeriesStore.normalize((SeriesDef) sr.series()),
             extractExpectedHistogramValue(sr.series().points()));
       }
     }
@@ -248,18 +300,26 @@ final class TestResultComparator {
       var exp = entry.getValue();
       var act = actual.get(id);
       if (act == null) {
-        diffs.add(TestExpectationDifference.of(cmd.expression(), "missing series", id.toString(), null));
+        diffs.add(
+            TestExpectationDifference.of(cmd.expression(), "missing series", id.toString(), null));
         continue;
       }
       if (!floatEquals(exp.count(), act.count()) || !floatEquals(exp.sum(), act.sum())) {
-        diffs.add(TestExpectationDifference.of(cmd.expression(), "histogram value mismatch",
-            "count=" + exp.count() + " sum=" + exp.sum(),
-            "count=" + act.count() + " sum=" + act.sum()));
+        diffs.add(
+            TestExpectationDifference.of(
+                cmd.expression(),
+                "histogram value mismatch",
+                "count=" + exp.count() + " sum=" + exp.sum(),
+                "count=" + act.count() + " sum=" + act.sum()));
       }
     }
     if (actual.size() != expected.size()) {
-      diffs.add(TestExpectationDifference.of(cmd.expression(), "series count mismatch",
-          String.valueOf(expected.size()), String.valueOf(actual.size())));
+      diffs.add(
+          TestExpectationDifference.of(
+              cmd.expression(),
+              "series count mismatch",
+              String.valueOf(expected.size()),
+              String.valueOf(actual.size())));
     }
     return diffs;
   }
@@ -289,10 +349,15 @@ final class TestResultComparator {
     switch (point) {
       case NumberPoint np -> out.add((float) np.value());
       case NaNPoint ignored -> out.add(Float.NaN);
-      case InfPoint ip -> out.add(ip.negative() ? Float.NEGATIVE_INFINITY : Float.POSITIVE_INFINITY);
-      case MissingPoint mp -> { /* omit */ }
+      case InfPoint ip ->
+          out.add(ip.negative() ? Float.NEGATIVE_INFINITY : Float.POSITIVE_INFINITY);
+      case MissingPoint mp -> {
+        /* omit */
+      }
       case StalePoint st -> out.add(null);
-      case RepeatPoint rp -> { for (int i = 0; i <= rp.count(); i++) expandExpected(rp.value(), out); }
+      case RepeatPoint rp -> {
+        for (int i = 0; i <= rp.count(); i++) expandExpected(rp.value(), out);
+      }
       case StepSequencePoint sp -> {
         double start = extractNumber(sp.start()), delta = extractNumber(sp.step());
         for (int i = 0; i <= sp.count(); i++) out.add((float) (start + delta * i));
@@ -303,7 +368,8 @@ final class TestResultComparator {
 
   // ---------- Histogram helpers ----------
 
-  private HistogramVectorResult.HistogramValue extractExpectedHistogramValue(List<PointExpr> points) {
+  private HistogramVectorResult.HistogramValue extractExpectedHistogramValue(
+      List<PointExpr> points) {
     for (PointExpr p : points) {
       if (p instanceof HistogramPoint hp) {
         float count = InMemoryTimeSeriesStore.histogramField(hp.value(), "count");
@@ -319,9 +385,12 @@ final class TestResultComparator {
     for (PointExpr p : points) expandExpectedHistogramPoint(p, literals);
     List<HistogramCounts> out = new ArrayList<>();
     for (HistogramLiteral lit : literals) {
-      out.add(lit == null ? null : new HistogramCounts(
-          InMemoryTimeSeriesStore.histogramField(lit, "sum"),
-          InMemoryTimeSeriesStore.histogramField(lit, "count")));
+      out.add(
+          lit == null
+              ? null
+              : new HistogramCounts(
+                  InMemoryTimeSeriesStore.histogramField(lit, "sum"),
+                  InMemoryTimeSeriesStore.histogramField(lit, "count")));
     }
     return out;
   }
@@ -331,19 +400,24 @@ final class TestResultComparator {
       case HistogramPoint hp -> out.add(hp.value());
       case MissingPoint mp -> out.add(null);
       case StalePoint st -> out.add(null);
-      case RepeatPoint rp -> { for (int i = 0; i <= rp.count(); i++) expandExpectedHistogramPoint(rp.value(), out); }
+      case RepeatPoint rp -> {
+        for (int i = 0; i <= rp.count(); i++) expandExpectedHistogramPoint(rp.value(), out);
+      }
       case StepSequencePoint sp -> {
-        if (sp.start() instanceof HistogramPoint start && sp.step() instanceof HistogramPoint delta) {
+        if (sp.start() instanceof HistogramPoint start
+            && sp.step() instanceof HistogramPoint delta) {
           float startSum = InMemoryTimeSeriesStore.histogramField(start.value(), "sum");
           float startCount = InMemoryTimeSeriesStore.histogramField(start.value(), "count");
           float dSum = InMemoryTimeSeriesStore.histogramField(delta.value(), "sum");
           float dCount = InMemoryTimeSeriesStore.histogramField(delta.value(), "count");
           for (int i = 0; i <= sp.count(); i++) {
-            out.add(InMemoryTimeSeriesStore.buildHistogramLiteral(
-                startSum + dSum * i, startCount + dCount * i));
+            out.add(
+                InMemoryTimeSeriesStore.buildHistogramLiteral(
+                    startSum + dSum * i, startCount + dCount * i));
           }
         } else {
-          throw new IllegalStateException("histogram step sequence: start and step must both be histogram points");
+          throw new IllegalStateException(
+              "histogram step sequence: start and step must both be histogram points");
         }
       }
       default -> throw new IllegalStateException("expected histogram point");
@@ -360,20 +434,30 @@ final class TestResultComparator {
     return null;
   }
 
-  private void compareHistogramList(EvalCmd cmd, List<HistogramCounts> exp,
-      List<HistogramCounts> actual, List<TestExpectationDifference> diffs) {
+  private void compareHistogramList(
+      EvalCmd cmd,
+      List<HistogramCounts> exp,
+      List<HistogramCounts> actual,
+      List<TestExpectationDifference> diffs) {
     if (actual.size() != exp.size()) {
-      diffs.add(TestExpectationDifference.of(cmd.expression(), "range vector length mismatch",
-          String.valueOf(exp.size()), String.valueOf(actual.size())));
+      diffs.add(
+          TestExpectationDifference.of(
+              cmd.expression(),
+              "range vector length mismatch",
+              String.valueOf(exp.size()),
+              String.valueOf(actual.size())));
       return;
     }
     for (int i = 0; i < actual.size(); i++) {
       HistogramCounts e = exp.get(i), a = actual.get(i);
       if (e == null && a == null) continue;
       if (e == null || a == null || !floatEquals(e.sum, a.sum) || !floatEquals(e.count, a.count)) {
-        diffs.add(TestExpectationDifference.of(cmd.expression(),
-            "range vector value mismatch at index " + i,
-            String.valueOf(e), String.valueOf(a)));
+        diffs.add(
+            TestExpectationDifference.of(
+                cmd.expression(),
+                "range vector value mismatch at index " + i,
+                String.valueOf(e),
+                String.valueOf(a)));
         break;
       }
     }
@@ -420,7 +504,8 @@ final class TestResultComparator {
     return alignHistogramValues(hs, range, range.steps);
   }
 
-  private List<HistogramCounts> alignHistogramValues(HistogramSeries hs, RangeSpec range, int steps) {
+  private List<HistogramCounts> alignHistogramValues(
+      HistogramSeries hs, RangeSpec range, int steps) {
     List<HistogramCounts> out = new ArrayList<>();
     if (range.stepMs <= 0 || range.steps <= 0) {
       for (var p : hs.getPoints())
@@ -431,7 +516,8 @@ final class TestResultComparator {
     Map<Long, HistogramCounts> byTs = new HashMap<>();
     for (var p : hs.getPoints())
       if (p instanceof HistogramSeries.HistogramSample histogram)
-        byTs.put(p.endMs(), new HistogramCounts((float) histogram.sum(), (float) histogram.count()));
+        byTs.put(
+            p.endMs(), new HistogramCounts((float) histogram.sum(), (float) histogram.count()));
     long t = range.startMs;
     for (int i = 0; i < steps; i++) {
       out.add(byTs.get(t));
@@ -446,16 +532,16 @@ final class TestResultComparator {
     ExpectRangeVector expectRange = firstExpectRange(cmd.expectations());
     if (expectRange != null) {
       long start = DurationParser.toMillis(expectRange.from().text());
-      long end   = DurationParser.toMillis(expectRange.to().text());
-      long step  = DurationParser.toMillis(expectRange.step().text());
-      int steps  = step > 0 ? (int) ((end - start) / step) : 0;
+      long end = DurationParser.toMillis(expectRange.to().text());
+      long step = DurationParser.toMillis(expectRange.step().text());
+      int steps = step > 0 ? (int) ((end - start) / step) : 0;
       return new RangeSpec(start, end, step, steps);
     }
     if (cmd.evalType() instanceof RangeEval r) {
       long start = DurationParser.toMillis(r.from().text());
-      long end   = DurationParser.toMillis(r.to().text());
-      long step  = DurationParser.toMillis(r.step().text());
-      int steps  = step > 0 ? (int) ((end - start) / step) + 1 : 0;
+      long end = DurationParser.toMillis(r.to().text());
+      long step = DurationParser.toMillis(r.step().text());
+      int steps = step > 0 ? (int) ((end - start) / step) + 1 : 0;
       return new RangeSpec(start, end, step, steps);
     }
     return new RangeSpec(0, 0, 0, 0);
@@ -473,7 +559,8 @@ final class TestResultComparator {
       if (p instanceof HistogramPoint) return true;
       if (p instanceof RepeatPoint rp && rp.value() instanceof HistogramPoint) return true;
       if (p instanceof StepSequencePoint sp
-          && (sp.start() instanceof HistogramPoint || sp.step() instanceof HistogramPoint)) return true;
+          && (sp.start() instanceof HistogramPoint || sp.step() instanceof HistogramPoint))
+        return true;
     }
     return false;
   }
@@ -492,5 +579,6 @@ final class TestResultComparator {
   }
 
   private record RangeSpec(long startMs, long endMs, long stepMs, int steps) {}
+
   private record HistogramCounts(float sum, float count) {}
 }

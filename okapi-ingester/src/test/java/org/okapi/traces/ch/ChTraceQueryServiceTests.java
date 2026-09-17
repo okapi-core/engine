@@ -4,6 +4,11 @@
  */
 package org.okapi.traces.ch;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.okapi.otelshorthand.OtelShortHands.keyValue;
+import static org.okapi.otelshorthand.OtelShortHands.utf8Bytes;
+
 import com.clickhouse.client.api.Client;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
@@ -14,27 +19,24 @@ import io.opentelemetry.proto.trace.v1.ResourceSpans;
 import io.opentelemetry.proto.trace.v1.ScopeSpans;
 import io.opentelemetry.proto.trace.v1.Span;
 import io.opentelemetry.proto.trace.v1.Status;
-import org.junit.jupiter.api.BeforeEach;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.TestInstance.Lifecycle;
 import org.okapi.ch.CreateChTablesSpec;
 import org.okapi.otel.OtelAnyValueDecoder;
+import org.okapi.otelshorthand.OtelShortHands;
 import org.okapi.rest.traces.*;
 import org.okapi.rest.traces.SpanStatus;
 import org.okapi.testmodules.guice.TestChTracesModule;
-import org.okapi.traces.testutil.OtelShortHands;
+import org.okapi.traces.core.FakeTracesEventEmitter;
+import org.okapi.traces.core.TracesEvent;
 
-import java.nio.file.Path;
-import java.util.List;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.okapi.traces.testutil.OtelShortHands.keyValue;
-import static org.okapi.traces.testutil.OtelShortHands.utf8Bytes;
-
+@TestInstance(Lifecycle.PER_CLASS)
 public class ChTraceQueryServiceTests {
-
-  @TempDir Path tempDir;
 
   private Injector injector;
   private Client client;
@@ -56,8 +58,9 @@ public class ChTraceQueryServiceTests {
   ByteString traceIdD = utf8Bytes("trace-id-0000004");
   ByteString spanIdD = utf8Bytes("span0005");
 
-  @BeforeEach
+  @BeforeAll
   void setup() throws Exception {
+    Path tempDir = Files.createTempDirectory("okapi-traces-query-");
     injector = Guice.createInjector(new TestChTracesModule(tempDir.resolve("wal"), 16));
     client = injector.getInstance(Client.class);
     CreateChTablesSpec.migrate(client);
@@ -66,7 +69,7 @@ public class ChTraceQueryServiceTests {
   }
 
   private void ingestCorpus() throws Exception {
-    var ingester = injector.getInstance(ChTracesIngester.class);
+    var emitter = injector.getInstance(FakeTracesEventEmitter.class);
     var driver = injector.getInstance(ChTracesWalConsumerDriver.class);
 
     var request =
@@ -78,7 +81,7 @@ public class ChTraceQueryServiceTests {
             .addResourceSpans(buildBoundaryResourceSpans(traceIdD, spanIdD))
             .build();
 
-    ingester.ingest(request);
+    emitter.add(new TracesEvent(request.toByteArray()));
     driver.onTick();
 
     traceIdAHex = OtelAnyValueDecoder.bytesToHex(traceIdA.toByteArray());
@@ -333,18 +336,12 @@ public class ChTraceQueryServiceTests {
     var queryService = injector.getInstance(ChTraceQueryService.class);
     var tsFilter = TimestampFilter.builder().tsStartNanos(0).tsEndNanos(10_000_000_000L).build();
 
-    var baseline =
-        SpanQueryV2Request.builder()
-            .timestampFilter(tsFilter)
-            .build();
+    var baseline = SpanQueryV2Request.builder().timestampFilter(tsFilter).build();
     var respBaseline = queryService.getSpans(baseline);
     assertEquals(4, respBaseline.getItems().size());
 
     var wildcardTraceId =
-        SpanQueryV2Request.builder()
-            .traceId("*")
-            .timestampFilter(tsFilter)
-            .build();
+        SpanQueryV2Request.builder().traceId("*").timestampFilter(tsFilter).build();
     var respWildcardTraceId = queryService.getSpans(wildcardTraceId);
     assertEquals(4, respWildcardTraceId.getItems().size());
 

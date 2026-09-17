@@ -5,10 +5,8 @@
 package org.okapi.ch;
 
 public final class ChTemplateFiles {
-  public static final String GET_GAUGE_RAW_SAMPLES = "get_gauge_raw_samples.jte";
   public static final String GET_GAUGE_SAMPLES = "get_gauge_samples.jte";
   public static final String GET_HISTO_SAMPLES = "get_histo_samples.jte";
-  public static final String GET_METRIC_EVENT_TYPE = "get_metric_event_type.jte";
   public static final String GET_METRIC_EVENTS_SERIES = "get_metric_events_series.jte";
   public static final String GET_METRIC_HINTS = "get_metric_hints.jte";
   public static final String GET_METRIC_METADATA = "get_metric_metadata.jte";
@@ -44,6 +42,7 @@ public final class ChTemplateFiles {
   public static final String GET_SERVICE_RED_OP_METRICS = "get_service_red_op_metrics.jte";
   public static final String GET_METRIC_PATHS_IN_RANGE = "get_metric_paths_in_range.jte";
   public static final String GET_LOGS = "get_logs.jte";
+  public static final String GET_INGESTER_OVERVIEW = "get_ingester_overview.jte";
 
   private ChTemplateFiles() {}
 }

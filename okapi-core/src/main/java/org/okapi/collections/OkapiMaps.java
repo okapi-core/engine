@@ -31,14 +31,4 @@ public class OkapiMaps {
     }
     return merged;
   }
-
-  public static <T, V> Map<T, V> mergeLeft(
-      Map<T, V> left, Map<T, V> right, Supplier<Map<T, V>> newSupplier) {
-    return mergeMaps(left, right, (k, l, r) -> l, newSupplier);
-  }
-
-  public static <T, V> Map<T, V> mergeRight(
-      Map<T, V> left, Map<T, V> right, Supplier<Map<T, V>> newSupplier) {
-    return mergeMaps(left, right, (k, l, r) -> r, newSupplier);
-  }
 }

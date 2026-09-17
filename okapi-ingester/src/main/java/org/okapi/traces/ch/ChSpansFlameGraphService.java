@@ -14,11 +14,14 @@ import org.okapi.metrics.ch.ChConstants;
 import org.okapi.rest.traces.FlameGraphNode;
 import org.okapi.rest.traces.SpanQueryV2Request;
 import org.okapi.rest.traces.SpansFlameGraphResponse;
+import org.okapi.spring.configs.Profiles;
 import org.okapi.traces.ch.template.ChTraceTemplateEngine;
 import org.okapi.validation.OkapiChecks;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
 @Service
+@Profile(Profiles.PROFILE_CH)
 public class ChSpansFlameGraphService {
   private final Client client;
   private final ChTraceTemplateEngine templateEngine;

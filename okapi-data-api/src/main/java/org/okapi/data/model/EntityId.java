@@ -17,7 +17,8 @@ public record EntityId(EntityType type, String id) {
     if (separator < 1 || separator == value.length() - 1) return Optional.empty();
     try {
       return Optional.of(
-          new EntityId(EntityType.valueOf(value.substring(0, separator)), value.substring(separator + 1)));
+          new EntityId(
+              EntityType.valueOf(value.substring(0, separator)), value.substring(separator + 1)));
     } catch (IllegalArgumentException e) {
       return Optional.empty();
     }

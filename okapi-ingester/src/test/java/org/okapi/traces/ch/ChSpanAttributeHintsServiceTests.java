@@ -5,8 +5,8 @@
 package org.okapi.traces.ch;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.okapi.traces.testutil.OtelShortHands.keyValue;
-import static org.okapi.traces.testutil.OtelShortHands.utf8Bytes;
+import static org.okapi.otelshorthand.OtelShortHands.keyValue;
+import static org.okapi.otelshorthand.OtelShortHands.utf8Bytes;
 
 import com.clickhouse.client.api.Client;
 import com.google.inject.Guice;
@@ -23,6 +23,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.okapi.ch.CreateChTablesSpec;
+import org.okapi.otelshorthand.OtelShortHands;
 import org.okapi.rest.traces.SpanAttributeHint;
 import org.okapi.rest.traces.SpanAttributeHintsRequest;
 import org.okapi.rest.traces.SpanAttributeHintsResponse;
@@ -30,7 +31,8 @@ import org.okapi.rest.traces.SpanAttributeValueHintsRequest;
 import org.okapi.rest.traces.SpanAttributeValueHintsResponse;
 import org.okapi.rest.traces.TimestampMillisFilter;
 import org.okapi.testmodules.guice.TestChTracesModule;
-import org.okapi.traces.testutil.OtelShortHands;
+import org.okapi.traces.core.FakeTracesEventEmitter;
+import org.okapi.traces.core.TracesEvent;
 
 public class ChSpanAttributeHintsServiceTests {
 
@@ -59,7 +61,7 @@ public class ChSpanAttributeHintsServiceTests {
   }
 
   private void ingestCorpus() throws Exception {
-    var ingester = injector.getInstance(ChTracesIngester.class);
+    var emitter = injector.getInstance(FakeTracesEventEmitter.class);
     var driver = injector.getInstance(ChTracesWalConsumerDriver.class);
 
     var traceIdA = utf8Bytes("trace-hints-0001");
@@ -73,7 +75,7 @@ public class ChSpanAttributeHintsServiceTests {
             .addResourceSpans(buildSpan(traceIdB, spanIdB, 2_000_000_000L, "beta", 20, "POST", 404))
             .build();
 
-    ingester.ingest(request);
+    emitter.add(new TracesEvent(request.toByteArray()));
     driver.onTick();
   }
 

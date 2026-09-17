@@ -27,12 +27,12 @@ import org.okapi.ch.CreateChTablesSpec;
 import org.okapi.metrics.common.MetricPaths;
 import org.okapi.metrics.pojos.AGG_TYPE;
 import org.okapi.metrics.pojos.RES_TYPE;
+import org.okapi.otelshorthand.OtelShortHands;
 import org.okapi.rest.metrics.query.GaugeQueryConfig;
 import org.okapi.rest.metrics.query.GetGaugeResponse;
 import org.okapi.rest.metrics.query.GetMetricsRequest;
 import org.okapi.rest.metrics.query.METRIC_TYPE;
 import org.okapi.testmodules.guice.TestChMetricsModule;
-import org.okapi.traces.testutil.OtelShortHands;
 
 public class ChGaugeTagSubsetMatchTests {
 
@@ -107,8 +107,9 @@ public class ChGaugeTagSubsetMatchTests {
         .build();
   }
 
-  private void assertSeriesContentMatch(GetGaugeResponse resp, Map<String, ExpectedSeries> expected) {
-    for(var series: resp.getSeries()){
+  private void assertSeriesContentMatch(
+      GetGaugeResponse resp, Map<String, ExpectedSeries> expected) {
+    for (var series : resp.getSeries()) {
       var key = MetricPaths.getMetricPath(METRIC, series.getTags());
       var expectation = expected.get(key);
       assertEquals(expectation.times(), series.getTimes());
@@ -119,16 +120,13 @@ public class ChGaugeTagSubsetMatchTests {
   private Map<String, ExpectedSeries> expectedSeries() {
     var out = new HashMap<String, ExpectedSeries>();
     out.put(
-        MetricPaths.getMetricPath(
-            METRIC, Map.of("env", "prod", "service", "checkout", "pod", "x")),
+        MetricPaths.getMetricPath(METRIC, Map.of("env", "prod", "service", "checkout", "pod", "x")),
         new ExpectedSeries(List.of(1_000L, 2_000L), List.of(1.0f, 2.0f)));
     out.put(
-        MetricPaths.getMetricPath(
-            METRIC, Map.of("env", "dev", "service", "checkout", "pod", "y")),
+        MetricPaths.getMetricPath(METRIC, Map.of("env", "dev", "service", "checkout", "pod", "y")),
         new ExpectedSeries(List.of(1_000L, 2_000L), List.of(3.0f, 4.0f)));
     out.put(
-        MetricPaths.getMetricPath(
-            METRIC, Map.of("env", "prod", "service", "checkout", "pod", "z")),
+        MetricPaths.getMetricPath(METRIC, Map.of("env", "prod", "service", "checkout", "pod", "z")),
         new ExpectedSeries(List.of(1_000L, 2_000L), List.of(5.0f, 6.0f)));
     return out;
   }
@@ -140,7 +138,8 @@ public class ChGaugeTagSubsetMatchTests {
             METRIC,
             List.of(
                 gaugePoint(1_000L, Map.of("env", "prod", "service", "checkout", "pod", "x"), 1.0),
-                gaugePoint(2_000L, Map.of("env", "prod", "service", "checkout", "pod", "x"), 2.0))));
+                gaugePoint(
+                    2_000L, Map.of("env", "prod", "service", "checkout", "pod", "x"), 2.0))));
     ingester.ingestOtelProtobuf(
         buildGaugeRequest(
             "svc-2",
@@ -154,7 +153,8 @@ public class ChGaugeTagSubsetMatchTests {
             METRIC,
             List.of(
                 gaugePoint(1_000L, Map.of("env", "prod", "service", "checkout", "pod", "z"), 5.0),
-                gaugePoint(2_000L, Map.of("env", "prod", "service", "checkout", "pod", "z"), 6.0))));
+                gaugePoint(
+                    2_000L, Map.of("env", "prod", "service", "checkout", "pod", "z"), 6.0))));
   }
 
   private ExportMetricsServiceRequest buildGaugeRequest(

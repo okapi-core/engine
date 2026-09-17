@@ -1,6 +1,11 @@
+/*
+ * Copyright The OkapiCore Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
 package org.okapi.oscar.client;
 
 import com.google.gson.Gson;
+import java.io.IOException;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
@@ -10,8 +15,6 @@ import org.okapi.rest.session.CreateSessionRequest;
 import org.okapi.rest.session.ListSessionsRequest;
 import org.okapi.rest.session.ListSessionsResponse;
 import org.okapi.rest.session.SessionMetaResponse;
-
-import java.io.IOException;
 
 public class OscarClient {
 
@@ -91,6 +94,10 @@ public class OscarClient {
 
   public ChatMessageUpdatesResponse getUpdates(String sessionId) {
     return getRequest("/api/v1/chat/" + sessionId + "/updates", ChatMessageUpdatesResponse.class);
+  }
+
+  public ListChatsResponse listChats(ListChatsRequest request) {
+    return postRequest("/api/v1/chat/list", request, ListChatsResponse.class);
   }
 
   public SessionMetaResponse createSession(CreateSessionRequest request) {

@@ -6,8 +6,8 @@ package org.okapi.data.dao;
 
 import java.util.List;
 import java.util.Optional;
-import org.okapi.data.model.Dashboard;
 import org.okapi.data.exceptions.ResourceNotFoundException;
+import org.okapi.data.model.Dashboard;
 
 public interface DashboardDao {
   Optional<Dashboard> get(String orgId, String id);

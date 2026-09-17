@@ -1,21 +1,28 @@
+/*
+ * Copyright The OkapiCore Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
 package org.okapi.traces.ch.reds;
 
 import com.clickhouse.client.api.Client;
+import com.clickhouse.client.api.query.GenericRecord;
 import jakarta.annotation.PreDestroy;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Supplier;
 import org.okapi.ch.ChTemplateFiles;
 import org.okapi.metrics.ch.ChConstants;
 import org.okapi.metrics.pojos.RES_TYPE;
 import org.okapi.parallel.ParallelExecutor;
 import org.okapi.rest.traces.red.*;
+import org.okapi.spring.configs.Profiles;
 import org.okapi.traces.ch.template.*;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
-import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.function.Supplier;
-
 @Service
+@Profile(Profiles.PROFILE_CH)
 public class ChRedQueryService {
   private static final String DURATION_MS_EXPR = "(ts_end_nanos - ts_start_nanos) / 1000000.0";
   private static final int TOTAL_OPS_SUMMARY_LIMIT = 20;
@@ -26,11 +33,16 @@ public class ChRedQueryService {
       RedMetrics.builder()
           .ts(List.of())
           .counts(List.of())
+          .rps(List.of())
+          .rpm(List.of())
+          .errorRates(List.of())
           .errors(List.of())
           .durationsP50(List.of())
           .durationsP75(List.of())
           .durationsP90(List.of())
           .durationsP99(List.of())
+          .totalRequests(0L)
+          .totalErrors(0L)
           .build();
 
   private final Client client;
@@ -91,32 +103,7 @@ public class ChRedQueryService {
     if (records.isEmpty()) {
       return ServiceOpRed.builder().op(op).redMetrics(EMPTY).build();
     }
-    var ts = new ArrayList<Long>(records.size());
-    var counts = new ArrayList<Long>(records.size());
-    var errors = new ArrayList<Long>(records.size());
-    var p50 = new ArrayList<Double>(records.size());
-    var p75 = new ArrayList<Double>(records.size());
-    var p90 = new ArrayList<Double>(records.size());
-    var p99 = new ArrayList<Double>(records.size());
-    for (var record : records) {
-      ts.add(record.getLong("bucket_start_ms"));
-      counts.add(record.getLong("total_count"));
-      errors.add(record.getLong("error_count"));
-      p50.add(record.getDouble("duration_p50"));
-      p75.add(record.getDouble("duration_p75"));
-      p90.add(record.getDouble("duration_p90"));
-      p99.add(record.getDouble("duration_p99"));
-    }
-    var red =
-        RedMetrics.builder()
-            .ts(ts)
-            .counts(counts)
-            .errors(errors)
-            .durationsP50(p50)
-            .durationsP75(p75)
-            .durationsP90(p90)
-            .durationsP99(p99)
-            .build();
+    var red = buildRedMetrics(request, records);
     return ServiceOpRed.builder().op(op).redMetrics(red).build();
   }
 
@@ -239,31 +226,63 @@ public class ChRedQueryService {
     if (records.isEmpty()) {
       return EMPTY;
     }
+    return buildRedMetrics(request, records);
+  }
+
+  private RedMetrics buildRedMetrics(ServiceRedRequest request, List<GenericRecord> records) {
     var ts = new ArrayList<Long>(records.size());
     var counts = new ArrayList<Long>(records.size());
+    var rps = new ArrayList<Double>(records.size());
+    var rpm = new ArrayList<Double>(records.size());
+    var errorRates = new ArrayList<Double>(records.size());
     var errors = new ArrayList<Long>(records.size());
     var p50 = new ArrayList<Double>(records.size());
     var p75 = new ArrayList<Double>(records.size());
     var p90 = new ArrayList<Double>(records.size());
     var p99 = new ArrayList<Double>(records.size());
+    var bucketSeconds = bucketSeconds(request == null ? null : request.getResType());
+    long totalRequests = 0;
+    long totalErrors = 0;
     for (var record : records) {
+      var count = record.getLong("total_count");
+      var errorCount = record.getLong("error_count");
       ts.add(record.getLong("bucket_start_ms"));
-      counts.add(record.getLong("total_count"));
-      errors.add(record.getLong("error_count"));
+      counts.add(count);
+      rps.add(count / bucketSeconds);
+      rpm.add(count * 60.0 / bucketSeconds);
+      errorRates.add(count == 0 ? 0.0 : errorCount / (double) count);
+      errors.add(errorCount);
       p50.add(record.getDouble("duration_p50"));
       p75.add(record.getDouble("duration_p75"));
       p90.add(record.getDouble("duration_p90"));
       p99.add(record.getDouble("duration_p99"));
+      totalRequests += count;
+      totalErrors += errorCount;
     }
     return RedMetrics.builder()
         .ts(ts)
         .counts(counts)
+        .rps(rps)
+        .rpm(rpm)
+        .errorRates(errorRates)
         .errors(errors)
         .durationsP50(p50)
         .durationsP75(p75)
         .durationsP90(p90)
         .durationsP99(p99)
+        .totalRequests(totalRequests)
+        .totalErrors(totalErrors)
+        .availability(totalRequests == 0 ? null : 1.0 - totalErrors / (double) totalRequests)
         .build();
+  }
+
+  private static double bucketSeconds(RES_TYPE resType) {
+    var effective = resType == null ? RES_TYPE.SECONDLY : resType;
+    return switch (effective) {
+      case SECONDLY -> 1.0;
+      case MINUTELY -> 60.0;
+      case HOURLY -> 3600.0;
+    };
   }
 
   private static String buildBucketStartExpr(RES_TYPE resType) {

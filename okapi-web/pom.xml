@@ -24,7 +24,13 @@
 
         <dependency>
             <groupId>org.okapi</groupId>
-            <artifactId>okapi-data-ddb</artifactId>
+            <artifactId>okapi-data-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.okapi</groupId>
+            <artifactId>okapi-data-pg</artifactId>
             <version>0.0.1-SNAPSHOT</version>
         </dependency>
 
@@ -32,6 +38,31 @@
             <groupId>org.okapi</groupId>
             <artifactId>okapi-rest</artifactId>
             <version>0.0.1-SNAPSHOT</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>info.picocli</groupId>
+            <artifactId>picocli</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-api</artifactId>
         </dependency>
 
         <dependency>
@@ -56,27 +87,6 @@
         </dependency>
 
         <dependency>
-            <groupId>org.okapi</groupId>
-            <artifactId>okapi-agent-dtos</artifactId>
-            <version>0.0.1-SNAPSHOT</version>
-        </dependency>
-
-        <dependency>
-            <groupId>software.amazon.awssdk</groupId>
-            <artifactId>dynamodb</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>software.amazon.awssdk</groupId>
-            <artifactId>dynamodb-enhanced</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>software.amazon.awssdk</groupId>
-            <artifactId>auth</artifactId>
-        </dependency>
-
-        <dependency>
             <groupId>com.squareup.okhttp3</groupId>
             <artifactId>mockwebserver3</artifactId>
         </dependency>
@@ -88,31 +98,13 @@
         </dependency>
 
         <dependency>
-            <groupId>org.okapi</groupId>
-            <artifactId>okapi-otel-protos</artifactId>
-            <version>${project.version}</version>
+            <groupId>io.opentelemetry.proto</groupId>
+            <artifactId>opentelemetry-proto</artifactId>
         </dependency>
 
         <dependency>
             <groupId>com.openai</groupId>
             <artifactId>openai-java</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>org.okapi</groupId>
-            <artifactId>okapi-agent-main</artifactId>
-            <version>0.0.1-SNAPSHOT</version>
-            <scope>test</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>dev.langchain4j</groupId>
-            <artifactId>langchain4j-core</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>dev.langchain4j</groupId>
-            <artifactId>langchain4j-open-ai</artifactId>
         </dependency>
 
         <dependency>
@@ -136,12 +128,39 @@
             <artifactId>mockito-core</artifactId>
             <scope>test</scope>
         </dependency>
+
+        <dependency>
+            <groupId>org.okapi</groupId>
+            <artifactId>okapi-ingester-client</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.okapi</groupId>
+            <artifactId>okapi-oscar-client</artifactId>
+            <version>${project.version}</version>
+        </dependency>
     </dependencies>
     <build>
         <plugins>
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <mainClass>org.okapi.web.OkapiWebApp</mainClass>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>repackage-dashboard-yaml-lint-cli</id>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                        <configuration>
+                            <classifier>dashboard-yaml-lint</classifier>
+                            <mainClass>org.okapi.web.tools.DashboardYamlLintCli</mainClass>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

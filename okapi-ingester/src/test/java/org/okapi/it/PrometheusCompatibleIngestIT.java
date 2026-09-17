@@ -35,6 +35,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.okapi.ch.CreateChTablesSpec;
 import org.okapi.logs.TestApplication;
 import org.okapi.metrics.ch.ChConstants;
+import org.okapi.spring.configs.Profiles;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
@@ -48,7 +49,7 @@ import org.springframework.web.client.RestClient;
 @SpringBootTest(
     classes = {TestApplication.class},
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@ActiveProfiles({"test"})
+@ActiveProfiles({"test", Profiles.PROFILE_CH})
 @TestPropertySource(
     properties = {
       "okapi.clickhouse.userName=default",

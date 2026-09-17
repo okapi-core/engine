@@ -15,6 +15,8 @@ expression
 vectorOperation
     : <assoc = right> vectorOperation powOp vectorOperation # vecOpPow
     | <assoc = right> vectorOperation subqueryOp            # vecOpSubQuery
+    | vectorOperation AT atValue offsetOp?                  # vecOpAt
+    | vectorOperation SMOOTHED                              # vecOpSmoothed
     | unaryOp vectorOperation                               # vecOpUnary
     | vectorOperation multOp vectorOperation                # vecOpMult
     | vectorOperation addOp vectorOperation                 # vecOpAdd
@@ -22,7 +24,6 @@ vectorOperation
     | vectorOperation andUnlessOp vectorOperation           # vecOpAddUnless
     | vectorOperation orOp vectorOperation                  # vecOpOr
     | vectorOperation vectorMatchOp vectorOperation         # vecOpMatch
-    | vectorOperation AT vectorOperation                    # vecOpAt
     | vector                                                # vecOpvec
     ;
 
@@ -33,19 +34,19 @@ unaryOp
     ;
 
 powOp
-    : POW grouping?
+    : POW grouping? fillModifier*
     ;
 
 multOp
-    : (MULT | DIV | MOD) grouping?
+    : (MULT | DIV | MOD | ATAN2) grouping? fillModifier*
     ;
 
 addOp
-    : (ADD | SUB) grouping?
+    : (ADD | SUB) grouping? fillModifier*
     ;
 
 compareOp
-    : (DEQ | NE | GT | LT | GE | LE) BOOL? grouping?
+    : (DEQ | NE | TRIM_LOWER | TRIM_UPPER | GT | LT | GE | LE) BOOL? grouping? fillModifier*
     ;
 
 andUnlessOp
@@ -61,21 +62,27 @@ vectorMatchOp
     ;
 
 subqueryOp
-    : SUBQUERY_RANGE offsetOp?
+    : subqueryRange offsetOp?
     ;
 
 offsetOp
-    : OFFSET DURATION
+    : OFFSET offsetDurationExpr
     ;
 
 vector
     : function_             # vecFunc
     | aggregation           # vecAgg
-    | instantSelector       # vecInstant
-    | matrixSelector        # vecMatrix
     | offset                # vecOffset
+    | matrixSelector        # vecMatrix
+    | instantSelector       # vecInstant
     | literal               # vecLiteral
     | parens                # vecParens
+    ;
+
+atValue
+    : NUMBER
+    | DURATION
+    | METRIC_NAME LEFT_PAREN RIGHT_PAREN
     ;
 
 parens
@@ -85,8 +92,14 @@ parens
 // Selectors
 
 instantSelector
-    : METRIC_NAME (LEFT_BRACE labelMatcherList? RIGHT_BRACE)?
+    : metricIdentifier (LEFT_BRACE labelMatcherList? RIGHT_BRACE)?
     | LEFT_BRACE labelMatcherList RIGHT_BRACE
+    ;
+
+metricIdentifier
+    : METRIC_NAME
+    | FUNCTION
+    | AGGREGATION_OPERATOR
     ;
 
 labelMatcher
@@ -105,19 +118,32 @@ labelMatcherList
     ;
 
 matrixSelector
-    : instantSelector TIME_RANGE
+    : instantSelector timeRange extendedVectorModifier?
+    ;
+
+extendedVectorModifier
+    : ANCHORED
+    | SMOOTHED
     ;
 
 offset
-    : instantSelector OFFSET DURATION
-    | matrixSelector OFFSET DURATION
+    : instantSelector OFFSET offsetDurationExpr
+    | matrixSelector OFFSET offsetDurationExpr
+    ;
+
+timeRange
+    : LEFT_BRACKET durationExpr RIGHT_BRACKET
+    ;
+
+subqueryRange
+    : LEFT_BRACKET durationExpr COLON durationExpr? RIGHT_BRACKET
     ;
 
 // these are not fine-grained, certain functions are not allowed
 // lexer and parsers need to be extended
 
 function_
-    : FUNCTION LEFT_PAREN (parameter (COMMA parameter)*)? RIGHT_PAREN
+    : (FUNCTION | METRIC_NAME) LEFT_PAREN (parameter (COMMA parameter)*)? RIGHT_PAREN
     ;
 
 parameter
@@ -167,6 +193,14 @@ groupRight
     : GROUP_RIGHT labelNameList?
     ;
 
+fillModifier
+    : METRIC_NAME LEFT_PAREN signedFillLiteral RIGHT_PAREN
+    ;
+
+signedFillLiteral
+    : (ADD | SUB)? (NUMBER | NAN | INF)
+    ;
+
 // Label names
 
 labelName
@@ -198,4 +232,45 @@ keyword
 literal
     : NUMBER
     | STRING
+    | DURATION
+    | NAN
+    | INF
+    ;
+
+durationExpr
+    : durationAddExpr
+    ;
+
+durationAddExpr
+    : durationMultExpr ((ADD | SUB) durationMultExpr)*
+    ;
+
+durationMultExpr
+    : durationUnaryExpr ((MULT | DIV | MOD) durationUnaryExpr)*
+    ;
+
+durationPowExpr
+    : durationPrimaryExpr (POW durationUnaryExpr)?
+    ;
+
+durationUnaryExpr
+    : (ADD | SUB) durationUnaryExpr
+    | durationPowExpr
+    ;
+
+durationPrimaryExpr
+    : DURATION
+    | NUMBER
+    | durationFunction
+    | LEFT_PAREN durationExpr RIGHT_PAREN
+    ;
+
+durationFunction
+    : (METRIC_NAME | AGGREGATION_OPERATOR) LEFT_PAREN (durationExpr (COMMA durationExpr)*)? RIGHT_PAREN
+    ;
+
+// Keep vector operators outside an unparenthesized offset operand. For example,
+// "metric offset step() * 2" offsets first and then multiplies the vector.
+offsetDurationExpr
+    : (ADD | SUB)? durationPrimaryExpr
     ;

@@ -8,7 +8,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
 import org.okapi.promql.testing.PromQlTestAst.*;
 import org.okapi.promql.testing.PromQlTestDataTokenizer.Token;
 import org.okapi.promql.testing.PromQlTestDataTokenizer.TokenType;
@@ -302,7 +301,8 @@ public final class PromQlTestDataParser {
       return false;
     }
     String lexeme = token.lexeme();
-    return "x".equals(lexeme) || (lexeme.startsWith("x") && lexeme.length() > 1 && isDigits(lexeme.substring(1)));
+    return "x".equals(lexeme)
+        || (lexeme.startsWith("x") && lexeme.length() > 1 && isDigits(lexeme.substring(1)));
   }
 
   private PointExpr parsePointBase() {
@@ -403,7 +403,8 @@ public final class PromQlTestDataParser {
     }
     if (match(TokenType.MINUS)) {
       if (match(TokenType.KEYWORD_INF)) return new HistogramNumber(Double.NEGATIVE_INFINITY);
-      return new HistogramNumber(-parseDouble(expect(TokenType.NUMBER, "expected number after '-'").lexeme()));
+      return new HistogramNumber(
+          -parseDouble(expect(TokenType.NUMBER, "expected number after '-'").lexeme()));
     }
     if (check(TokenType.NUMBER)) {
       return new HistogramNumber(parseSignedNumber());
@@ -495,14 +496,7 @@ public final class PromQlTestDataParser {
 
   private boolean isPointStart(Token token) {
     return switch (token.type()) {
-      case NUMBER,
-          MINUS,
-          PLUS,
-          MISSING,
-          KEYWORD_STALE,
-          KEYWORD_NAN,
-          KEYWORD_INF,
-          DOUBLE_LBRACE ->
+      case NUMBER, MINUS, PLUS, MISSING, KEYWORD_STALE, KEYWORD_NAN, KEYWORD_INF, DOUBLE_LBRACE ->
           true;
       default -> false;
     };

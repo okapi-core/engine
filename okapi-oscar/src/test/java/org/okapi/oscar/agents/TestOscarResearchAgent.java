@@ -1,33 +1,28 @@
+/*
+ * Copyright The OkapiCore Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
 package org.okapi.oscar.agents;
 
+import java.util.concurrent.CompletableFuture;
 import org.okapi.oscar.agent.TestOscarAgent;
 import org.okapi.oscar.spring.cfg.OkapiOscarCfg;
 import org.okapi.oscar.tools.*;
-import org.springframework.ai.chat.memory.ChatMemory;
-import org.springframework.ai.openai.OpenAiChatModel;
-
-import java.util.concurrent.CompletableFuture;
+import org.springframework.ai.chat.client.ChatClient;
 
 public class TestOscarResearchAgent extends OscarResearchAgent {
 
   private final StatefulToolFactory statefulToolFactory;
 
   public TestOscarResearchAgent(
-      OpenAiChatModel chatModel,
-      ChatMemory chatMemory,
+      ChatClient chatClient,
       OkapiOscarCfg cfg,
       DateTimeTools dateTimeTools,
       GreetingTools greetingTools,
       FilterContributionTool filterContributionTool,
       StatefulToolFactory statefulToolFactory) {
     super(
-        chatModel,
-        chatMemory,
-        cfg,
-        dateTimeTools,
-        greetingTools,
-        filterContributionTool,
-        statefulToolFactory);
+        chatClient, cfg, dateTimeTools, greetingTools, filterContributionTool, statefulToolFactory);
     this.statefulToolFactory = statefulToolFactory;
   }
 

@@ -10,7 +10,8 @@ public final class SubqueryExpr implements LogicalExpr {
   public final DurationExpr step;
   public final DurationExpr offset;
 
-  public SubqueryExpr(LogicalExpr inner, DurationExpr range, DurationExpr step, DurationExpr offset) {
+  public SubqueryExpr(
+      LogicalExpr inner, DurationExpr range, DurationExpr step, DurationExpr offset) {
     this.inner = inner;
     this.range = range;
     this.step = step;

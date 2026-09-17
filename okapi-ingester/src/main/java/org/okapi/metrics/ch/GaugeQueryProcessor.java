@@ -4,8 +4,14 @@
  */
 package org.okapi.metrics.ch;
 
+import static org.okapi.validation.OkapiChecks.checkArgument;
+
 import com.clickhouse.client.api.Client;
 import com.clickhouse.client.api.query.GenericRecord;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import lombok.extern.slf4j.Slf4j;
 import org.okapi.ch.ChTemplateFiles;
 import org.okapi.exceptions.BadRequestException;
@@ -14,13 +20,6 @@ import org.okapi.metrics.ch.template.ChMetricTemplateEngine;
 import org.okapi.metrics.pojos.AGG_TYPE;
 import org.okapi.metrics.pojos.RES_TYPE;
 import org.okapi.rest.metrics.query.*;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-
-import static org.okapi.validation.OkapiChecks.checkArgument;
 
 /** Handles gauge query execution against ClickHouse. */
 @Slf4j

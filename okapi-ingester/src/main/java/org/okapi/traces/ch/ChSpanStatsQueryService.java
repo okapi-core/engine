@@ -6,6 +6,8 @@ package org.okapi.traces.ch;
 
 import com.clickhouse.client.api.Client;
 import com.clickhouse.client.api.query.GenericRecord;
+import java.util.*;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import org.okapi.ch.ChTemplateFiles;
 import org.okapi.collections.OkapiMaps;
@@ -14,14 +16,14 @@ import org.okapi.metrics.ch.ChConstants;
 import org.okapi.metrics.pojos.AGG_TYPE;
 import org.okapi.metrics.pojos.RES_TYPE;
 import org.okapi.rest.traces.*;
+import org.okapi.spring.configs.Profiles;
 import org.okapi.traces.ch.template.ChTraceTemplateEngine;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
-
-import java.util.*;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
+@Profile(Profiles.PROFILE_CH)
 public class ChSpanStatsQueryService {
   private final Client client;
   private final ChTraceTemplateEngine templateEngine;
@@ -350,6 +352,7 @@ public class ChSpanStatsQueryService {
   }
 
   private List<String> removeBlanksAndGetUniques(List<String> attributes) {
+    if (attributes == null) return Collections.emptyList();
     return attributes.stream().filter(a -> !a.isBlank()).distinct().toList();
   }
 

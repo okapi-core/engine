@@ -4,50 +4,37 @@
  */
 package org.okapi.web.service.dashboards.panels;
 
-import static org.okapi.validation.OkapiChecks.checkArgument;
 import static org.okapi.web.service.Mappers.mapPanelQueryConfig;
+import static org.okapi.web.service.Mappers.toWebCfg;
 
 import java.util.UUID;
+import lombok.RequiredArgsConstructor;
 import org.okapi.data.dao.DashboardPanelDao;
 import org.okapi.data.dao.DashboardRowDao;
-import org.okapi.data.model.ResourceOrder;
-import org.okapi.data.model.DashboardPanel;
 import org.okapi.data.exceptions.ResourceNotFoundException;
+import org.okapi.data.model.DashboardPanel;
+import org.okapi.data.model.PanelQueryConfig;
+import org.okapi.data.model.ResourceOrder;
 import org.okapi.web.dtos.dashboards.CreateDashboardPanelRequest;
 import org.okapi.web.dtos.dashboards.GetDashboardPanelResponse;
 import org.okapi.web.dtos.dashboards.UpdateDashboardPanelRequest;
-import org.okapi.web.service.AbstractValidatedCrudService;
 import org.okapi.web.service.Mappers;
-import org.okapi.web.service.ProtectedResourceContext;
+import org.okapi.web.service.context.DashboardPanelRequestContext;
+import org.okapi.web.service.context.DashboardRowRequestContext;
 import org.springframework.stereotype.Service;
 
 @Service
-public class DashboardPanelService
-    extends AbstractValidatedCrudService<
-        ProtectedResourceContext,
-        DashboardPanelContext,
-        CreateDashboardPanelRequest,
-        UpdateDashboardPanelRequest,
-        GetDashboardPanelResponse> {
-
+@RequiredArgsConstructor
+public class DashboardPanelService {
+  private final DashboardPanelValidator validator;
   private final DashboardPanelDao panelDao;
   private final DashboardRowDao dashboardRowDao;
 
-  public DashboardPanelService(
-      DashboardPanelValidator validator,
-      DashboardPanelDao panelDao,
-      DashboardRowDao dashboardRowDao) {
-    super(validator);
-    this.panelDao = panelDao;
-    this.dashboardRowDao = dashboardRowDao;
-  }
-
-  @Override
-  public GetDashboardPanelResponse createAfterValidation(
-      DashboardPanelContext panelContext, CreateDashboardPanelRequest request) {
+  public GetDashboardPanelResponse create(
+      DashboardRowRequestContext context, CreateDashboardPanelRequest request) {
+    validator.validate(context);
     var panelId =
         request.getPanelId() != null ? request.getPanelId() : UUID.randomUUID().toString();
-    var versionId = panelContext.getVersionId();
     var panel =
         DashboardPanel.builder()
             .panelId(panelId)
@@ -55,55 +42,48 @@ public class DashboardPanelService
             .note(request.getNote())
             .build();
     if (request.getQueryConfig() != null) {
-      panel.setQueryConfig(mapPanelQueryConfig(request.getQueryConfig()));
+      panel.setQueryConfig(mapPanelQueryConfig(request.getGrammar(), request.getQueryConfig()));
     }
     panelDao.save(
-        request.getOrgId(), request.getDashboardId(), request.getRowId(), versionId, panel);
+        context.orgId(), context.dashboardId(), context.rowId(), context.versionId(), panel);
 
-    // update drawing order in the row
     var row =
-        dashboardRowDao.get(
-            request.getOrgId(), request.getDashboardId(), versionId, request.getRowId());
-    if (row.isPresent()) {
-      var fetchedRow = row.get();
-      var order = fetchedRow.getPanelOrder();
-      if (order == null) {
-        order = new ResourceOrder();
-      }
-      order.add(panelId);
-      fetchedRow.setPanelOrder(order);
-      dashboardRowDao.save(request.getOrgId(), request.getDashboardId(), versionId, fetchedRow);
-    }
+        dashboardRowDao
+            .get(context.orgId(), context.dashboardId(), context.versionId(), context.rowId())
+            .orElseThrow(ResourceNotFoundException::new);
+    var order = row.getPanelOrder() == null ? new ResourceOrder() : row.getPanelOrder();
+    order.add(panelId);
+    row.setPanelOrder(order);
+    dashboardRowDao.save(context.orgId(), context.dashboardId(), context.versionId(), row);
     return Mappers.mapDashboardPanelToResponse(panel);
   }
 
-  @Override
-  public GetDashboardPanelResponse readAfterValidation(DashboardPanelContext panelContext)
-      throws ResourceNotFoundException {
-    var parts = parsePanelId(panelContext.getPanelFqId().get());
-    var orgId = parts[0];
-    var dashboardId = parts[1];
-    var rowId = parts[2];
-    var panelId = parts[3];
-    var versionId = panelContext.getVersionId();
-    var panelOpt = panelDao.get(orgId, dashboardId, rowId, versionId, panelId);
-    checkArgument(panelOpt.isPresent(), ResourceNotFoundException::new);
-    return Mappers.mapDashboardPanelToResponse(panelOpt.get());
+  public GetDashboardPanelResponse read(DashboardPanelRequestContext context) {
+    validator.validate(context);
+    var panel =
+        panelDao
+            .get(
+                context.orgId(),
+                context.dashboardId(),
+                context.rowId(),
+                context.versionId(),
+                context.panelId())
+            .orElseThrow(ResourceNotFoundException::new);
+    return Mappers.mapDashboardPanelToResponse(panel);
   }
 
-  @Override
-  public GetDashboardPanelResponse updateAfterValidation(
-      DashboardPanelContext panelContext, UpdateDashboardPanelRequest request) throws Exception {
-    var parts = parsePanelId(panelContext.getPanelFqId().get());
-    var orgId = parts[0];
-    var dashboardId = parts[1];
-    var rowId = parts[2];
-    var panelId = parts[3];
-    var versionId = panelContext.getVersionId();
-    var panelOpt = panelDao.get(orgId, dashboardId, rowId, versionId, panelId);
-    checkArgument(panelOpt.isPresent(), ResourceNotFoundException::new);
-
-    var panel = panelOpt.get();
+  public GetDashboardPanelResponse update(
+      DashboardPanelRequestContext context, UpdateDashboardPanelRequest request) {
+    validator.validate(context);
+    var panel =
+        panelDao
+            .get(
+                context.orgId(),
+                context.dashboardId(),
+                context.rowId(),
+                context.versionId(),
+                context.panelId())
+            .orElseThrow(ResourceNotFoundException::new);
     var updated = false;
     if (request.getTitle() != null) {
       panel.setTitle(request.getTitle());
@@ -113,31 +93,37 @@ public class DashboardPanelService
       panel.setNote(request.getNote());
       updated = true;
     }
-    if (request.getQueryConfig() != null) {
-      panel.setQueryConfig(mapPanelQueryConfig(request.getQueryConfig()));
+    if (request.getQueryConfig() != null || request.getGrammar() != null) {
+      panel.setQueryConfig(updateQueryConfig(panel.getQueryConfig(), request));
       updated = true;
     }
     if (updated) {
-      panelDao.save(orgId, dashboardId, rowId, versionId, panel);
+      panelDao.save(
+          context.orgId(), context.dashboardId(), context.rowId(), context.versionId(), panel);
     }
     return Mappers.mapDashboardPanelToResponse(panel);
   }
 
-  @Override
-  public void deleteAfterValidation(DashboardPanelContext context) {
-    var parts = parsePanelId(context.getPanelFqId().get());
-    var orgId = parts[0];
-    var dashboardId = parts[1];
-    var rowId = parts[2];
-    var panelId = parts[3];
-    var versionId = context.getVersionId();
-    panelDao.delete(orgId, dashboardId, rowId, versionId, panelId);
+  public void delete(DashboardPanelRequestContext context) {
+    validator.validate(context);
+    panelDao.delete(
+        context.orgId(),
+        context.dashboardId(),
+        context.rowId(),
+        context.versionId(),
+        context.panelId());
   }
 
-  private static String[] parsePanelId(String id) {
-    var parts = id.split(":", 4);
-    if (parts.length != 4)
-      throw new IllegalArgumentException("id must be orgId:dashboardId:rowId:panelId");
-    return parts;
+  private PanelQueryConfig updateQueryConfig(
+      PanelQueryConfig current, UpdateDashboardPanelRequest request) {
+    var grammar = request.getGrammar();
+    if (grammar == null && current != null) {
+      grammar = current.getGrammar();
+    }
+    var queryConfig = request.getQueryConfig();
+    if (queryConfig == null && current != null) {
+      queryConfig = toWebCfg(current);
+    }
+    return mapPanelQueryConfig(grammar, queryConfig);
   }
 }

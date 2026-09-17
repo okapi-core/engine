@@ -4,10 +4,21 @@
  */
 package org.okapi.metrics.ch;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
 import com.clickhouse.client.api.Client;
 import com.google.gson.Gson;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -17,18 +28,6 @@ import org.okapi.rest.metrics.query.GetMetricsRequest;
 import org.okapi.rest.metrics.query.HistoQueryConfig;
 import org.okapi.rest.metrics.query.METRIC_TYPE;
 import org.okapi.testmodules.guice.TestChMetricsModule;
-
-import java.time.Instant;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
-import java.util.stream.Collectors;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /** Sanity test for the JTE-based histogram query execution path. */
 public class HistogramQueryProcessorJteTests {

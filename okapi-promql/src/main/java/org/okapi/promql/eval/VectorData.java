@@ -16,7 +16,8 @@ public class VectorData {
     }
   }
 
-  public record Sample(long ts, long sourceTs, double value, HistogramSeries.HistogramSample histogram) {
+  public record Sample(
+      long ts, long sourceTs, double value, HistogramSeries.HistogramSample histogram) {
     public Sample(long ts, double value) {
       this(ts, ts, value, null);
     }

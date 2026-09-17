@@ -5,10 +5,9 @@
 package org.okapi.rest.traces;
 
 import com.fasterxml.jackson.annotation.JsonClassDescription;
+import java.util.List;
 import lombok.*;
 import org.springframework.ai.tool.annotation.ToolParam;
-
-import java.util.List;
 
 @Builder
 @AllArgsConstructor

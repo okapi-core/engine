@@ -67,6 +67,8 @@ class ChPromQlTsClientHistogramTests {
 
     assertThrows(
         IllegalStateException.class,
-        () -> ChPromQlTsClient.ensureSingleHistogramRepresentation(List.of(explicit), List.of(exponential)));
+        () ->
+            ChPromQlTsClient.ensureSingleHistogramRepresentation(
+                List.of(explicit), List.of(exponential)));
   }
 }

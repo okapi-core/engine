@@ -1,3 +1,7 @@
+/*
+ * Copyright The OkapiCore Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
 package org.okapi.metrics.ch;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -103,7 +107,8 @@ public class AnyMetricOrValueFilterMatcherTest {
   @Test
   void bothBlank_throwsBadRequest() {
     assertThrows(
-        BadRequestException.class, () -> AnyMetricOrValueFilterMatcher.fromFilter(filter().build()));
+        BadRequestException.class,
+        () -> AnyMetricOrValueFilterMatcher.fromFilter(filter().build()));
   }
 
   @Test

@@ -5,10 +5,12 @@
 package org.okapi.web.dtos.dashboards;
 
 import jakarta.validation.constraints.NotNull;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.okapi.grammar.GRAMMAR;
 
 @AllArgsConstructor
 @NoArgsConstructor
@@ -18,5 +20,6 @@ public class GetDashboardPanelResponse {
   @NotNull String panelId;
   String title;
   String description;
-  MultiQueryPanelWDto queryConfig;
+  GRAMMAR grammar;
+  List<QueryConfig> queries;
 }

@@ -1,0 +1,97 @@
+version: 1
+dashboard:
+  id: okapi-monitoring
+  title: Okapi Monitoring
+  description: Okapi API traffic, latency, errors, and concurrency.
+  tags: [okapi, monitoring]
+  rows:
+    - id: api-traffic
+      title: API Traffic
+      panels:
+        - id: request-count
+          title: Requests
+          grammar: OKAPI_JSON
+          queries:
+            - query: >
+                {"metric":"okapi.http.server.requests","tags":{"component":"ingester"},"metricType":"SUM","sumsQueryConfig":{"temporality":"DELTA_AGGREGATE"}}
+        - id: server-errors
+          title: Server Errors
+          grammar: OKAPI_JSON
+          queries:
+            - query: >
+                {"metric":"okapi.http.server.requests","tags":{"component":"ingester","outcome":"server_error"},"metricType":"SUM","sumsQueryConfig":{"temporality":"DELTA_AGGREGATE"}}
+    - id: api-latency
+      title: API Latency
+      panels:
+        - id: request-duration
+          title: Request Duration
+          grammar: OKAPI_JSON
+          queries:
+            - query: >
+                {"metric":"okapi.http.server.duration","tags":{"component":"ingester"},"metricType":"HISTO","histoQueryConfig":{"temporality":"MERGED"}}
+    - id: api-concurrency
+      title: API Concurrency
+      panels:
+        - id: requests-in-flight
+          title: Requests In Flight
+          grammar: OKAPI_JSON
+          queries:
+            - query: >
+                {"metric":"okapi.http.server.in_flight","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"MAX"}}
+    - id: ingestion-flow
+      title: Ingestion and WAL
+      panels:
+        - id: wal-events
+          title: WAL Events
+          grammar: OKAPI_JSON
+          queries:
+            - query: >
+                {"metric":"okapi.wal.appended","tags":{},"metricType":"SUM","sumsQueryConfig":{"temporality":"DELTA_AGGREGATE"}}
+        - id: wal-bytes
+          title: WAL Bytes
+          grammar: OKAPI_JSON
+          queries:
+            - query: >
+                {"metric":"okapi.wal.bytes","tags":{},"metricType":"SUM","sumsQueryConfig":{"temporality":"DELTA_AGGREGATE"}}
+        - id: consumer-events
+          title: Consumer Events
+          grammar: OKAPI_JSON
+          queries:
+            - query: >
+                {"metric":"okapi.consumer.events","tags":{},"metricType":"SUM","sumsQueryConfig":{"temporality":"DELTA_AGGREGATE"}}
+    - id: storage
+      title: ClickHouse Storage
+      panels:
+        - id: rows-written
+          title: Rows Written
+          grammar: OKAPI_JSON
+          queries:
+            - query: >
+                {"metric":"okapi.storage.write.rows","tags":{},"metricType":"SUM","sumsQueryConfig":{"temporality":"DELTA_AGGREGATE"}}
+        - id: write-duration
+          title: Write Duration
+          grammar: OKAPI_JSON
+          queries:
+            - query: >
+                {"metric":"okapi.storage.write.duration","tags":{},"metricType":"HISTO","histoQueryConfig":{"temporality":"MERGED"}}
+    - id: runtime
+      title: Ingester Runtime
+      panels:
+        - id: cpu-usage
+          title: CPU Usage
+          grammar: OKAPI_JSON
+          queries:
+            - query: >
+                {"metric":"process.cpu.usage","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"MAX"}}
+        - id: heap-used
+          title: Heap Used
+          grammar: OKAPI_JSON
+          queries:
+            - query: >
+                {"metric":"jvm.memory.used","tags":{"area":"heap"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"MAX"}}
+        - id: gc-pause
+          title: GC Pause
+          grammar: OKAPI_JSON
+          queries:
+            - query: >
+                {"metric":"jvm.gc.pause","tags":{},"metricType":"HISTO","histoQueryConfig":{"temporality":"MERGED"}}

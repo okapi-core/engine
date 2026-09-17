@@ -14,7 +14,7 @@ import org.okapi.rest.session.ListSessionsBlindRequest;
 import org.okapi.rest.session.ListSessionsRequest;
 import org.okapi.rest.session.ListSessionsResponse;
 import org.okapi.rest.session.SessionMetaResponse;
-import org.okapi.web.service.access.OrgMemberChecker;
+import org.okapi.web.security.CurrentUserProvider;
 import org.springframework.stereotype.Service;
 
 @Slf4j
@@ -23,34 +23,42 @@ import org.springframework.stereotype.Service;
 public class OscarService {
 
   private final OscarClient oscarClient;
-  private final OrgMemberChecker orgMemberChecker;
+  private final CurrentUserProvider currentUserProvider;
 
-  public ChatResponse postMessage(String token, String sessionId, PostMessageRequest request) {
-    orgMemberChecker.checkUserIsOrgMember(token);
+  public ChatResponse postMessage(String sessionId, PostMessageRequest request) {
     return oscarClient.postMessage(sessionId, request);
   }
 
-  public ChatHistoryResponse getHistory(String token, String sessionId, GetHistoryRequest request) {
-    orgMemberChecker.checkUserIsOrgMember(token);
+  public ChatHistoryResponse getHistory(String sessionId, GetHistoryRequest request) {
     return oscarClient.getHistory(sessionId, request);
   }
 
-  public ChatMessageUpdatesResponse getUpdates(String token, String sessionId) {
-    orgMemberChecker.checkUserIsOrgMember(token);
+  public ChatMessageUpdatesResponse getUpdates(String sessionId) {
     return oscarClient.getUpdates(sessionId);
   }
 
-  public SessionMetaResponse createSession(String token, CreateSessionBlindRequest request) {
-    var ctx = orgMemberChecker.checkUserIsOrgMember(token);
-    var userId = ctx.getUserId();
+  public ListChatsResponse listChats(ListChatsBlindRequest request) {
+    var userId = currentUserProvider.userId();
+    var listRequest =
+        ListChatsRequest.builder()
+            .userId(userId)
+            .from(request.getFrom())
+            .to(request.getTo())
+            .before(request.getBefore())
+            .limit(request.getLimit())
+            .build();
+    return oscarClient.listChats(listRequest);
+  }
+
+  public SessionMetaResponse createSession(CreateSessionBlindRequest request) {
+    var userId = currentUserProvider.userId();
     var createSessionRequest =
         CreateSessionRequest.builder().ownerId(userId).initialMsg(request.getInitialMsg()).build();
     return oscarClient.createSession(createSessionRequest);
   }
 
-  public ListSessionsResponse listSessions(String token, ListSessionsBlindRequest request) {
-    var ctx = orgMemberChecker.checkUserIsOrgMember(token);
-    var userId = ctx.getUserId();
+  public ListSessionsResponse listSessions(ListSessionsBlindRequest request) {
+    var userId = currentUserProvider.userId();
     var listRequest =
         ListSessionsRequest.builder()
             .userId(userId)
@@ -60,13 +68,11 @@ public class OscarService {
     return oscarClient.listSessions(listRequest);
   }
 
-  public SessionMetaResponse getSessionMeta(String token, String sessionId) {
-    orgMemberChecker.checkUserIsOrgMember(token);
+  public SessionMetaResponse getSessionMeta(String sessionId) {
     return oscarClient.getSessionMeta(sessionId);
   }
 
-  public SessionMetaResponse pingSession(String token, String sessionId) {
-    orgMemberChecker.checkUserIsOrgMember(token);
+  public SessionMetaResponse pingSession(String sessionId) {
     return oscarClient.pingSession(sessionId);
   }
 }

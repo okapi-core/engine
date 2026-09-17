@@ -6,7 +6,11 @@ package org.okapi.datagen.spans;
 
 import static org.okapi.random.RandomUtils.*;
 
+import io.opentelemetry.proto.collector.logs.v1.ExportLogsServiceRequest;
 import io.opentelemetry.proto.collector.trace.v1.ExportTraceServiceRequest;
+import io.opentelemetry.proto.logs.v1.LogRecord;
+import io.opentelemetry.proto.logs.v1.ResourceLogs;
+import io.opentelemetry.proto.logs.v1.ScopeLogs;
 import io.opentelemetry.proto.resource.v1.Resource;
 import io.opentelemetry.proto.trace.v1.ResourceSpans;
 import io.opentelemetry.proto.trace.v1.ScopeSpans;
@@ -22,6 +26,10 @@ import org.okapi.random.RandomUtils;
 import org.okapi.timeutils.TimeUtils;
 
 public class OtelAstronomyShopSpansGenerator {
+  private static final int SEVERITY_INFO = 9;
+  private static final int SEVERITY_WARN = 13;
+  private static final int SEVERITY_ERROR = 17;
+
   private final SpansGeneratorConfig config;
   private final Random random;
   private final LogNormalDistribution requestSizes;
@@ -34,14 +42,24 @@ public class OtelAstronomyShopSpansGenerator {
   }
 
   public List<ExportTraceServiceRequest> generate() {
-    var out = new ArrayList<ExportTraceServiceRequest>();
+    return generateTelemetry().getTraces();
+  }
+
+  public List<ExportLogsServiceRequest> generateLogs() {
+    return generateTelemetry().getLogs();
+  }
+
+  public AstronomyShopTelemetry generateTelemetry() {
+    var traceRequests = new ArrayList<ExportTraceServiceRequest>();
+    var logRequests = new ArrayList<ExportLogsServiceRequest>();
     for (int i = 0; i < config.getTraceCount(); i++) {
       var state = selectRandomState(config.getStates());
       long traceStartNs =
           TimeUtils.millisToNanos(config.getBaseStartMs() + (i * config.getTraceSpacingMs()));
       byte[] traceId = randomOtelTraceId(random);
       var spansByService = new HashMap<String, List<Span>>();
-      var ctx = new TraceContext(state, traceId, spansByService);
+      var logsByService = new HashMap<String, List<LogRecord>>();
+      var ctx = new TraceContext(state, traceId, spansByService, logsByService);
       long currentStart = traceStartNs;
       for (var step : config.getJourney().getRootSteps()) {
         currentStart =
@@ -50,10 +68,13 @@ public class OtelAstronomyShopSpansGenerator {
       }
 
       for (var entry : spansByService.entrySet()) {
-        out.add(buildRequest(entry.getKey(), entry.getValue()));
+        traceRequests.add(buildTraceRequest(entry.getKey(), entry.getValue()));
+      }
+      for (var entry : logsByService.entrySet()) {
+        logRequests.add(buildLogsRequest(entry.getKey(), entry.getValue()));
       }
     }
-    return out;
+    return new AstronomyShopTelemetry(traceRequests, logRequests);
   }
 
   private long simulateStep(Step step, TraceContext ctx, SpanRef parentRef, long startNs) {
@@ -92,6 +113,16 @@ public class OtelAstronomyShopSpansGenerator {
             componentState.errorMessage(outcome),
             peerService);
     ctx.getSpansByService().computeIfAbsent(step.getComponent(), k -> new ArrayList<>()).add(span);
+    ctx.getLogsByService()
+        .computeIfAbsent(step.getComponent(), k -> new ArrayList<>())
+        .add(
+            buildLogRecord(
+                step,
+                spanRef,
+                ctx.getState().getName(),
+                startNs,
+                outcome,
+                componentState.errorMessage(outcome)));
     return endNs;
   }
 
@@ -136,7 +167,62 @@ public class OtelAstronomyShopSpansGenerator {
     return builder.build();
   }
 
-  private ExportTraceServiceRequest buildRequest(String serviceName, List<Span> spans) {
+  private LogRecord buildLogRecord(
+      Step step,
+      SpanRef spanRef,
+      String stateName,
+      long timeNs,
+      Outcome outcome,
+      String errorMessage) {
+    var severity = logSeverity(outcome);
+    var builder =
+        LogRecord.newBuilder()
+            .setTimeUnixNano(timeNs)
+            .setObservedTimeUnixNano(timeNs)
+            .setTraceId(spanRef.traceIdBytes())
+            .setSpanId(spanRef.spanIdBytes())
+            .setSeverityNumberValue(severity)
+            .setSeverityText(severityText(severity))
+            .setBody(OtelShorthand.anyString(logBody(step, outcome, errorMessage)))
+            .addAttributes(OtelShorthand.kv("log.stream", step.getComponent()))
+            .addAttributes(OtelShorthand.kv("span.name", step.getSpanName()))
+            .addAttributes(OtelShorthand.kv("component", step.getComponent()))
+            .addAttributes(OtelShorthand.kv("system.state", stateName))
+            .addAttributes(OtelShorthand.kvInt("http.status_code", outcome.httpStatusCode));
+    if (outcome != Outcome.SUCCESS) {
+      builder.addAttributes(OtelShorthand.kv("error.type", outcome.errorType));
+      if (errorMessage != null && !errorMessage.isEmpty()) {
+        builder.addAttributes(OtelShorthand.kv("error.message", errorMessage));
+      }
+    }
+    return builder.build();
+  }
+
+  private int logSeverity(Outcome outcome) {
+    return switch (outcome) {
+      case SUCCESS -> SEVERITY_INFO;
+      case DEPENDENCY_ERROR -> SEVERITY_WARN;
+      case TIMEOUT, APP_ERROR, CRASH -> SEVERITY_ERROR;
+    };
+  }
+
+  private String severityText(int severity) {
+    return switch (severity) {
+      case SEVERITY_WARN -> "WARN";
+      case SEVERITY_ERROR -> "ERROR";
+      default -> "INFO";
+    };
+  }
+
+  private String logBody(Step step, Outcome outcome, String errorMessage) {
+    if (outcome == Outcome.SUCCESS) {
+      return step.getSpanName() + " completed successfully";
+    }
+    var message = errorMessage == null || errorMessage.isEmpty() ? outcome.errorType : errorMessage;
+    return step.getSpanName() + " failed: " + message;
+  }
+
+  private ExportTraceServiceRequest buildTraceRequest(String serviceName, List<Span> spans) {
     var builder = ExportTraceServiceRequest.newBuilder();
     var resource =
         Resource.newBuilder().addAttributes(OtelShorthand.kv("service.name", serviceName)).build();
@@ -144,6 +230,20 @@ public class OtelAstronomyShopSpansGenerator {
     var resourceSpans =
         ResourceSpans.newBuilder().setResource(resource).addScopeSpans(scopeSpans).build();
     builder.addResourceSpans(resourceSpans);
+    return builder.build();
+  }
+
+  private ExportLogsServiceRequest buildLogsRequest(String serviceName, List<LogRecord> records) {
+    var builder = ExportLogsServiceRequest.newBuilder();
+    var resource =
+        Resource.newBuilder()
+            .addAttributes(OtelShorthand.kv("service.name", serviceName))
+            .addAttributes(OtelShorthand.kv("service.namespace", "astronomy-shop"))
+            .build();
+    var scopeLogs = ScopeLogs.newBuilder().addAllLogRecords(records).build();
+    var resourceLogs =
+        ResourceLogs.newBuilder().setResource(resource).addScopeLogs(scopeLogs).build();
+    builder.addResourceLogs(resourceLogs);
     return builder.build();
   }
 

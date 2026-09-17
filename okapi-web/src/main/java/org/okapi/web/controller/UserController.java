@@ -4,20 +4,19 @@
  */
 package org.okapi.web.controller;
 
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
-import java.time.Duration;
-import java.time.temporal.ChronoUnit;
 import org.okapi.exceptions.BadRequestException;
 import org.okapi.exceptions.UnAuthorizedException;
-import org.okapi.headers.CookiesAndHeaders;
-import org.okapi.metrics.IdCreationFailedException;
 import org.okapi.web.auth.UserManager;
-import org.okapi.web.dtos.auth.*;
-import org.okapi.web.headers.RequestHeaders;
+import org.okapi.web.dtos.auth.CreateUserRequest;
+import org.okapi.web.dtos.auth.GetUserProfileResponse;
+import org.okapi.web.dtos.auth.SignInRequest;
+import org.okapi.web.dtos.auth.UpdateUserRequest;
+import org.okapi.web.security.CurrentUserProvider;
+import org.okapi.web.security.SessionAuthenticationService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -26,68 +25,39 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
 
   @Autowired UserManager userManager;
-
-  @Value("${cookies.secure}")
-  boolean secure;
+  @Autowired SessionAuthenticationService sessionAuthenticationService;
+  @Autowired CurrentUserProvider currentUserProvider;
 
   @PostMapping("/users")
-  public TokenResponse createUser(@RequestBody CreateUserRequest request)
-      throws IdCreationFailedException, BadRequestException {
-    return new TokenResponse(userManager.signupWithEmailPassword(request));
-  }
-
-  @PostMapping("/users/uid-token")
-  public TokenResponse signInUser(@RequestBody @Valid SignInRequest request)
-      throws UnAuthorizedException {
-    return new TokenResponse(userManager.signInWithEmailPassword(request));
+  public ResponseEntity<Void> createUser(
+      @RequestBody CreateUserRequest request,
+      HttpServletRequest servletRequest,
+      HttpServletResponse servletResponse)
+      throws BadRequestException {
+    userManager.signupWithEmailPassword(request);
+    sessionAuthenticationService.authenticate(
+        request.getEmail(), request.getPassword(), servletRequest, servletResponse);
+    return ResponseEntity.noContent().build();
   }
 
   @PostMapping("/users/sign-in")
-  public ResponseEntity<String> signInWithPass(@RequestBody @Valid SignInRequest request)
+  public ResponseEntity<Void> signInWithPass(
+      @RequestBody @Valid SignInRequest request,
+      HttpServletRequest servletRequest,
+      HttpServletResponse servletResponse)
       throws UnAuthorizedException {
-    var response = userManager.signInWithEmailPassword(request);
-    var cookie =
-        ResponseCookie.from(CookiesAndHeaders.COOKIE_LOGIN_TOKEN, response)
-            .httpOnly(true)
-            .secure(secure)
-            .path("/")
-            .maxAge(Duration.of(1, ChronoUnit.DAYS))
-            .build();
-    return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, cookie.toString()).build();
-  }
-
-  @PostMapping("/users/sign-out")
-  public ResponseEntity<Void> signOut() {
-    var cookie =
-        ResponseCookie.from(CookiesAndHeaders.COOKIE_LOGIN_TOKEN, "dummy")
-            .httpOnly(true)
-            .sameSite("None")
-            .secure(secure)
-            .path("/")
-            .maxAge(Duration.of(1, ChronoUnit.DAYS))
-            .build();
-    return ResponseEntity.ok().header(HttpHeaders.SET_COOKIE, cookie.toString()).build();
-  }
-
-  @PostMapping("/auth/{orgId}/session")
-  public TokenResponse createTempToken(
-      @PathVariable("orgId") String orgId,
-      @CookieValue(RequestHeaders.LOGIN_TOKEN) String loginToken)
-      throws UnAuthorizedException {
-    return userManager.getSessionToken(loginToken, orgId);
+    sessionAuthenticationService.authenticate(request, servletRequest, servletResponse);
+    return ResponseEntity.noContent().build();
   }
 
   @GetMapping("/users/profile")
-  public GetUserProfileResponse getUserProfile(
-      @CookieValue(RequestHeaders.LOGIN_TOKEN) String loginToken) throws UnAuthorizedException {
-    return userManager.getUserProfileRes(loginToken);
+  public GetUserProfileResponse getUserProfile() throws UnAuthorizedException {
+    return userManager.getUserProfileRes(currentUserProvider.userId());
   }
 
   @PostMapping("/users/profile/update")
-  public GetUserProfileResponse updateUserProfile(
-      @CookieValue(RequestHeaders.LOGIN_TOKEN) String loginToken,
-      @RequestBody UpdateUserRequest updateUserRequest)
+  public GetUserProfileResponse updateUserProfile(@RequestBody UpdateUserRequest updateUserRequest)
       throws UnAuthorizedException, BadRequestException {
-    return userManager.updateProfile(loginToken, updateUserRequest);
+    return userManager.updateProfile(currentUserProvider.userId(), updateUserRequest);
   }
 }

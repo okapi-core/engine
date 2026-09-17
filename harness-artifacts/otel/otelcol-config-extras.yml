@@ -1,0 +1,25 @@
+# Copyright The OkapiCore Authors
+# SPDX-License-Identifier: Apache-2.0
+
+exporters:
+  otlphttp/okapi_traces:
+    endpoint: http://okapi-ingester:9009
+    compression: none
+
+  otlphttp/okapi_metrics:
+    endpoint: http://okapi-ingester:9009
+    compression: none
+
+  otlphttp/okapi_logs:
+    endpoint: http://okapi-ingester:9009
+    compression: none
+
+service:
+  pipelines:
+    traces:
+      exporters: [debug, span_metrics, otlphttp/okapi_traces]
+    metrics:
+      receivers: [docker_stats, http_check/frontend-proxy, host_metrics, nginx, otlp, redis, postgresql, prometheus/ad, span_metrics]
+      exporters: [debug, otlphttp/okapi_metrics]
+    logs:
+      exporters: [debug, otlphttp/okapi_logs]

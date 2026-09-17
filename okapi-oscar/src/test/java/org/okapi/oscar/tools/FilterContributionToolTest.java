@@ -1,16 +1,19 @@
+/*
+ * Copyright The OkapiCore Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
 package org.okapi.oscar.tools;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+
+import java.util.List;
+import java.util.Map;
 import okhttp3.OkHttpClient;
 import org.junit.jupiter.api.Test;
 import org.okapi.ingester.client.IngesterClient;
 import org.okapi.oscar.tools.responses.FilterContribution;
 import org.okapi.rest.traces.*;
-
-import java.util.List;
-import java.util.Map;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 
 class FilterContributionToolTest {
 
@@ -19,22 +22,205 @@ class FilterContributionToolTest {
     private static final List<String> ALL_NUMBER_KEYS = List.of("duration.ms", "http.status_code");
     private static final Map<String, Long> COUNTS =
         Map.ofEntries(
-            Map.entry(signature(true, true, true, true, true, true, true, true, ALL_STRING_KEYS, ALL_NUMBER_KEYS), 1000L),
-            Map.entry(signature(false, true, true, true, true, true, true, true, ALL_STRING_KEYS, ALL_NUMBER_KEYS), 1100L),
-            Map.entry(signature(true, false, true, true, true, true, true, true, ALL_STRING_KEYS, ALL_NUMBER_KEYS), 1200L),
-            Map.entry(signature(true, true, false, true, true, true, true, true, ALL_STRING_KEYS, ALL_NUMBER_KEYS), 1300L),
-            Map.entry(signature(true, true, true, false, true, true, true, true, ALL_STRING_KEYS, ALL_NUMBER_KEYS), 1400L),
-            Map.entry(signature(true, true, true, true, false, true, true, true, ALL_STRING_KEYS, ALL_NUMBER_KEYS), 1500L),
-            Map.entry(signature(true, true, true, true, true, false, true, true, ALL_STRING_KEYS, ALL_NUMBER_KEYS), 1600L),
-            Map.entry(signature(true, true, true, true, true, true, false, true, ALL_STRING_KEYS, ALL_NUMBER_KEYS), 1700L),
-            Map.entry(signature(true, true, true, true, true, true, true, false, ALL_STRING_KEYS, ALL_NUMBER_KEYS), 1800L),
-            Map.entry(signature(true, true, true, true, true, true, true, true, List.of("db.system"), ALL_NUMBER_KEYS), 2100L),
-            Map.entry(signature(true, true, true, true, true, true, true, true, List.of("http.method"), ALL_NUMBER_KEYS), 2200L),
-            Map.entry(signature(true, true, true, true, true, true, true, true, ALL_STRING_KEYS, List.of("duration.ms")), 3100L),
-            Map.entry(signature(true, true, true, true, true, true, true, true, ALL_STRING_KEYS, List.of("http.status_code")), 3200L),
-            Map.entry(signature(true, false, false, false, false, false, false, false, List.of("http.method"), List.of()), 5000L),
-            Map.entry(signature(false, false, false, false, false, false, false, false, List.of("http.method"), List.of()), 5100L),
-            Map.entry(signature(true, false, false, false, false, false, false, false, List.of(), List.of()), 5200L));
+            Map.entry(
+                signature(
+                    true,
+                    true,
+                    true,
+                    true,
+                    true,
+                    true,
+                    true,
+                    true,
+                    ALL_STRING_KEYS,
+                    ALL_NUMBER_KEYS),
+                1000L),
+            Map.entry(
+                signature(
+                    false,
+                    true,
+                    true,
+                    true,
+                    true,
+                    true,
+                    true,
+                    true,
+                    ALL_STRING_KEYS,
+                    ALL_NUMBER_KEYS),
+                1100L),
+            Map.entry(
+                signature(
+                    true,
+                    false,
+                    true,
+                    true,
+                    true,
+                    true,
+                    true,
+                    true,
+                    ALL_STRING_KEYS,
+                    ALL_NUMBER_KEYS),
+                1200L),
+            Map.entry(
+                signature(
+                    true,
+                    true,
+                    false,
+                    true,
+                    true,
+                    true,
+                    true,
+                    true,
+                    ALL_STRING_KEYS,
+                    ALL_NUMBER_KEYS),
+                1300L),
+            Map.entry(
+                signature(
+                    true,
+                    true,
+                    true,
+                    false,
+                    true,
+                    true,
+                    true,
+                    true,
+                    ALL_STRING_KEYS,
+                    ALL_NUMBER_KEYS),
+                1400L),
+            Map.entry(
+                signature(
+                    true,
+                    true,
+                    true,
+                    true,
+                    false,
+                    true,
+                    true,
+                    true,
+                    ALL_STRING_KEYS,
+                    ALL_NUMBER_KEYS),
+                1500L),
+            Map.entry(
+                signature(
+                    true,
+                    true,
+                    true,
+                    true,
+                    true,
+                    false,
+                    true,
+                    true,
+                    ALL_STRING_KEYS,
+                    ALL_NUMBER_KEYS),
+                1600L),
+            Map.entry(
+                signature(
+                    true,
+                    true,
+                    true,
+                    true,
+                    true,
+                    true,
+                    false,
+                    true,
+                    ALL_STRING_KEYS,
+                    ALL_NUMBER_KEYS),
+                1700L),
+            Map.entry(
+                signature(
+                    true,
+                    true,
+                    true,
+                    true,
+                    true,
+                    true,
+                    true,
+                    false,
+                    ALL_STRING_KEYS,
+                    ALL_NUMBER_KEYS),
+                1800L),
+            Map.entry(
+                signature(
+                    true,
+                    true,
+                    true,
+                    true,
+                    true,
+                    true,
+                    true,
+                    true,
+                    List.of("db.system"),
+                    ALL_NUMBER_KEYS),
+                2100L),
+            Map.entry(
+                signature(
+                    true,
+                    true,
+                    true,
+                    true,
+                    true,
+                    true,
+                    true,
+                    true,
+                    List.of("http.method"),
+                    ALL_NUMBER_KEYS),
+                2200L),
+            Map.entry(
+                signature(
+                    true,
+                    true,
+                    true,
+                    true,
+                    true,
+                    true,
+                    true,
+                    true,
+                    ALL_STRING_KEYS,
+                    List.of("duration.ms")),
+                3100L),
+            Map.entry(
+                signature(
+                    true,
+                    true,
+                    true,
+                    true,
+                    true,
+                    true,
+                    true,
+                    true,
+                    ALL_STRING_KEYS,
+                    List.of("http.status_code")),
+                3200L),
+            Map.entry(
+                signature(
+                    true,
+                    false,
+                    false,
+                    false,
+                    false,
+                    false,
+                    false,
+                    false,
+                    List.of("http.method"),
+                    List.of()),
+                5000L),
+            Map.entry(
+                signature(
+                    false,
+                    false,
+                    false,
+                    false,
+                    false,
+                    false,
+                    false,
+                    false,
+                    List.of("http.method"),
+                    List.of()),
+                5100L),
+            Map.entry(
+                signature(
+                    true, false, false, false, false, false, false, false, List.of(), List.of()),
+                5200L));
 
     FakeIngesterClient() {
       super("http://localhost", new OkHttpClient(), null);

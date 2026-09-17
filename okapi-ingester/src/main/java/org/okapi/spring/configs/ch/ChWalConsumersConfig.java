@@ -12,33 +12,37 @@ import org.okapi.logs.core.LogsEventEmitter;
 import org.okapi.metrics.ch.ChMetricsQueryProcessor;
 import org.okapi.metrics.ch.ChMetricsWalConsumer;
 import org.okapi.metrics.ch.ChMetricsWalConsumerDriver;
-import org.okapi.metrics.ch.ChWalResources;
 import org.okapi.metrics.ch.ChWriter;
 import org.okapi.metrics.ch.template.ChMetricTemplateEngine;
 import org.okapi.metrics.core.MetricsEventEmitter;
 import org.okapi.runtime.ch.ChWalConsumerCommonDriver;
-import org.okapi.spring.configs.Qualifiers;
+import org.okapi.spring.configs.Profiles;
 import org.okapi.spring.configs.properties.ChWalConsumerCfg;
+import org.okapi.telemetry.OkapiInternalMetrics;
 import org.okapi.traces.ch.*;
+import org.okapi.traces.core.TracesEventEmitter;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 
 @Configuration
+@Profile(Profiles.PROFILE_CH)
 public class ChWalConsumersConfig {
 
   @Bean
-  public ChWriter chWriter(@Autowired com.clickhouse.client.api.Client client) {
-    return new ChWriter(client);
+  public ChWriter chWriter(
+      @Autowired com.clickhouse.client.api.Client client, @Autowired OkapiInternalMetrics metrics) {
+    return new ChWriter(client, metrics);
   }
 
   @Bean
   public ChMetricsWalConsumer chMetricsWalConsumer(
       @Autowired MetricsEventEmitter eventEmitter,
       @Autowired ChWriter writer,
-      @Autowired ChWalConsumerCfg walCfg) {
-    return new ChMetricsWalConsumer(walCfg.getBatchSize(), writer, eventEmitter);
+      @Autowired ChWalConsumerCfg walCfg,
+      @Autowired OkapiInternalMetrics metrics) {
+    return new ChMetricsWalConsumer(walCfg.getBatchSize(), writer, eventEmitter, metrics);
   }
 
   @Bean
@@ -65,8 +69,9 @@ public class ChWalConsumersConfig {
       @Autowired LogsEventEmitter eventEmitter,
       @Autowired ChWriter writer,
       @Autowired ChWalConsumerCfg walCfg,
-      @Autowired OtelLogsToChRowsConverter converter) {
-    return new ChLogsWalConsumer(walCfg.getBatchSize(), writer, eventEmitter, converter);
+      @Autowired OtelLogsToChRowsConverter converter,
+      @Autowired OkapiInternalMetrics metrics) {
+    return new ChLogsWalConsumer(walCfg.getBatchSize(), writer, eventEmitter, converter, metrics);
   }
 
   @Bean
@@ -81,19 +86,21 @@ public class ChWalConsumersConfig {
 
   @Bean
   public ChTracesWalConsumer chTracesWalConsumer(
-      @Autowired @Qualifier(Qualifiers.TRACES_CH_WAL_RESOURCES) ChWalResources walResources,
+      @Autowired TracesEventEmitter eventEmitter,
       @Autowired ChWriter writer,
       @Autowired ChWalConsumerCfg walCfg,
       @Autowired OtelTracesToChRowsConverter converter,
       @Autowired TraceFilterStrategy traceFilterStrategy,
-      @Autowired SpanFilterStrategy spanFilterStrategy) {
+      @Autowired SpanFilterStrategy spanFilterStrategy,
+      @Autowired OkapiInternalMetrics metrics) {
     return new ChTracesWalConsumer(
-        walResources,
+        eventEmitter,
         walCfg.getBatchSize(),
         writer,
         converter,
         traceFilterStrategy,
-        spanFilterStrategy);
+        spanFilterStrategy,
+        metrics);
   }
 
   @Bean

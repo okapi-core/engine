@@ -1,13 +1,16 @@
+/*
+ * Copyright The OkapiCore Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
 package org.okapi.oscar.tools;
 
+import java.time.Instant;
+import java.util.concurrent.TimeUnit;
 import lombok.Builder;
 import lombok.Getter;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Component;
-
-import java.time.Instant;
-import java.util.concurrent.TimeUnit;
 
 @Component
 public class DateTimeTools {

@@ -4,7 +4,7 @@
  */
 package org.okapi.data.pg;
 
-import java.util.Iterator;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.okapi.data.bcrypt.BCrypt;
@@ -30,7 +30,8 @@ public final class UsersDaoPg implements UsersDao {
     return repository.findByEmailIgnoreCase(email).map(this::toDto);
   }
 
-  public User createIfNotExists(String first, String last, String email, String password)
+  public User createIfNotExists(
+      String first, String last, String email, String password, String orgId)
       throws UserAlreadyExistsException {
     if (getWithEmail(email).isPresent()) throw new UserAlreadyExistsException();
     var hash =
@@ -43,6 +44,7 @@ public final class UsersDaoPg implements UsersDao {
             .firstName(first)
             .lastName(last)
             .hashedPassword(hash)
+            .orgId(orgId)
             .build();
     try {
       repository.saveAndFlush(toEntity(user));
@@ -52,12 +54,13 @@ public final class UsersDaoPg implements UsersDao {
     return user;
   }
 
-  public Iterator<User> listAllUsers() {
-    return repository.findAllByOrderByUserId().stream().map(this::toDto).iterator();
-  }
-
   public void update(User user) {
     repository.saveAndFlush(toEntity(user));
+  }
+
+  @Override
+  public List<User> getAll(String orgId) {
+    return repository.findAllByOrgId(orgId).stream().map(this::toDto).toList();
   }
 
   private UserEntity toEntity(User user) {
@@ -67,7 +70,8 @@ public final class UsersDaoPg implements UsersDao {
         user.getStatus(),
         user.getFirstName(),
         user.getLastName(),
-        user.getHashedPassword());
+        user.getHashedPassword(),
+        user.getOrgId());
   }
 
   private User toDto(UserEntity entity) {
@@ -78,6 +82,7 @@ public final class UsersDaoPg implements UsersDao {
         .firstName(entity.getFirstName())
         .lastName(entity.getLastName())
         .hashedPassword(entity.getHashedPassword())
+        .orgId(entity.getOrgId())
         .build();
   }
 }

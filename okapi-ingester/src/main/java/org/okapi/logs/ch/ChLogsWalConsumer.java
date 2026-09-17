@@ -14,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.okapi.logs.core.LogsEventEmitter;
 import org.okapi.metrics.ch.ChConstants;
 import org.okapi.metrics.ch.ChWriter;
+import org.okapi.telemetry.OkapiInternalMetrics;
 
 @Slf4j
 public class ChLogsWalConsumer {
@@ -21,6 +22,7 @@ public class ChLogsWalConsumer {
   private final ChWriter chWriter;
   private final LogsEventEmitter eventEmitter;
   private final OtelLogsToChRowsConverter converter;
+  private final OkapiInternalMetrics metrics;
   private final Gson gson = new Gson();
 
   public ChLogsWalConsumer(
@@ -28,14 +30,27 @@ public class ChLogsWalConsumer {
       ChWriter chWriter,
       LogsEventEmitter eventEmitter,
       OtelLogsToChRowsConverter converter) {
+    this(batchSize, chWriter, eventEmitter, converter, null);
+  }
+
+  public ChLogsWalConsumer(
+      int batchSize,
+      ChWriter chWriter,
+      LogsEventEmitter eventEmitter,
+      OtelLogsToChRowsConverter converter,
+      OkapiInternalMetrics metrics) {
     this.batchSize = batchSize;
     this.chWriter = chWriter;
     this.eventEmitter = eventEmitter;
     this.converter = converter;
+    this.metrics = metrics;
   }
 
   public void consumeRecords() throws IOException, InterruptedException, ExecutionException {
     var batch = eventEmitter.next(batchSize);
+    if (metrics != null) {
+      metrics.recordConsumerBatch("logs", batch.size());
+    }
     Multimap<String, String> writeLoad = ArrayListMultimap.create();
 
     for (var event : batch) {

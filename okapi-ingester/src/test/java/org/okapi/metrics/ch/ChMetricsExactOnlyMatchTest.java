@@ -4,6 +4,8 @@
  */
 package org.okapi.metrics.ch;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 import com.clickhouse.client.api.Client;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
@@ -12,22 +14,19 @@ import io.opentelemetry.proto.metrics.v1.*;
 import io.opentelemetry.proto.metrics.v1.Histogram;
 import io.opentelemetry.proto.metrics.v1.Sum;
 import io.opentelemetry.proto.resource.v1.Resource;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.okapi.ch.CreateChTablesSpec;
 import org.okapi.metrics.pojos.AGG_TYPE;
 import org.okapi.metrics.pojos.RES_TYPE;
+import org.okapi.otelshorthand.OtelShortHands;
 import org.okapi.rest.metrics.query.*;
 import org.okapi.testmodules.guice.TestChMetricsModule;
-import org.okapi.traces.testutil.OtelShortHands;
-
-import java.nio.file.Path;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-
-import static org.junit.jupiter.api.Assertions.*;
 
 public class ChMetricsExactOnlyMatchTest {
   @TempDir Path tempDir;
@@ -54,22 +53,14 @@ public class ChMetricsExactOnlyMatchTest {
     var driver = injector.getInstance(ChMetricsWalConsumerDriver.class);
     var qp = injector.getInstance(ChMetricsQueryProcessor.class);
 
-    var tagsA =
-        Map.of("env", "dev", "region", "us-east", "host", "a", "test-session", testSession);
-    var tagsB =
-        Map.of("env", "dev", "region", "us-west", "host", "b", "test-session", testSession);
+    var tagsA = Map.of("env", "dev", "region", "us-east", "host", "a", "test-session", testSession);
+    var tagsB = Map.of("env", "dev", "region", "us-west", "host", "b", "test-session", testSession);
     var partialTags = Map.of("env", "dev", "test-session", testSession);
 
     ingester.ingestOtelProtobuf(
-        buildGaugeRequest(
-            "svc",
-            "metric.cpu",
-            List.of(gaugePoint(1_000L, tagsA, 1.0))));
+        buildGaugeRequest("svc", "metric.cpu", List.of(gaugePoint(1_000L, tagsA, 1.0))));
     ingester.ingestOtelProtobuf(
-        buildGaugeRequest(
-            "svc",
-            "metric.cpu",
-            List.of(gaugePoint(2_000L, tagsB, 2.0))));
+        buildGaugeRequest("svc", "metric.cpu", List.of(gaugePoint(2_000L, tagsB, 2.0))));
 
     ingester.ingestOtelProtobuf(
         buildHistogramRequest(
@@ -136,7 +127,9 @@ public class ChMetricsExactOnlyMatchTest {
                 .end(10_000)
                 .metricType(METRIC_TYPE.HISTO)
                 .histoQueryConfig(
-                    HistoQueryConfig.builder().temporality(HistoQueryConfig.TEMPORALITY.DELTA).build())
+                    HistoQueryConfig.builder()
+                        .temporality(HistoQueryConfig.TEMPORALITY.DELTA)
+                        .build())
                 .build());
     assertNotNull(histoFull.getHistogramResponse());
     assertNotNull(histoFull.getHistogramResponse().getSeries());
@@ -151,7 +144,9 @@ public class ChMetricsExactOnlyMatchTest {
                 .end(10_000)
                 .metricType(METRIC_TYPE.HISTO)
                 .histoQueryConfig(
-                    HistoQueryConfig.builder().temporality(HistoQueryConfig.TEMPORALITY.DELTA).build())
+                    HistoQueryConfig.builder()
+                        .temporality(HistoQueryConfig.TEMPORALITY.DELTA)
+                        .build())
                 .build());
     assertNotNull(histoPartial.getHistogramResponse());
     assertNotNull(histoPartial.getHistogramResponse().getSeries());

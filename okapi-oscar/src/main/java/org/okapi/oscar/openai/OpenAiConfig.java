@@ -1,3 +1,7 @@
+/*
+ * Copyright The OkapiCore Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
 package org.okapi.oscar.openai;
 
 import org.okapi.oscar.secrets.ApiKeyProvider;

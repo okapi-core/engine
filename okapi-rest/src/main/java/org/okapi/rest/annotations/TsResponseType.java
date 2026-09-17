@@ -10,8 +10,8 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Marks a type to be included in the generated TypeScript response-types.ts file,
- * regardless of its class name suffix.
+ * Marks a type to be included in the generated TypeScript response-types.ts file, regardless of its
+ * class name suffix.
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)

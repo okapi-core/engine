@@ -43,13 +43,16 @@ options {
     caseInsensitive = true;
 }
 
-fragment NUMERAL: [0-9]+ ('.' [0-9]+)?;
+fragment NUMERAL: [0-9]+ ('.' [0-9]*)? | '.' [0-9]+;
 
 fragment SCIENTIFIC_NUMBER: NUMERAL ('e' [-+]? NUMERAL)?;
 
 NUMBER: NUMERAL | SCIENTIFIC_NUMBER;
 
 STRING: '\'' (~('\'' | '\\') | '\\' .)* '\'' | '"' (~('"' | '\\') | '\\' .)* '"';
+
+NAN: 'nan';
+INF: 'inf';
 
 // Binary operators
 
@@ -59,6 +62,7 @@ MULT : '*';
 DIV  : '/';
 MOD  : '%';
 POW  : '^';
+ATAN2: 'atan2';
 
 AND    : 'and';
 OR     : 'or';
@@ -69,6 +73,8 @@ UNLESS : 'unless';
 EQ  : '=';
 DEQ : '==';
 NE  : '!=';
+TRIM_LOWER: '>/';
+TRIM_UPPER: '</';
 GT  : '>';
 LT  : '<';
 GE  : '>=';
@@ -92,6 +98,9 @@ OFFSET: 'offset';
 
 BOOL: 'bool';
 
+ANCHORED: 'anchored';
+SMOOTHED: 'smoothed';
+
 AGGREGATION_OPERATOR:
     'sum'
     | 'min'
@@ -102,7 +111,11 @@ AGGREGATION_OPERATOR:
     | 'stdvar'
     | 'count'
     | 'count_values'
+    | 'bottomk'
+    | 'topk'
     | 'quantile'
+    | 'limitk'
+    | 'limit_ratio'
 ;
 
 FUNCTION options {
@@ -128,10 +141,12 @@ FUNCTION options {
     | 'histogram_sum'
     | 'histogram_fraction'
     | 'histogram_quantile'
+    | 'histogram_quantiles'
     | 'holt_winters'
     | 'hour'
     | 'idelta'
     | 'increase'
+    | 'info'
     | 'irate'
     | 'label_join'
     | 'label_replace'
@@ -161,7 +176,9 @@ FUNCTION options {
     | 'quantile_over_time'
     | 'stddev_over_time'
     | 'stdvar_over_time'
+    | 'first_over_time'
     | 'last_over_time'
+    | 'mad_over_time'
     | 'present_over_time'
     | 'acos'
     | 'acosh'
@@ -192,15 +209,14 @@ RIGHT_BRACKET : ']';
 COMMA: ',';
 
 AT: '@';
+COLON: ':';
+fragment DURATION_FRAGMENT: ([0-9]+ ('ms' | [smhdwy]))+;
+DURATION: DURATION_FRAGMENT;
 
-SUBQUERY_RANGE: LEFT_BRACKET DURATION ':' DURATION? RIGHT_BRACKET;
-
-TIME_RANGE: LEFT_BRACKET DURATION RIGHT_BRACKET;
-
-// The proper order (longest to the shortest) must be validated after parsing
-DURATION: ([0-9]+ ('ms' | [smhdwy]))+;
-
-METRIC_NAME : [a-z_:] [a-z0-9_:]*;
+METRIC_NAME
+    : [a-z_] [a-z0-9_:]*
+    | ':' [a-z_] [a-z0-9_:]*
+    ;
 LABEL_NAME  : [a-z_] [a-z0-9_]*;
 
 WS         : [\r\t\n ]+   -> channel(WHITESPACE);

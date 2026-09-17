@@ -6,24 +6,26 @@ package org.okapi.traces.ch;
 
 import com.clickhouse.client.api.Client;
 import com.clickhouse.client.api.query.GenericRecord;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.okapi.ch.ChTemplateFiles;
 import org.okapi.exceptions.DataFailureException;
 import org.okapi.metrics.ch.ChConstants;
 import org.okapi.rest.traces.*;
+import org.okapi.spring.configs.Profiles;
 import org.okapi.timeutils.TimeUtils;
 import org.okapi.traces.ch.template.ChTraceTemplateEngine;
 import org.okapi.validation.OkapiChecks;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 @Slf4j
 @Service
+@Profile(Profiles.PROFILE_CH)
 public class ChTraceQueryService {
   private final Client client;
   private final ChTraceTemplateEngine templateEngine;
@@ -36,7 +38,8 @@ public class ChTraceQueryService {
 
   public SpanQueryV2Response getSpans(SpanQueryV2Request requestV2) {
     var template = buildTemplate(requestV2);
-    var query = StringUtils.normalizeSpace(templateEngine.render(ChTemplateFiles.GET_SPANS_V2, template));
+    var query =
+        StringUtils.normalizeSpace(templateEngine.render(ChTemplateFiles.GET_SPANS_V2, template));
     var records = client.queryAll(query);
     var rows = new ArrayList<SpanRowV2>(records.size());
     for (var record : records) {

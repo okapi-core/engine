@@ -6,12 +6,15 @@ package org.okapi.ch;
 
 import com.clickhouse.client.api.Client;
 import lombok.extern.slf4j.Slf4j;
+import org.okapi.spring.configs.Profiles;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
+@Profile(Profiles.PROFILE_CH)
 @ConditionalOnProperty(name = "okapi.clickhouse.migrateOnStartup", havingValue = "true")
 public class CreateChTables implements CommandLineRunner {
   private final Client client;

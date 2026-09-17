@@ -9,12 +9,10 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 
 import java.util.List;
 import java.util.Map;
-
 import org.junit.jupiter.api.Test;
 import org.okapi.promql.testing.PromQlTestAst.LoadCmd;
 import org.okapi.promql.testing.PromQlTestAst.NumberPoint;
 import org.okapi.promql.testing.PromQlTestAst.PointExpr;
-import org.okapi.promql.testing.PromQlTestAst.SeriesDef;
 import org.okapi.promql.testing.TestMetricClassifier.MetricType;
 
 class InMemoryPromQlTestIngestorTest {

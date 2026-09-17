@@ -4,12 +4,17 @@
  */
 package org.okapi.metrics.ch;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 import com.clickhouse.client.api.Client;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import io.opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceRequest;
 import io.opentelemetry.proto.metrics.v1.*;
 import io.opentelemetry.proto.resource.v1.Resource;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -19,12 +24,6 @@ import org.okapi.rest.metrics.query.GetMetricsRequest;
 import org.okapi.rest.metrics.query.GetSumsQueryConfig;
 import org.okapi.rest.metrics.query.METRIC_TYPE;
 import org.okapi.testmodules.guice.TestChMetricsModule;
-
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-
-import static org.junit.jupiter.api.Assertions.*;
 
 public class ChSumTests {
   @TempDir java.nio.file.Path tempDir;
@@ -93,8 +92,7 @@ public class ChSumTests {
     assertEquals(7L, sums.get(0).getCount());
     assertEquals("ms", sums.get(0).getUnit());
 
-    var noUnitResp =
-        qp.getMetricsResponse(queryReq.toBuilder().metric(metricWithoutUnit).build());
+    var noUnitResp = qp.getMetricsResponse(queryReq.toBuilder().metric(metricWithoutUnit).build());
     assertNotNull(noUnitResp.getSumsResponse());
     var noUnitSums = noUnitResp.getSumsResponse().getSums();
     assertEquals(1, noUnitSums.size());
@@ -235,8 +233,7 @@ public class ChSumTests {
             tags,
             "ms",
             AggregationTemporality.AGGREGATION_TEMPORALITY_CUMULATIVE,
-            List.of(
-                numberPoint(1_000L, 2_000L, 10.0), numberPoint(2_000L, 3_000L, 12.0))));
+            List.of(numberPoint(1_000L, 2_000L, 10.0), numberPoint(2_000L, 3_000L, 12.0))));
     ingester.ingestOtelProtobuf(
         buildSumRequest(
             resource,
@@ -244,8 +241,7 @@ public class ChSumTests {
             tags,
             null,
             AggregationTemporality.AGGREGATION_TEMPORALITY_CUMULATIVE,
-            List.of(
-                numberPoint(1_000L, 2_000L, 7.0), numberPoint(2_000L, 3_000L, 9.0))));
+            List.of(numberPoint(1_000L, 2_000L, 7.0), numberPoint(2_000L, 3_000L, 9.0))));
 
     driver.onTick();
 

@@ -1,15 +1,18 @@
+/*
+ * Copyright The OkapiCore Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
 package org.okapi.oscar.integ.corpus;
+
+import static org.okapi.oscar.integ.OtelHelpers.*;
 
 import io.opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceRequest;
 import io.opentelemetry.proto.metrics.v1.*;
 import io.opentelemetry.proto.trace.v1.Span;
 import io.opentelemetry.proto.trace.v1.Status;
-import org.okapi.ingester.client.IngesterClient;
-
 import java.util.ArrayList;
 import java.util.List;
-
-import static org.okapi.oscar.integ.OtelHelpers.*;
+import org.okapi.ingester.client.IngesterClient;
 
 public class SingleStepFlowCorpus implements Corpus {
 

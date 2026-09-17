@@ -1,6 +1,0 @@
-- type: http
-  sourceId: fake_source
-  host: "http://localhost"
-  headers:
-    authorization: Bearer fake_token
-    content-type: application/json

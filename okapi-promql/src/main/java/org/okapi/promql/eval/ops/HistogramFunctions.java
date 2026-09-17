@@ -81,11 +81,13 @@ public final class HistogramFunctions {
       if (seriesSample.sample().isHistogram()) {
         var histogram = seriesSample.sample().histogram();
         if (!(histogram instanceof HistogramSeries.NativeHistogramSample nativeHistogram)) continue;
-        var key = new ClassicBucketKey(outputLabels(seriesSample.series(), false), seriesSample.sample().ts());
+        var key =
+            new ClassicBucketKey(
+                outputLabels(seriesSample.series(), false), seriesSample.sample().ts());
         var previous =
-            nativeHistograms.putIfAbsent(
-                key, new NativeHistogram(seriesSample, nativeHistogram));
-        if (previous != null && !previous.sample().series().metric().equals(seriesSample.series().metric())) {
+            nativeHistograms.putIfAbsent(key, new NativeHistogram(seriesSample, nativeHistogram));
+        if (previous != null
+            && !previous.sample().series().metric().equals(seriesSample.series().metric())) {
           throw ambiguousHistogram();
         }
         continue;
@@ -94,9 +96,10 @@ public final class HistogramFunctions {
       if (bound == null) continue;
       Double upperBound = parseBound(bound);
       if (upperBound == null) continue;
-      var key = new ClassicBucketKey(outputLabels(seriesSample.series(), true), seriesSample.sample().ts());
-      var classic =
-          classicHistograms.computeIfAbsent(key, ignored -> new ClassicHistogram());
+      var key =
+          new ClassicBucketKey(
+              outputLabels(seriesSample.series(), true), seriesSample.sample().ts());
+      var classic = classicHistograms.computeIfAbsent(key, ignored -> new ClassicHistogram());
       classic.metrics().add(seriesSample.series().metric());
       classic.buckets().add(new ClassicBucket(upperBound, seriesSample.sample().value()));
     }
@@ -120,14 +123,17 @@ public final class HistogramFunctions {
       var nativeHistogram = nativeHistograms.get(entry.getKey());
       if (nativeHistogram != null) {
         if (entry.getValue().metrics().size() == 1
-            && entry.getValue().metrics().contains(nativeHistogram.sample().series().metric())) continue;
+            && entry.getValue().metrics().contains(nativeHistogram.sample().series().metric()))
+          continue;
         throw ambiguousHistogram();
       }
       if (entry.getValue().metrics().size() != 1) throw ambiguousHistogram();
       out.add(
           new SeriesSample(
               new SeriesId("", new Labels(entry.getKey().labels())),
-              new Sample(entry.getKey().timestamp(), classicFunction.applyAsDouble(normalize(entry.getValue().buckets())))));
+              new Sample(
+                  entry.getKey().timestamp(),
+                  classicFunction.applyAsDouble(normalize(entry.getValue().buckets())))));
     }
     return new InstantVectorResult(out);
   }
@@ -152,10 +158,7 @@ public final class HistogramFunctions {
       for (var seriesSample : quantile(quantile, vector).data()) {
         Map<String, String> labels = new HashMap<>(seriesSample.series().labels().tags());
         labels.put(label, Double.toString(quantile));
-        out.add(
-            new SeriesSample(
-                new SeriesId("", new Labels(labels)),
-                seriesSample.sample()));
+        out.add(new SeriesSample(new SeriesId("", new Labels(labels)), seriesSample.sample()));
       }
     }
     return new InstantVectorResult(out);
@@ -187,8 +190,9 @@ public final class HistogramFunctions {
     double mean = nativeHistogram.sum() / count;
     double variance = nativeHistogram.zeroCount() * mean * mean;
     if (hasCustomBuckets(nativeHistogram)) {
-      variance += customBucketVariance(
-          nativeHistogram.customValues(), nativeHistogram.positiveBuckets(), mean);
+      variance +=
+          customBucketVariance(
+              nativeHistogram.customValues(), nativeHistogram.positiveBuckets(), mean);
     } else {
       variance += exponentialBucketVariance(nativeHistogram, mean);
     }
@@ -220,8 +224,7 @@ public final class HistogramFunctions {
     return fraction(lower, upper, bounds, cumulative);
   }
 
-  private static double quantile(
-      double quantile, HistogramSeries.NativeHistogramSample histogram) {
+  private static double quantile(double quantile, HistogramSeries.NativeHistogramSample histogram) {
     if (!hasCustomBuckets(histogram)) {
       if (Double.isNaN(quantile)) return Double.NaN;
       if (quantile < 0d) return Double.NEGATIVE_INFINITY;
@@ -271,8 +274,10 @@ public final class HistogramFunctions {
       buckets.add(new NativeBucket(lower, upper, histogram.negativeBuckets()[i], true));
     }
     if (histogram.zeroCount() != 0d) {
-      boolean hasNegative = Arrays.stream(histogram.negativeBuckets()).anyMatch(count -> count != 0d);
-      boolean hasPositive = Arrays.stream(histogram.positiveBuckets()).anyMatch(count -> count != 0d);
+      boolean hasNegative =
+          Arrays.stream(histogram.negativeBuckets()).anyMatch(count -> count != 0d);
+      boolean hasPositive =
+          Arrays.stream(histogram.positiveBuckets()).anyMatch(count -> count != 0d);
       buckets.add(
           new NativeBucket(
               hasNegative || !hasPositive ? -histogram.zeroThreshold() : 0d,
@@ -312,7 +317,8 @@ public final class HistogramFunctions {
         trimBuckets(
             histogram.negativeOffset(),
             histogram.negativeBuckets(),
-            index -> new NativeBucket(-Math.pow(base, index), -Math.pow(base, index - 1d), 0d, true),
+            index ->
+                new NativeBucket(-Math.pow(base, index), -Math.pow(base, index - 1d), 0d, true),
             cutoff,
             keepLower,
             !keepLower,
@@ -500,10 +506,8 @@ public final class HistogramFunctions {
       double overlapLower = Math.max(lower, lowerBound);
       double overlapUpper = Math.min(upper, upperBound);
       if (overlapLower < overlapUpper) {
-        if (overlapLower <= lowerBound
-            && overlapUpper >= upperBound
-            || upperBound == Double.POSITIVE_INFINITY
-                && upper == Double.POSITIVE_INFINITY) {
+        if (overlapLower <= lowerBound && overlapUpper >= upperBound
+            || upperBound == Double.POSITIVE_INFINITY && upper == Double.POSITIVE_INFINITY) {
           included += bucketCount;
         } else if (!Double.isInfinite(lowerBound) && !Double.isInfinite(upperBound)) {
           included += bucketCount * (overlapUpper - overlapLower) / (upperBound - lowerBound);
@@ -650,7 +654,10 @@ public final class HistogramFunctions {
     int k = -1;
     for (int i = 0; i < counts.size(); i++) {
       long next = cum + counts.get(i);
-      if (target <= next) { k = i; break; }
+      if (target <= next) {
+        k = i;
+        break;
+      }
       cum = next;
     }
     if (k == -1) k = counts.size() - 1;
@@ -658,9 +665,11 @@ public final class HistogramFunctions {
     int n = ubs.size();
     double lower, upper;
     if (k == 0) {
-      lower = Double.NEGATIVE_INFINITY; upper = ubs.get(0);
+      lower = Double.NEGATIVE_INFINITY;
+      upper = ubs.get(0);
     } else if (k < n) {
-      lower = ubs.get(k - 1); upper = ubs.get(k);
+      lower = ubs.get(k - 1);
+      upper = ubs.get(k);
     } else {
       lower = (n >= 1) ? ubs.get(n - 1) : Double.NEGATIVE_INFINITY;
       upper = Double.POSITIVE_INFINITY;

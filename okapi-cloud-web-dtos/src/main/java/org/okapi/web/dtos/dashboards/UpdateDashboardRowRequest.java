@@ -4,7 +4,6 @@
  */
 package org.okapi.web.dtos.dashboards;
 
-import jakarta.validation.constraints.NotNull;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -16,10 +15,6 @@ import lombok.NoArgsConstructor;
 @Getter
 @Builder
 public class UpdateDashboardRowRequest {
-  @NotNull String orgId;
-  @NotNull String dashboardId;
-  @NotNull String versionId;
-  @NotNull String rowId;
   String title;
   String description;
   List<String> panelIds;

@@ -6,7 +6,7 @@ package org.okapi.web.controller;
 
 import lombok.AllArgsConstructor;
 import org.okapi.exceptions.MalformedQueryException;
-import org.okapi.headers.CookiesAndHeaders;
+import org.okapi.rest.metrics.exemplar.GetExemplarsBatchResponse;
 import org.okapi.rest.metrics.exemplar.GetExemplarsRequest;
 import org.okapi.rest.metrics.exemplar.GetExemplarsResponse;
 import org.okapi.rest.metrics.query.GetMetricsBatchResponse;
@@ -16,7 +16,7 @@ import org.okapi.rest.search.GetMetricNameHints;
 import org.okapi.rest.search.GetMetricsHintsResponse;
 import org.okapi.rest.search.GetTagHintsRequest;
 import org.okapi.rest.search.GetTagValueHintsRequest;
-import org.okapi.web.dtos.dashboards.MultiQueryPanelWDto;
+import org.okapi.web.dtos.dashboards.MultiQueryRequest;
 import org.okapi.web.service.query.MetricsQueryService;
 import org.springframework.web.bind.annotation.*;
 
@@ -28,45 +28,39 @@ public class MetricsQueryController {
   MetricsQueryService metricsQueryService;
 
   @PostMapping("/query")
-  public GetMetricsResponse getMetricsResponse(
-      @RequestHeader(CookiesAndHeaders.HEADER_TEMP_TOKEN) String tempToken,
-      @RequestBody GetMetricsRequest request) {
-    return metricsQueryService.queryMetrics(tempToken, request);
+  public GetMetricsResponse getMetricsResponse(@RequestBody GetMetricsRequest request) {
+    return metricsQueryService.queryMetrics(request);
   }
 
   @PostMapping("/query/batch")
   public GetMetricsBatchResponse getMetricsBatchResponse(
-      @RequestHeader(CookiesAndHeaders.HEADER_TEMP_TOKEN) String tempToken,
-      @RequestBody MultiQueryPanelWDto panelWDto)
-      throws MalformedQueryException {
-    return metricsQueryService.queryMetrics(tempToken, panelWDto);
+      @RequestBody MultiQueryRequest multiQueryRequest) throws MalformedQueryException {
+    return metricsQueryService.queryMetrics(multiQueryRequest);
   }
 
   @PostMapping("/name/hints")
-  public GetMetricsHintsResponse getMetricHints(
-      @RequestHeader(CookiesAndHeaders.HEADER_TEMP_TOKEN) String tempToken,
-      @RequestBody GetMetricNameHints request) {
-    return metricsQueryService.getMetricHints(tempToken, request);
+  public GetMetricsHintsResponse getMetricHints(@RequestBody GetMetricNameHints request) {
+    return metricsQueryService.getMetricHints(request);
   }
 
   @PostMapping("/tag/hints")
-  public GetMetricsHintsResponse getTagHints(
-      @RequestHeader(CookiesAndHeaders.HEADER_TEMP_TOKEN) String tempToken,
-      @RequestBody GetTagHintsRequest request) {
-    return metricsQueryService.getTagHints(tempToken, request);
+  public GetMetricsHintsResponse getTagHints(@RequestBody GetTagHintsRequest request) {
+    return metricsQueryService.getTagHints(request);
   }
 
   @PostMapping("/tag-value/hints")
-  public GetMetricsHintsResponse getTagValueHints(
-      @RequestHeader(CookiesAndHeaders.HEADER_TEMP_TOKEN) String tempToken,
-      @RequestBody GetTagValueHintsRequest request) {
-    return metricsQueryService.getTagValueHints(tempToken, request);
+  public GetMetricsHintsResponse getTagValueHints(@RequestBody GetTagValueHintsRequest request) {
+    return metricsQueryService.getTagValueHints(request);
   }
 
   @PostMapping("/metrics/exemplars")
-  public GetExemplarsResponse getMetricExemplars(
-      @RequestHeader(CookiesAndHeaders.HEADER_TEMP_TOKEN) String tempToken,
-      @RequestBody GetExemplarsRequest request) {
-    return metricsQueryService.getExemplarsResponse(tempToken, request);
+  public GetExemplarsResponse getMetricExemplars(@RequestBody GetExemplarsRequest request) {
+    return metricsQueryService.getExemplarsResponse(request);
+  }
+
+  @PostMapping("/exemplars/query")
+  public GetExemplarsBatchResponse queryMetricExemplars(
+      @RequestBody MultiQueryRequest multiQueryRequest) throws MalformedQueryException {
+    return metricsQueryService.queryExemplars(multiQueryRequest);
   }
 }

@@ -4,69 +4,65 @@
  */
 package org.okapi.web.service.dashboards;
 
-import javax.swing.*;
 import org.okapi.data.exceptions.ResourceNotFoundException;
 import org.okapi.exceptions.BadRequestException;
 import org.okapi.exceptions.UnAuthorizedException;
+import org.okapi.web.auth.AccessManager;
 import org.okapi.web.dtos.dashboards.CreateDashboardRequest;
 import org.okapi.web.dtos.dashboards.UpdateDashboardRequest;
-import org.okapi.web.service.context.DashboardAccessContext;
-import org.okapi.web.service.validation.OrgMemberValidator;
-import org.okapi.web.service.validation.RequestValidator;
+import org.okapi.web.security.CurrentUserProvider;
+import org.okapi.web.service.context.DashboardRequestContext;
+import org.okapi.web.service.context.OrgRequestContext;
 import org.springframework.stereotype.Service;
 
 @Service
-public class DashboardsRequestValidator
-    implements RequestValidator<
-        DashboardAccessContext,
-        DashboardRequestContext,
-        CreateDashboardRequest,
-        UpdateDashboardRequest> {
+public class DashboardsRequestValidator {
 
-  DashboardAccessValidator accessValidator;
-  OrgMemberValidator orgMemberValidator;
+  private final AccessManager accessManager;
+  private final CurrentUserProvider currentUserProvider;
 
   public DashboardsRequestValidator(
-      OrgMemberValidator orgMemberValidator, DashboardAccessValidator dashboardAccessValidator) {
-    this.orgMemberValidator = orgMemberValidator;
-    this.accessValidator = dashboardAccessValidator;
+      AccessManager accessManager, CurrentUserProvider currentUserProvider) {
+    this.accessManager = accessManager;
+    this.currentUserProvider = currentUserProvider;
   }
 
-  @Override
-  public DashboardRequestContext validateCreate(
-      DashboardAccessContext context, CreateDashboardRequest request)
+  public void validateCreate(OrgRequestContext context, CreateDashboardRequest request)
       throws BadRequestException, UnAuthorizedException, ResourceNotFoundException {
-    return DashboardRequestContext.of(orgMemberValidator.checkOrgMember(context.getToken()));
+    checkOrgAccess(context.orgId());
   }
 
-  @Override
-  public DashboardRequestContext validateRead(DashboardAccessContext context)
-      throws BadRequestException, UnAuthorizedException, ResourceNotFoundException {
-    checkResourceExists(context);
-    return new DashboardRequestContext(
-        accessValidator.validateRead(context), context.getDashboardId());
+  public void validateList(OrgRequestContext context)
+      throws UnAuthorizedException, ResourceNotFoundException {
+    checkOrgAccess(context.orgId());
   }
 
-  @Override
-  public DashboardRequestContext validateUpdate(
-      DashboardAccessContext context, UpdateDashboardRequest request)
+  public void validateRead(DashboardRequestContext context)
       throws BadRequestException, UnAuthorizedException, ResourceNotFoundException {
     checkResourceExists(context);
-    return new DashboardRequestContext(
-        accessValidator.validateEdit(context), context.getDashboardId());
+    checkOrgAccess(context.orgId());
   }
 
-  @Override
-  public DashboardRequestContext validateDelete(DashboardAccessContext context)
+  public void validateUpdate(DashboardRequestContext context, UpdateDashboardRequest request)
       throws BadRequestException, UnAuthorizedException, ResourceNotFoundException {
     checkResourceExists(context);
-    return new DashboardRequestContext(
-        accessValidator.validateEdit(context), context.getDashboardId());
+    checkOrgAccess(context.orgId());
   }
 
-  public void checkResourceExists(DashboardAccessContext context) throws ResourceNotFoundException {
-    if (context.getDashboardId() == null) {
+  public void validateDelete(DashboardRequestContext context)
+      throws BadRequestException, UnAuthorizedException, ResourceNotFoundException {
+    checkResourceExists(context);
+    checkOrgAccess(context.orgId());
+  }
+
+  public void checkResourceExists(DashboardRequestContext context)
+      throws ResourceNotFoundException {
+    if (context.dashboardId().isBlank()) {
       throw new ResourceNotFoundException("Resource not found.");
     }
+  }
+
+  private void checkOrgAccess(String orgId) {
+    accessManager.checkOrgMember(currentUserProvider.userId(), orgId);
   }
 }

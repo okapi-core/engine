@@ -17,27 +17,31 @@ public class DbFilters {
       description =
 """
 Database system (e.g. postgresql, redis, mongodb). Maps to the db.system span attribute.
-""", required = false)
+""",
+      required = false)
   String system;
 
   @ToolParam(
       description =
 """
 Database collection or table name. Maps to the db.mongodb.collection or equivalent span attribute.
-""", required = false)
+""",
+      required = false)
   String collection;
 
   @ToolParam(
       description =
 """
 Database namespace or schema. Maps to the db.name span attribute.
-""", required = false)
+""",
+      required = false)
   String namespace;
 
   @ToolParam(
       description =
 """
 Database operation type (e.g. SELECT, INSERT, find). Maps to the db.operation span attribute.
-""", required = false)
+""",
+      required = false)
   String operation;
 }

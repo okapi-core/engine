@@ -12,11 +12,12 @@ import java.util.Map;
 public final class OtelShorthand {
   private OtelShorthand() {}
 
+  public static AnyValue anyString(String value) {
+    return AnyValue.newBuilder().setStringValue(value).build();
+  }
+
   public static KeyValue kv(String key, String value) {
-    return KeyValue.newBuilder()
-        .setKey(key)
-        .setValue(AnyValue.newBuilder().setStringValue(value).build())
-        .build();
+    return KeyValue.newBuilder().setKey(key).setValue(anyString(value)).build();
   }
 
   public static KeyValue kvInt(String key, int value) {

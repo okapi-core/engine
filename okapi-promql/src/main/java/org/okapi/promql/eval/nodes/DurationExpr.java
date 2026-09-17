@@ -9,7 +9,10 @@ import java.util.Locale;
 import org.okapi.promql.eval.EvalContext;
 import org.okapi.promql.eval.exceptions.EvaluationException;
 
-/** A duration expression evaluated against the outer query context. Values are represented in seconds. */
+/**
+ * A duration expression evaluated against the outer query context. Values are represented in
+ * seconds.
+ */
 public sealed interface DurationExpr
     permits DurationExpr.Literal, DurationExpr.Unary, DurationExpr.Binary, DurationExpr.Function {
 

@@ -46,6 +46,10 @@ public class CreateChTablesSpec {
     return ClasspathResourceReader.readResource("ch/create_service_red_events_table.sql");
   }
 
+  public static String getLogsTableSpec() {
+    return ClasspathResourceReader.readResource("ch/create_logs_table.sql");
+  }
+
   public static void migrate(Client client) {
     client.queryAll("CREATE DATABASE IF NOT EXISTS okapi_metrics");
     client.queryAll(getCreateGaugeTableSpec());
@@ -57,5 +61,7 @@ public class CreateChTablesSpec {
     client.queryAll(getTracesTableSpec());
     client.queryAll(getSpansIngestedAttribsTableSpec());
     client.queryAll(getServiceRedEventsTableSpec());
+    client.queryAll("CREATE DATABASE IF NOT EXISTS okapi_logs");
+    client.queryAll(getLogsTableSpec());
   }
 }

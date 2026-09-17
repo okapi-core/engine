@@ -41,5 +41,8 @@ public interface RelationGraphDao {
 
   List<RelationGraphNode> getAllRelationsOfNodeType(EntityId entityId, EntityType type);
 
+  List<RelationGraphNode> getAllIncomingRelations(
+      EntityId entityId, EntityType sourceType, RelationType relationType);
+
   void deleteEntity(EntityId entityId);
 }

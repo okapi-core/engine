@@ -9,125 +9,99 @@ import static org.okapi.web.service.Mappers.toRowResponse;
 
 import java.util.List;
 import java.util.UUID;
+import lombok.RequiredArgsConstructor;
 import org.okapi.data.dao.DashboardDao;
 import org.okapi.data.dao.DashboardPanelDao;
 import org.okapi.data.dao.DashboardRowDao;
-import org.okapi.data.model.ResourceOrder;
-import org.okapi.data.model.DashboardRow;
 import org.okapi.data.exceptions.ResourceNotFoundException;
-import org.okapi.exceptions.UnAuthorizedException;
-import org.okapi.web.dtos.dashboards.*;
-import org.okapi.web.service.AbstractValidatedCrudService;
-import org.okapi.web.service.ProtectedResourceContext;
-import org.okapi.web.service.context.DashboardRowAccessContext;
+import org.okapi.data.model.Dashboard;
+import org.okapi.data.model.DashboardRow;
+import org.okapi.data.model.ResourceOrder;
+import org.okapi.web.dtos.dashboards.CreateDashboardRowRequest;
+import org.okapi.web.dtos.dashboards.GetDashboardRowResponse;
+import org.okapi.web.dtos.dashboards.UpdateDashboardRowRequest;
+import org.okapi.web.service.context.DashboardRowRequestContext;
+import org.okapi.web.service.context.DashboardVersionRequestContext;
 import org.springframework.stereotype.Service;
 
 @Service
-public class DashboardRowService
-    extends AbstractValidatedCrudService<
-        ProtectedResourceContext,
-        DashboardRowAccessContext,
-        CreateDashboardRowRequest,
-        UpdateDashboardRowRequest,
-        GetDashboardRowResponse> {
-
+@RequiredArgsConstructor
+public class DashboardRowService {
+  private final DashboardRowValidator validator;
   private final DashboardRowDao rowDao;
   private final DashboardPanelDao panelDao;
   private final DashboardDao dashboardDao;
 
-  public DashboardRowService(
-      DashboardRowValidator validator,
-      DashboardRowDao rowDao,
-      DashboardPanelDao panelDao,
-      DashboardDao dashboardDao) {
-    super(validator);
-    this.rowDao = rowDao;
-    this.panelDao = panelDao;
-    this.dashboardDao = dashboardDao;
-  }
-
-  @Override
-  public GetDashboardRowResponse createAfterValidation(
-      DashboardRowAccessContext ctx, CreateDashboardRowRequest request) {
+  public GetDashboardRowResponse create(
+      DashboardVersionRequestContext context, CreateDashboardRowRequest request) {
+    validator.validate(context);
+    var dashboard = getDashboardOrThrow(context.orgId(), context.dashboardId());
     var rowId = request.getRowId() != null ? request.getRowId() : UUID.randomUUID().toString();
-    var versionId = ctx.getVersionId();
     var row =
         DashboardRow.builder()
             .rowId(rowId)
             .title(request.getTitle())
             .note(request.getDescription())
             .build();
-    rowDao.save(request.getOrgId(), request.getDashboardId(), versionId, row);
+    rowDao.save(context.orgId(), context.dashboardId(), context.versionId(), row);
 
-    // update drawing order in dashboard
-    var dash = ctx.getDashboardDdb();
-    var currentOrder = (dash.getRowOrder() == null) ? new ResourceOrder() : dash.getRowOrder();
+    var currentOrder =
+        dashboard.getRowOrder() == null ? new ResourceOrder() : dashboard.getRowOrder();
     currentOrder.add(rowId);
-    dash.setRowOrder(currentOrder);
-    dashboardDao.save(dash);
+    dashboard.setRowOrder(currentOrder);
+    dashboardDao.save(dashboard);
     return toRowResponse(row, List.of());
   }
 
-  @Override
-  public GetDashboardRowResponse readAfterValidation(DashboardRowAccessContext rowContext)
-      throws ResourceNotFoundException {
-    var id = rowContext.getRowId();
-    var rowOpt =
-        rowDao.get(id.getOrgId(), id.getDashboardId(), rowContext.getVersionId(), id.getRowId());
-    checkArgument(rowOpt.isPresent(), ResourceNotFoundException::new);
-
+  public GetDashboardRowResponse read(DashboardRowRequestContext context) {
+    validator.validate(context);
+    var row =
+        rowDao
+            .get(context.orgId(), context.dashboardId(), context.versionId(), context.rowId())
+            .orElseThrow(ResourceNotFoundException::new);
     var panels =
         panelDao.getAll(
-            id.getOrgId(), id.getDashboardId(), id.getRowId(), rowContext.getVersionId());
-    return toRowResponse(rowOpt.get(), panels);
+            context.orgId(), context.dashboardId(), context.rowId(), context.versionId());
+    return toRowResponse(row, panels);
   }
 
-  @Override
-  public GetDashboardRowResponse updateAfterValidation(
-      DashboardRowAccessContext rowContext, UpdateDashboardRowRequest request) throws Exception {
-    var id = rowContext.getRowId();
-    var rowOpt =
-        rowDao.get(id.getOrgId(), id.getDashboardId(), rowContext.getVersionId(), id.getRowId());
-    checkArgument(rowOpt.isPresent(), ResourceNotFoundException::new);
-
-    var row = rowOpt.get();
+  public GetDashboardRowResponse update(
+      DashboardRowRequestContext context, UpdateDashboardRowRequest request) {
+    validator.validate(context);
+    var row =
+        rowDao
+            .get(context.orgId(), context.dashboardId(), context.versionId(), context.rowId())
+            .orElseThrow(ResourceNotFoundException::new);
     var updated = false;
-
     if (request.getTitle() != null) {
       row.setTitle(request.getTitle());
       updated = true;
     }
-
     if (request.getDescription() != null) {
       row.setNote(request.getDescription());
       updated = true;
     }
-
     if (request.getPanelIds() != null) {
       row.setPanelOrder(new ResourceOrder(request.getPanelIds()));
       updated = true;
     }
-
     if (updated) {
-      rowDao.save(id.getOrgId(), id.getDashboardId(), rowContext.getVersionId(), row);
+      rowDao.save(context.orgId(), context.dashboardId(), context.versionId(), row);
     }
-
     var panels =
         panelDao.getAll(
-            id.getOrgId(), id.getDashboardId(), id.getRowId(), rowContext.getVersionId());
+            context.orgId(), context.dashboardId(), context.rowId(), context.versionId());
     return toRowResponse(row, panels);
   }
 
-  @Override
-  public void deleteAfterValidation(DashboardRowAccessContext rowContext)
-      throws UnAuthorizedException {
-    var id = rowContext.getRowId();
-    rowDao.delete(id.getOrgId(), id.getDashboardId(), rowContext.getVersionId(), id.getRowId());
+  public void delete(DashboardRowRequestContext context) {
+    validator.validate(context);
+    rowDao.delete(context.orgId(), context.dashboardId(), context.versionId(), context.rowId());
   }
 
-  private static String[] parseRowId(String id) {
-    var parts = id.split(":", 3);
-    if (parts.length != 3) throw new IllegalArgumentException("id must be orgId:dashboardId:rowId");
-    return parts;
+  private Dashboard getDashboardOrThrow(String orgId, String dashboardId) {
+    var dashboard = dashboardDao.get(orgId, dashboardId);
+    checkArgument(dashboard.isPresent(), ResourceNotFoundException::new);
+    return dashboard.get();
   }
 }

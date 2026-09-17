@@ -4,99 +4,87 @@
  */
 package org.okapi.web.service.dashboards;
 
-import static org.okapi.data.model.EntityType.*;
+import static org.okapi.data.model.EntityType.DASHBOARD;
 import static org.okapi.validation.OkapiChecks.checkArgument;
 
 import java.time.Instant;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import org.okapi.data.dao.DashboardDao;
 import org.okapi.data.dao.DashboardRowDao;
 import org.okapi.data.dao.DashboardVersionDao;
-import org.okapi.data.dao.RelationGraphDao;
 import org.okapi.data.dao.UserEntityRelationsDao;
-import org.okapi.data.model.*;
 import org.okapi.data.exceptions.ResourceNotFoundException;
+import org.okapi.data.model.*;
+import org.okapi.exceptions.BadRequestException;
 import org.okapi.exceptions.UnAuthorizedException;
 import org.okapi.ids.UuidV7;
-import org.okapi.web.auth.*;
-import org.okapi.web.auth.tx.GrantOrgEditToDashboard;
-import org.okapi.web.auth.tx.GrantOrgReadToDashboardTx;
+import org.okapi.web.auth.UserDetailsManager;
 import org.okapi.web.dtos.dashboards.CreateDashboardRequest;
 import org.okapi.web.dtos.dashboards.GetDashboardResponse;
 import org.okapi.web.dtos.dashboards.GetDashboardRowResponse;
 import org.okapi.web.dtos.dashboards.UpdateDashboardRequest;
-import org.okapi.web.service.*;
-import org.okapi.web.service.context.DashboardAccessContext;
-import org.okapi.web.service.context.DashboardRowAccessContext;
-import org.okapi.web.service.dashboards.rows.DashboardRowId;
+import org.okapi.web.dtos.dashboards.versions.ListDashboardVersionsResponse;
+import org.okapi.web.dtos.dashboards.versions.PublishDashboardVersionResponse;
+import org.okapi.web.security.CurrentUserProvider;
+import org.okapi.web.service.Mappers;
+import org.okapi.web.service.context.DashboardRequestContext;
+import org.okapi.web.service.context.DashboardRowRequestContext;
+import org.okapi.web.service.context.DashboardVersionRequestContext;
+import org.okapi.web.service.context.OrgRequestContext;
 import org.okapi.web.service.dashboards.rows.DashboardRowService;
 import org.springframework.stereotype.Service;
 
 @Service
-public class DashboardService
-    extends AbstractValidatedCrudService<
-        DashboardAccessContext,
-        DashboardRequestContext,
-        CreateDashboardRequest,
-        UpdateDashboardRequest,
-        GetDashboardResponse> {
+public class DashboardService {
   public DashboardService(
       DashboardsRequestValidator validationService,
       DashboardDao dashboardDao,
-      TokenManager tokenManager,
-      AccessManager accessManager,
-      RelationGraphDao relationGraphDao,
+      CurrentUserProvider currentUserProvider,
       DashboardRowDao dashboardRowDao,
       DashboardRowService dashboardRowService,
-      DashboardAccessValidator dashboardAccessValidator,
       DashboardVersionService dashboardVersionService,
       DashboardVersionDao dashboardVersionDao,
       UserEntityRelationsDao entityRelationsDao,
       UserDetailsManager userDetailsManager) {
-    super(validationService);
+    this.validator = validationService;
     this.dashboardDao = dashboardDao;
-    this.tokenManager = tokenManager;
-    this.accessManager = accessManager;
-    this.relationGraphDao = relationGraphDao;
+    this.currentUserProvider = currentUserProvider;
     this.dashboardRowDao = dashboardRowDao;
     this.dashboardRowService = dashboardRowService;
-    this.dashboardAccessValidator = dashboardAccessValidator;
     this.dashboardVersionService = dashboardVersionService;
     this.dashboardVersionDao = dashboardVersionDao;
     this.entityRelationsDao = entityRelationsDao;
     this.userDetailsManager = userDetailsManager;
   }
 
+  DashboardsRequestValidator validator;
   DashboardDao dashboardDao;
-  TokenManager tokenManager;
-  AccessManager accessManager;
-  RelationGraphDao relationGraphDao;
+  CurrentUserProvider currentUserProvider;
   DashboardRowDao dashboardRowDao;
   DashboardRowService dashboardRowService;
-  DashboardAccessValidator dashboardAccessValidator;
   DashboardVersionService dashboardVersionService;
   DashboardVersionDao dashboardVersionDao;
   UserEntityRelationsDao entityRelationsDao;
   UserDetailsManager userDetailsManager;
 
-  @Override
-  public GetDashboardResponse createAfterValidation(
-      DashboardRequestContext context, CreateDashboardRequest request)
+  public GetDashboardResponse create(OrgRequestContext context, CreateDashboardRequest request)
+      throws BadRequestException, UnAuthorizedException, ResourceNotFoundException {
+    validator.validateCreate(context, request);
+    return create(context.orgId(), currentUserProvider.userId(), request);
+  }
+
+  private GetDashboardResponse create(String orgId, String userId, CreateDashboardRequest request)
       throws UnAuthorizedException, ResourceNotFoundException {
     var dashboardId = UUID.randomUUID().toString();
     var versionId = UuidV7.randomUuid().toString();
-    var orgId = context.getOrgMemberContext().getOrgId();
-    var userId = context.getOrgMemberContext().getUserId();
     var newDto =
         Dashboard.builder()
             .dashboardId(dashboardId)
             .orgId(orgId)
             .creator(userId)
-            .title(request.getDescription())
+            .title(request.getTitle())
             .lastEditor(userId)
-            .desc(request.getTitle())
+            .desc(request.getDescription())
             .activeVersion(versionId)
             .build();
     dashboardDao.save(newDto);
@@ -112,12 +100,6 @@ public class DashboardService
             .note("Initial version")
             .build();
     dashboardVersionDao.save(versionMeta);
-    var orgReadTx = new GrantOrgReadToDashboardTx(orgId, dashboardId);
-    orgReadTx.doTx(relationGraphDao);
-
-    // var orgEdit
-    var orgEditTx = new GrantOrgEditToDashboard(orgId, dashboardId);
-    orgEditTx.doTx(relationGraphDao);
     // Seed the dashboard with a sample row and panel.
     //    dashboardHydrator.hydrate(orgId, dashboardId, versionId);
     // get details of creator
@@ -127,37 +109,20 @@ public class DashboardService
     return Mappers.mapDashboardDtoToResponse(newDto, creator, lastEditor, userRelations);
   }
 
-  @Override
-  public GetDashboardResponse readAfterValidation(DashboardRequestContext context)
+  public GetDashboardResponse read(DashboardRequestContext context)
+      throws BadRequestException, UnAuthorizedException, ResourceNotFoundException {
+    validator.validateRead(context);
+    return read(context.orgId(), currentUserProvider.userId(), context.dashboardId());
+  }
+
+  private GetDashboardResponse read(String orgId, String userId, String dashboardId)
       throws ResourceNotFoundException {
     // list rows for this dashboard and expand each via row service (includes panels)
-    var dashboardDtoOptional =
-        dashboardDao.get(context.getOrgMemberContext().getOrgId(), context.getDashboardId());
+    var dashboardDtoOptional = dashboardDao.get(orgId, dashboardId);
     checkArgument(dashboardDtoOptional.isPresent(), ResourceNotFoundException::new);
     var dto = dashboardDtoOptional.get();
     var versionId = dto.getActiveVersion();
-    var rows =
-        dashboardRowDao.getAll(
-            context.getOrgMemberContext().getOrgId(), context.getDashboardId(), versionId);
-    List<GetDashboardRowResponse> rowResponses =
-        rows.stream()
-            .map(
-                r -> {
-                  var rowCtx =
-                      new DashboardRowAccessContext(
-                          context.getOrgMemberContext(),
-                          new DashboardRowId(
-                              ResourceIdCreator.createResourceId(
-                                  context.getOrgMemberContext().getOrgId(),
-                                  context.getDashboardId(),
-                                  r.getRowId())),
-                          dashboardDtoOptional.get(),
-                          versionId);
-                  return dashboardRowService.readAfterValidation(rowCtx);
-                })
-            .toList();
-    var userId = context.getOrgMemberContext().getUserId();
-    var dashboardId = context.getDashboardId();
+    var rowResponses = readRows(orgId, dashboardId, versionId, dto);
     var creator = userDetailsManager.getUserPersonalName(dto.getCreator());
     var lastEditor = userDetailsManager.getUserPersonalName(dto.getLastEditor());
     var userRelations = getUserDashboardRelations(userId, dashboardId);
@@ -167,41 +132,19 @@ public class DashboardService
     return partial.build();
   }
 
-  public GetDashboardResponse readVersion(String tempToken, String dashboardId, String versionId)
-      throws Exception {
-    var dashCtx = new DashboardAccessContext(tempToken, dashboardId);
-    var orgCtx = dashboardAccessValidator.validateRead(dashCtx);
-    var validatedCtx = new DashboardRequestContext(orgCtx, dashboardId);
-    return readVersionAfterValidation(validatedCtx, versionId);
+  public GetDashboardResponse readVersion(DashboardVersionRequestContext context) throws Exception {
+    validator.validateRead(new DashboardRequestContext(context.orgId(), context.dashboardId()));
+    return readVersion(
+        context.orgId(), currentUserProvider.userId(), context.dashboardId(), context.versionId());
   }
 
-  private GetDashboardResponse readVersionAfterValidation(
-      DashboardRequestContext context, String versionId) throws ResourceNotFoundException {
-    var dashboardDtoOptional =
-        dashboardDao.get(context.getOrgMemberContext().getOrgId(), context.getDashboardId());
+  private GetDashboardResponse readVersion(
+      String orgId, String userId, String dashboardId, String versionId)
+      throws ResourceNotFoundException {
+    var dashboardDtoOptional = dashboardDao.get(orgId, dashboardId);
     checkArgument(dashboardDtoOptional.isPresent(), ResourceNotFoundException::new);
     var dto = dashboardDtoOptional.get();
-    var rows =
-        dashboardRowDao.getAll(
-            context.getOrgMemberContext().getOrgId(), context.getDashboardId(), versionId);
-    List<GetDashboardRowResponse> rowResponses =
-        rows.stream()
-            .map(
-                r -> {
-                  var rowCtx =
-                      new DashboardRowAccessContext(
-                          context.getOrgMemberContext(),
-                          new DashboardRowId(
-                              ResourceIdCreator.createResourceId(
-                                  context.getOrgMemberContext().getOrgId(),
-                                  context.getDashboardId(),
-                                  r.getRowId())),
-                          dto,
-                          versionId);
-                  return dashboardRowService.readAfterValidation(rowCtx);
-                })
-            .toList();
-    var userId = context.getOrgMemberContext().getUserId();
+    var rowResponses = readRows(orgId, dashboardId, versionId, dto);
     var creator = userDetailsManager.getUserPersonalName(dto.getCreator());
     var lastEditor = userDetailsManager.getUserPersonalName(dto.getLastEditor());
     var userRelations = getUserDashboardRelations(userId, dto.getDashboardId());
@@ -211,11 +154,36 @@ public class DashboardService
     return partial.build();
   }
 
+  private List<GetDashboardRowResponse> readRows(
+      String orgId, String dashboardId, String versionId, Dashboard dashboard) {
+    var rows = dashboardRowDao.getAll(orgId, dashboardId, versionId);
+    var seen = new HashSet<String>();
+    var orderedRows = new ArrayList<DashboardRow>();
+    if (dashboard.getRowOrder() != null) {
+      for (var rowId : dashboard.getRowOrder().asList()) {
+        rows.stream()
+            .filter(row -> row.getRowId().equals(rowId))
+            .findFirst()
+            .ifPresent(
+                row -> {
+                  orderedRows.add(row);
+                  seen.add(row.getRowId());
+                });
+      }
+    }
+    rows.stream().filter(row -> !seen.contains(row.getRowId())).forEach(orderedRows::add);
+    return orderedRows.stream()
+        .map(
+            row ->
+                dashboardRowService.read(
+                    new DashboardRowRequestContext(orgId, dashboardId, versionId, row.getRowId())))
+        .toList();
+  }
+
   protected List<UserEntityRelation> getUserDashboardRelations(String userId, String dashboardId) {
     var faveRelation =
         entityRelationsDao.getRelation(
-            userId,
-            new EntityRelationId(DASHBOARD, dashboardId, UserRelationType.DASHBOARD_FAVE));
+            userId, new EntityRelationId(DASHBOARD, dashboardId, UserRelationType.DASHBOARD_FAVE));
     var lastViewedRelation =
         entityRelationsDao.getRelation(
             userId,
@@ -239,13 +207,16 @@ public class DashboardService
     entityRelationsDao.createRelation(relation);
   }
 
-  @Override
-  public GetDashboardResponse updateAfterValidation(
+  public GetDashboardResponse update(
       DashboardRequestContext context, UpdateDashboardRequest request) throws Exception {
-    var userId = context.getOrgMemberContext().getUserId();
-    var dashboardId = context.getDashboardId();
-    var dashboardDtoOptional =
-        dashboardDao.get(context.getOrgMemberContext().getOrgId(), context.getDashboardId());
+    validator.validateUpdate(context, request);
+    return update(context.orgId(), currentUserProvider.userId(), context.dashboardId(), request);
+  }
+
+  private GetDashboardResponse update(
+      String orgId, String userId, String dashboardId, UpdateDashboardRequest request)
+      throws Exception {
+    var dashboardDtoOptional = dashboardDao.get(orgId, dashboardId);
     checkArgument(dashboardDtoOptional.isPresent(), ResourceNotFoundException::new);
     var dto = dashboardDtoOptional.get();
     var wasUpdated = false;
@@ -266,10 +237,10 @@ public class DashboardService
     }
     handleFav(userId, dashboardId, request.getIsFavorite());
     dashboardDao.save(dto);
-    return this.readAfterValidation(context);
+    return read(orgId, userId, dashboardId);
   }
 
-  public void handleFav(String userId, String dashboardId, Boolean isFavorite) throws Exception {
+  public void handleFav(String userId, String dashboardId, Boolean isFavorite) {
     if (isFavorite == null) {
       return;
     }
@@ -285,36 +256,25 @@ public class DashboardService
     }
   }
 
-  @Override
-  public void deleteAfterValidation(DashboardRequestContext context)
-      throws ResourceNotFoundException {
-    var orgId = context.getOrgMemberContext().getOrgId();
-    var dashboardId = context.getDashboardId();
+  public void delete(DashboardRequestContext context)
+      throws BadRequestException, UnAuthorizedException, ResourceNotFoundException {
+    validator.validateDelete(context);
+    delete(context.orgId(), context.dashboardId());
+  }
+
+  private void delete(String orgId, String dashboardId) throws ResourceNotFoundException {
     var dashboardDtoOptional = dashboardDao.get(orgId, dashboardId);
     checkArgument(dashboardDtoOptional.isPresent(), ResourceNotFoundException::new);
     dashboardDao.delete(dashboardId);
-    relationGraphDao.deleteEntity(EntityId.of(DASHBOARD, dashboardId));
   }
 
-  public List<GetDashboardResponse> listDashboards(String tempHeader) throws Exception {
-    var userId = tokenManager.getUserId(tempHeader);
-    var orgId = tokenManager.getOrgId(tempHeader);
+  public List<GetDashboardResponse> listDashboards(OrgRequestContext context) throws Exception {
+    validator.validateList(context);
+    var userId = currentUserProvider.userId();
+    var orgId = context.orgId();
     var dashboards = dashboardDao.getAll(orgId);
     var result =
         dashboards.stream()
-            .filter(
-                d -> {
-                  try {
-                    var canRead =
-                        relationGraphDao.isAnyPathBetween(
-                            EntityId.of(USER, userId),
-                            EntityId.of(DASHBOARD, d.getDashboardId()),
-                            PathWays.DASH_READ_PATH_WAY);
-                    return canRead;
-                  } catch (Exception e) {
-                    return false;
-                  }
-                })
             .map(
                 dashboardDdb -> {
                   var creator = userDetailsManager.getUserPersonalName(dashboardDdb.getCreator());
@@ -329,13 +289,12 @@ public class DashboardService
     return result;
   }
 
-  public org.okapi.web.dtos.dashboards.versions.ListDashboardVersionsResponse listVersions(
-      String tempToken, String dashboardId) throws Exception {
-    return dashboardVersionService.list(tempToken, dashboardId);
+  public ListDashboardVersionsResponse listVersions(DashboardRequestContext context) {
+    return dashboardVersionService.list(context.orgId(), context.dashboardId());
   }
 
-  public org.okapi.web.dtos.dashboards.versions.PublishDashboardVersionResponse publishVersion(
-      String tempToken, String dashboardId, String versionId) throws Exception {
-    return dashboardVersionService.publish(tempToken, dashboardId, versionId);
+  public PublishDashboardVersionResponse publishVersion(DashboardVersionRequestContext context) {
+    return dashboardVersionService.publish(
+        context.orgId(), context.dashboardId(), context.versionId());
   }
 }

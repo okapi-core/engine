@@ -9,6 +9,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.okapi.web.dtos.org.GetOrgSummaryResponse;
 
 @AllArgsConstructor
 @NoArgsConstructor
@@ -19,4 +20,5 @@ public class GetUserProfileResponse {
   String firstName;
   String lastName;
   @NotNull String email;
+  @NotNull GetOrgSummaryResponse orgSummary;
 }

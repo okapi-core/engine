@@ -8,10 +8,12 @@ import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.clickhouse.client.api.Client;
+import com.google.protobuf.ByteString;
 import io.opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceRequest;
 import io.opentelemetry.proto.common.v1.AnyValue;
 import io.opentelemetry.proto.common.v1.KeyValue;
 import io.opentelemetry.proto.metrics.v1.AggregationTemporality;
+import io.opentelemetry.proto.metrics.v1.Exemplar;
 import io.opentelemetry.proto.metrics.v1.Gauge;
 import io.opentelemetry.proto.metrics.v1.Histogram;
 import io.opentelemetry.proto.metrics.v1.HistogramDataPoint;
@@ -30,12 +32,16 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.okapi.bytes.OkapiBytes;
 import org.okapi.ch.CreateChTablesSpec;
 import org.okapi.logs.TestApplication;
 import org.okapi.metrics.ch.ChConstants;
 import org.okapi.metrics.pojos.AGG_TYPE;
 import org.okapi.metrics.pojos.RES_TYPE;
+import org.okapi.otelshorthand.OtelShortHands;
 import org.okapi.rest.TimeInterval;
+import org.okapi.rest.metrics.exemplar.GetExemplarsRequest;
+import org.okapi.rest.metrics.exemplar.GetExemplarsResponse;
 import org.okapi.rest.metrics.query.GaugeQueryConfig;
 import org.okapi.rest.metrics.query.GetMetricsRequest;
 import org.okapi.rest.metrics.query.GetMetricsResponse;
@@ -47,11 +53,13 @@ import org.okapi.rest.search.GetMetricsHintsResponse;
 import org.okapi.rest.search.GetTagHintsRequest;
 import org.okapi.rest.search.GetTagValueHintsRequest;
 import org.okapi.rest.search.MetricEventFilter;
-import org.okapi.traces.testutil.OtelShortHands;
+import org.okapi.rest.traces.TimestampFilter;
+import org.okapi.spring.configs.Profiles;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.TestPropertySource;
@@ -60,6 +68,7 @@ import org.springframework.web.client.RestClient;
 @SpringBootTest(
     classes = {TestApplication.class},
     webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@ActiveProfiles({Profiles.PROFILE_CH})
 @TestPropertySource(
     properties = {
       "okapi.clickhouse.userName=default",
@@ -103,6 +112,7 @@ public class MetricsIngestionIT {
     chClient.queryAll("TRUNCATE TABLE IF EXISTS " + ChConstants.TBL_GAUGES);
     chClient.queryAll("TRUNCATE TABLE IF EXISTS " + ChConstants.TBL_HISTOS);
     chClient.queryAll("TRUNCATE TABLE IF EXISTS " + ChConstants.TBL_SUM);
+    chClient.queryAll("TRUNCATE TABLE IF EXISTS " + ChConstants.TBL_EXEMPLAR);
     chClient.queryAll("TRUNCATE TABLE IF EXISTS " + ChConstants.TBL_METRIC_EVENTS_META);
   }
 
@@ -249,6 +259,72 @@ public class MetricsIngestionIT {
               GetMetricsResponse gaugeResp = postQuery(gaugeReq);
               assertNull(gaugeResp.getGaugeResponse());
             });
+  }
+
+  @Test
+  void exemplarCorpusIsPersistedAndQueryableAcrossMetricTypes() {
+    String gaugeMetric = "exemplar_corpus_gauge";
+    String sumMetric = "exemplar_corpus_sum";
+    String histoMetric = "exemplar_corpus_histo";
+    Map<String, String> labels = Map.of("env", "exemplar-test");
+    long nowMs = System.currentTimeMillis();
+    long startMs = nowMs - 60_000;
+    long endMs = nowMs + 5_000;
+
+    postOtel(
+        buildOtelGauge(
+            "exemplar-corpus",
+            gaugeMetric,
+            List.of(
+                numberPointWithExemplar(
+                    startMs, 1.0, labels, startMs, "0000000000000001", "0000000000000001"))));
+    postOtel(
+        buildOtelSum(
+            "exemplar-corpus",
+            sumMetric,
+            AggregationTemporality.AGGREGATION_TEMPORALITY_DELTA,
+            List.of(
+                sumPointWithExemplar(
+                    startMs,
+                    endMs,
+                    2.0,
+                    labels,
+                    endMs - 1_000,
+                    "0000000000000002",
+                    "0000000000000002"))));
+    postOtel(
+        buildOtelHistogram(
+            "exemplar-corpus",
+            histoMetric,
+            List.of(
+                histoPointWithExemplar(
+                    startMs,
+                    endMs,
+                    List.of(10.0, 20.0),
+                    List.of(1L, 2L, 1L),
+                    labels,
+                    endMs - 2_000,
+                    "0000000000000003",
+                    "0000000000000003"))));
+
+    await()
+        .atMost(10, TimeUnit.SECONDS)
+        .untilAsserted(
+            () -> {
+              var count =
+                  chClient
+                      .queryAll("SELECT count() AS exemplar_count FROM " + ChConstants.TBL_EXEMPLAR)
+                      .getFirst()
+                      .getLong("exemplar_count");
+              assertEquals(3L, count);
+            });
+
+    assertExemplarQuery(gaugeMetric, labels, startMs, endMs, "0000000000000001");
+    assertExemplarQuery(sumMetric, labels, startMs, endMs, "0000000000000002");
+    assertExemplarQuery(histoMetric, labels, startMs, endMs, "0000000000000003");
+
+    var outsideWindow = queryExemplars(gaugeMetric, labels, endMs, endMs + 10_000);
+    assertTrue(outsideWindow.getExemplars().isEmpty());
   }
 
   @Test
@@ -501,6 +577,35 @@ public class MetricsIngestionIT {
         .body(GetMetricsResponse.class);
   }
 
+  private void assertExemplarQuery(
+      String metric, Map<String, String> labels, long startMs, long endMs, String traceId) {
+    var response = queryExemplars(metric, labels, startMs, endMs);
+    assertEquals(1, response.getExemplars().size());
+    assertEquals(metric, response.getExemplars().getFirst().getMetric());
+    assertEquals(labels, response.getExemplars().getFirst().getTags());
+    assertEquals(traceId, response.getExemplars().getFirst().getTraceId());
+    assertEquals(traceId, response.getExemplars().getFirst().getSpanId());
+  }
+
+  private GetExemplarsResponse queryExemplars(
+      String metric, Map<String, String> labels, long startMs, long endMs) {
+    return restClient
+        .post()
+        .uri(baseUrl + "/api/v1/metrics/exemplars")
+        .body(
+            GetExemplarsRequest.builder()
+                .metric(metric)
+                .labels(labels)
+                .timeFilter(
+                    TimestampFilter.builder()
+                        .tsStartNanos(TimeUnit.MILLISECONDS.toNanos(startMs))
+                        .tsEndNanos(TimeUnit.MILLISECONDS.toNanos(endMs))
+                        .build())
+                .build())
+        .retrieve()
+        .body(GetExemplarsResponse.class);
+  }
+
   private ExportMetricsServiceRequest buildOtelGauge(
       String svc, String metricName, List<NumberDataPoint> points) {
     var gauge = Gauge.newBuilder().addAllDataPoints(points).build();
@@ -560,6 +665,31 @@ public class MetricsIngestionIT {
         .build();
   }
 
+  private NumberDataPoint numberPointWithExemplar(
+      long tsMs,
+      double value,
+      Map<String, String> tags,
+      long exemplarTsMs,
+      String traceId,
+      String spanId) {
+    return numberPointAt(tsMs, value, tags).toBuilder()
+        .addExemplars(exemplar(exemplarTsMs, value, traceId, spanId))
+        .build();
+  }
+
+  private NumberDataPoint sumPointWithExemplar(
+      long startMs,
+      long endMs,
+      double value,
+      Map<String, String> tags,
+      long exemplarTsMs,
+      String traceId,
+      String spanId) {
+    return sumPoint(startMs, endMs, value, tags).toBuilder()
+        .addExemplars(exemplar(exemplarTsMs, value, traceId, spanId))
+        .build();
+  }
+
   private HistogramDataPoint histoPoint(
       long startMs, long endMs, List<Double> bounds, List<Long> counts, Map<String, String> tags) {
     return HistogramDataPoint.newBuilder()
@@ -568,6 +698,29 @@ public class MetricsIngestionIT {
         .addAllExplicitBounds(bounds)
         .addAllBucketCounts(counts)
         .addAllAttributes(toKvList(tags))
+        .build();
+  }
+
+  private HistogramDataPoint histoPointWithExemplar(
+      long startMs,
+      long endMs,
+      List<Double> bounds,
+      List<Long> counts,
+      Map<String, String> tags,
+      long exemplarTsMs,
+      String traceId,
+      String spanId) {
+    return histoPoint(startMs, endMs, bounds, counts, tags).toBuilder()
+        .addExemplars(exemplar(exemplarTsMs, 10.0, traceId, spanId))
+        .build();
+  }
+
+  private Exemplar exemplar(long tsMs, double value, String traceId, String spanId) {
+    return Exemplar.newBuilder()
+        .setTimeUnixNano(TimeUnit.MILLISECONDS.toNanos(tsMs))
+        .setAsDouble(value)
+        .setTraceId(ByteString.copyFrom(OkapiBytes.decodeHex(traceId)))
+        .setSpanId(ByteString.copyFrom(OkapiBytes.decodeHex(spanId)))
         .build();
   }
 

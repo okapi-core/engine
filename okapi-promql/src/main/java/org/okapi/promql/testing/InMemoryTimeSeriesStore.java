@@ -4,6 +4,13 @@
  */
 package org.okapi.promql.testing;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.regex.Pattern;
 import org.okapi.metrics.pojos.results.GaugeScan;
 import org.okapi.metrics.pojos.results.Scan;
 import org.okapi.promql.eval.HistogramSeries;
@@ -19,14 +26,6 @@ import org.okapi.promql.eval.ts.TsClient;
 import org.okapi.promql.parse.LabelMatcher;
 import org.okapi.promql.testing.PromQlTestAst.*;
 import org.okapi.promql.testing.PromQlTestIngestor.IngestedSeries;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
-import java.util.regex.Pattern;
 
 /**
  * In-memory storage layer for the PromQL test evaluator. Wraps {@link InMemoryPromQlTestIngestor}
@@ -52,7 +51,8 @@ final class InMemoryTimeSeriesStore {
 
   private final class StoreTsClient implements TsClient {
     @Override
-    public Scan get(String name, Map<String, String> tags, RESOLUTION res, long startMs, long endMs) {
+    public Scan get(
+        String name, Map<String, String> tags, RESOLUTION res, long startMs, long endMs) {
       List<IngestedSeries> matches = new ArrayList<>();
       for (IngestedSeries series : ingestor.series()) {
         SeriesId id = normalize(series);
@@ -60,11 +60,16 @@ final class InMemoryTimeSeriesStore {
         if (!id.labels().tags().equals(tags)) continue;
         matches.add(series);
       }
-      if (matches.stream().anyMatch(s -> s.metricType() == TestMetricClassifier.MetricType.HISTOGRAM)) {
+      if (matches.stream()
+          .anyMatch(s -> s.metricType() == TestMetricClassifier.MetricType.HISTOGRAM)) {
         return buildHistogramSeries(matches, startMs, endMs);
       }
       if (!matches.isEmpty()) return buildGaugeScan(matches, startMs, endMs);
-      return GaugeScan.builder().universalPath(name).timestamps(List.of()).values(List.of()).build();
+      return GaugeScan.builder()
+          .universalPath(name)
+          .timestamps(List.of())
+          .values(List.of())
+          .build();
     }
 
     private GaugeScan buildGaugeScan(List<IngestedSeries> fragments, long startMs, long endMs) {
@@ -112,15 +117,19 @@ final class InMemoryTimeSeriesStore {
       switch (point) {
         case NumberPoint np -> out.add((float) np.value());
         case NaNPoint ignored -> out.add(Float.NaN);
-        case InfPoint ip -> out.add(ip.negative() ? Float.NEGATIVE_INFINITY : Float.POSITIVE_INFINITY);
+        case InfPoint ip ->
+            out.add(ip.negative() ? Float.NEGATIVE_INFINITY : Float.POSITIVE_INFINITY);
         case MissingPoint ignored -> out.add(null);
         case StalePoint ignored -> out.add(Staleness.staleFloat());
-        case RepeatPoint rp -> { for (int i = 0; i <= rp.count(); i++) expandIngestedPoint(rp.value(), out); }
+        case RepeatPoint rp -> {
+          for (int i = 0; i <= rp.count(); i++) expandIngestedPoint(rp.value(), out);
+        }
         case StepSequencePoint sp -> {
           double start = extractNumber(sp.start()), delta = extractNumber(sp.step());
           for (int i = 0; i <= sp.count(); i++) out.add((float) (start + delta * i));
         }
-        case HistogramPoint ignored -> throw new IllegalStateException("histogram point in gauge expansion");
+        case HistogramPoint ignored ->
+            throw new IllegalStateException("histogram point in gauge expansion");
       }
     }
 
@@ -138,16 +147,21 @@ final class InMemoryTimeSeriesStore {
         case InfPoint ip -> out.add(ip);
         case MissingPoint mp -> out.add(null);
         case StalePoint st -> out.add(st);
-        case RepeatPoint rp -> { for (int i = 0; i <= rp.count(); i++) expandSeriesPoint(rp.value(), out); }
+        case RepeatPoint rp -> {
+          for (int i = 0; i <= rp.count(); i++) expandSeriesPoint(rp.value(), out);
+        }
         case StepSequencePoint sp -> {
-          if (sp.start() instanceof HistogramPoint start && sp.step() instanceof HistogramPoint delta) {
+          if (sp.start() instanceof HistogramPoint start
+              && sp.step() instanceof HistogramPoint delta) {
             if (!hasHistogramStructure(start.value()) && !hasHistogramStructure(delta.value())) {
               float startSum = histogramField(start.value(), "sum");
               float startCount = histogramField(start.value(), "count");
               float dSum = histogramField(delta.value(), "sum");
               float dCount = histogramField(delta.value(), "count");
               for (int i = 0; i <= sp.count(); i++) {
-                out.add(new HistogramPoint(buildHistogramLiteral(startSum + dSum * i, startCount + dCount * i)));
+                out.add(
+                    new HistogramPoint(
+                        buildHistogramLiteral(startSum + dSum * i, startCount + dCount * i)));
               }
               break;
             }
@@ -157,11 +171,13 @@ final class InMemoryTimeSeriesStore {
               out.add(new HistogramPoint(toHistogramLiteral(current)));
               current = (NativeHistogramSample) HistogramSeries.add(current, increment);
             }
-          } else if (sp.start() instanceof NumberPoint start && sp.step() instanceof NumberPoint delta) {
+          } else if (sp.start() instanceof NumberPoint start
+              && sp.step() instanceof NumberPoint delta) {
             for (int i = 0; i <= sp.count(); i++)
               out.add(new NumberPoint(start.value() + delta.value() * i));
           } else {
-            throw new IllegalStateException("step sequence: start and step must have the same sample type");
+            throw new IllegalStateException(
+                "step sequence: start and step must have the same sample type");
           }
         }
       }
@@ -173,7 +189,8 @@ final class InMemoryTimeSeriesStore {
         case NumberPoint np -> new FloatSample(ts, ts, (float) np.value());
         case NaNPoint ignored -> new FloatSample(ts, ts, Float.NaN);
         case InfPoint ip ->
-            new FloatSample(ts, ts, ip.negative() ? Float.NEGATIVE_INFINITY : Float.POSITIVE_INFINITY);
+            new FloatSample(
+                ts, ts, ip.negative() ? Float.NEGATIVE_INFINITY : Float.POSITIVE_INFINITY);
         case StalePoint ignored -> new FloatSample(ts, ts, Staleness.staleFloat());
         default -> throw new IllegalStateException("unexpected expanded series point: " + point);
       };
@@ -184,7 +201,8 @@ final class InMemoryTimeSeriesStore {
 
   private final class StoreDiscovery implements SeriesDiscovery {
     @Override
-    public List<SeriesId> expand(String metricOrNull, List<LabelMatcher> matchers, long start, long end) {
+    public List<SeriesId> expand(
+        String metricOrNull, List<LabelMatcher> matchers, long start, long end) {
       var results = new LinkedHashSet<SeriesId>();
       for (IngestedSeries series : ingestor.series()) {
         SeriesId id = normalize(series);
@@ -203,9 +221,9 @@ final class InMemoryTimeSeriesStore {
       String actual = "__name__".equals(m.name()) ? id.metric() : id.labels().tags().get(m.name());
       if (actual == null) actual = "";
       return switch (m.op()) {
-        case EQ  -> actual.equals(m.value());
-        case NE  -> !actual.equals(m.value());
-        case RE  -> Pattern.compile(m.value()).matcher(actual).matches();
+        case EQ -> actual.equals(m.value());
+        case NE -> !actual.equals(m.value());
+        case RE -> Pattern.compile(m.value()).matcher(actual).matches();
         case NRE -> !Pattern.compile(m.value()).matcher(actual).matches();
       };
     }

@@ -1,0 +1,1469 @@
+{
+  "seed": 42,
+  "timeWindowMs": 300000,
+  "gaugeSamplingRate": 1.0,
+  "sumHistogramIntervalMs": 10000,
+  "kafkaCluster": "astro-kafka",
+  "kafkaBrokers": [
+    "broker-1",
+    "broker-2"
+  ],
+  "defaultHistogramBounds": [
+    1.0,
+    2.0,
+    5.0,
+    10.0,
+    25.0,
+    50.0,
+    100.0,
+    200.0,
+    500.0,
+    1000.0,
+    2000.0,
+    5000.0
+  ],
+  "hostMetrics": [
+    {
+      "name": "system.cpu.utilization",
+      "type": "GAUGE",
+      "exemplarProbability": 0.1,
+      "unit": "1",
+      "distribution": {
+        "type": "BETA",
+        "alpha": 2.5,
+        "beta": 5.0,
+        "min": 0.0,
+        "max": 1.0
+      },
+      "tags": {
+        "host.name": "node-1"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "system.memory.utilization",
+      "type": "GAUGE",
+      "exemplarProbability": 0.1,
+      "unit": "1",
+      "distribution": {
+        "type": "BETA",
+        "alpha": 3.0,
+        "beta": 3.5,
+        "min": 0.0,
+        "max": 1.0
+      },
+      "tags": {
+        "host.name": "node-1"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "system.memory.usage",
+      "type": "GAUGE",
+      "exemplarProbability": 0.1,
+      "unit": "By",
+      "distribution": {
+        "type": "LOG_NORMAL",
+        "mu": 20.2,
+        "sigma": 0.45
+      },
+      "tags": {
+        "host.name": "node-1"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "system.disk.utilization",
+      "type": "GAUGE",
+      "exemplarProbability": 0.1,
+      "unit": "1",
+      "distribution": {
+        "type": "BETA",
+        "alpha": 2.2,
+        "beta": 3.8,
+        "min": 0.0,
+        "max": 1.0
+      },
+      "tags": {
+        "host.name": "node-1"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "system.network.io",
+      "type": "GAUGE",
+      "exemplarProbability": 0.1,
+      "unit": "By/s",
+      "distribution": {
+        "type": "LOG_NORMAL",
+        "mu": 13.0,
+        "sigma": 0.8
+      },
+      "tags": {
+        "host.name": "node-1"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "system.cpu.utilization",
+      "type": "GAUGE",
+      "exemplarProbability": 0.1,
+      "unit": "1",
+      "distribution": {
+        "type": "BETA",
+        "alpha": 2.5,
+        "beta": 5.0,
+        "min": 0.0,
+        "max": 1.0
+      },
+      "tags": {
+        "host.name": "node-2"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "system.memory.utilization",
+      "type": "GAUGE",
+      "exemplarProbability": 0.1,
+      "unit": "1",
+      "distribution": {
+        "type": "BETA",
+        "alpha": 3.0,
+        "beta": 3.5,
+        "min": 0.0,
+        "max": 1.0
+      },
+      "tags": {
+        "host.name": "node-2"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "system.memory.usage",
+      "type": "GAUGE",
+      "exemplarProbability": 0.1,
+      "unit": "By",
+      "distribution": {
+        "type": "LOG_NORMAL",
+        "mu": 20.2,
+        "sigma": 0.45
+      },
+      "tags": {
+        "host.name": "node-2"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "system.disk.utilization",
+      "type": "GAUGE",
+      "exemplarProbability": 0.1,
+      "unit": "1",
+      "distribution": {
+        "type": "BETA",
+        "alpha": 2.2,
+        "beta": 3.8,
+        "min": 0.0,
+        "max": 1.0
+      },
+      "tags": {
+        "host.name": "node-2"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "system.network.io",
+      "type": "GAUGE",
+      "exemplarProbability": 0.1,
+      "unit": "By/s",
+      "distribution": {
+        "type": "LOG_NORMAL",
+        "mu": 13.0,
+        "sigma": 0.8
+      },
+      "tags": {
+        "host.name": "node-2"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "system.cpu.utilization",
+      "type": "GAUGE",
+      "exemplarProbability": 0.1,
+      "unit": "1",
+      "distribution": {
+        "type": "BETA",
+        "alpha": 2.5,
+        "beta": 5.0,
+        "min": 0.0,
+        "max": 1.0
+      },
+      "tags": {
+        "host.name": "node-3"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "system.memory.utilization",
+      "type": "GAUGE",
+      "exemplarProbability": 0.1,
+      "unit": "1",
+      "distribution": {
+        "type": "BETA",
+        "alpha": 3.0,
+        "beta": 3.5,
+        "min": 0.0,
+        "max": 1.0
+      },
+      "tags": {
+        "host.name": "node-3"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "system.memory.usage",
+      "type": "GAUGE",
+      "exemplarProbability": 0.1,
+      "unit": "By",
+      "distribution": {
+        "type": "LOG_NORMAL",
+        "mu": 20.2,
+        "sigma": 0.45
+      },
+      "tags": {
+        "host.name": "node-3"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "system.disk.utilization",
+      "type": "GAUGE",
+      "exemplarProbability": 0.1,
+      "unit": "1",
+      "distribution": {
+        "type": "BETA",
+        "alpha": 2.2,
+        "beta": 3.8,
+        "min": 0.0,
+        "max": 1.0
+      },
+      "tags": {
+        "host.name": "node-3"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "system.network.io",
+      "type": "GAUGE",
+      "exemplarProbability": 0.1,
+      "unit": "By/s",
+      "distribution": {
+        "type": "LOG_NORMAL",
+        "mu": 13.0,
+        "sigma": 0.8
+      },
+      "tags": {
+        "host.name": "node-3"
+      },
+      "histogramBounds": []
+    }
+  ],
+  "kafkaMetrics": [
+    {
+      "name": "kafka.consumer.lag",
+      "type": "GAUGE",
+      "exemplarProbability": 0.1,
+      "unit": "records",
+      "distribution": {
+        "type": "LOG_NORMAL",
+        "mu": 4.0,
+        "sigma": 1.1,
+        "min": 0.0,
+        "max": 1000000.0
+      },
+      "tags": {},
+      "histogramBounds": []
+    },
+    {
+      "name": "kafka.controller.active_count",
+      "type": "GAUGE",
+      "exemplarProbability": 0.1,
+      "unit": "1",
+      "distribution": {
+        "type": "BERNOULLI",
+        "p": 0.98
+      },
+      "tags": {},
+      "histogramBounds": []
+    },
+    {
+      "name": "kafka.partition.offline",
+      "type": "GAUGE",
+      "exemplarProbability": 0.1,
+      "unit": "partitions",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 0.05
+      },
+      "tags": {},
+      "histogramBounds": []
+    },
+    {
+      "name": "kafka.request.count",
+      "type": "SUM",
+      "unit": "requests",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 120.0
+      },
+      "tags": {},
+      "histogramBounds": []
+    },
+    {
+      "name": "kafka.message.bytes",
+      "type": "SUM",
+      "unit": "By",
+      "distribution": {
+        "type": "LOGNORMAL_X_POISSON",
+        "mu": 16.0,
+        "sigma": 0.9,
+        "mean": 80.0
+      },
+      "tags": {},
+      "histogramBounds": []
+    },
+    {
+      "name": "kafka.network.io",
+      "type": "SUM",
+      "unit": "By",
+      "distribution": {
+        "type": "LOG_NORMAL",
+        "mu": 16.5,
+        "sigma": 0.9
+      },
+      "tags": {},
+      "histogramBounds": []
+    },
+    {
+      "name": "kafka.request.latency",
+      "type": "HISTO",
+      "unit": "ms",
+      "distribution": {
+        "type": "LOG_NORMAL",
+        "mu": 3.6,
+        "sigma": 0.55
+      },
+      "tags": {},
+      "histogramBounds": [],
+      "histogramCountMean": 60.0
+    }
+  ],
+  "spanMetrics": [
+    {
+      "name": "spanmetrics.calls",
+      "type": "SUM",
+      "unit": "1",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 40.0
+      },
+      "tags": {
+        "span.name": "frontend/purchase"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "spanmetrics.errors",
+      "type": "SUM",
+      "unit": "1",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 0.8
+      },
+      "tags": {
+        "span.name": "frontend/purchase"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "spanmetrics.duration",
+      "type": "HISTO",
+      "unit": "ms",
+      "distribution": {
+        "type": "LOG_NORMAL",
+        "mu": 5.3,
+        "sigma": 0.5
+      },
+      "tags": {
+        "span.name": "frontend/purchase"
+      },
+      "histogramBounds": [],
+      "histogramCountMean": 40.0
+    },
+    {
+      "name": "spanmetrics.calls",
+      "type": "SUM",
+      "unit": "1",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 80.0
+      },
+      "tags": {
+        "span.name": "frontend/home"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "spanmetrics.errors",
+      "type": "SUM",
+      "unit": "1",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 0.8
+      },
+      "tags": {
+        "span.name": "frontend/home"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "spanmetrics.duration",
+      "type": "HISTO",
+      "unit": "ms",
+      "distribution": {
+        "type": "LOG_NORMAL",
+        "mu": 4.2,
+        "sigma": 0.45
+      },
+      "tags": {
+        "span.name": "frontend/home"
+      },
+      "histogramBounds": [],
+      "histogramCountMean": 80.0
+    },
+    {
+      "name": "spanmetrics.calls",
+      "type": "SUM",
+      "unit": "1",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 90.0
+      },
+      "tags": {
+        "span.name": "frontend/search"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "spanmetrics.errors",
+      "type": "SUM",
+      "unit": "1",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 1.3499999999999999
+      },
+      "tags": {
+        "span.name": "frontend/search"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "spanmetrics.duration",
+      "type": "HISTO",
+      "unit": "ms",
+      "distribution": {
+        "type": "LOG_NORMAL",
+        "mu": 4.6,
+        "sigma": 0.5
+      },
+      "tags": {
+        "span.name": "frontend/search"
+      },
+      "histogramBounds": [],
+      "histogramCountMean": 90.0
+    },
+    {
+      "name": "spanmetrics.calls",
+      "type": "SUM",
+      "unit": "1",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 120.0
+      },
+      "tags": {
+        "span.name": "catalog/search"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "spanmetrics.errors",
+      "type": "SUM",
+      "unit": "1",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 1.2
+      },
+      "tags": {
+        "span.name": "catalog/search"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "spanmetrics.duration",
+      "type": "HISTO",
+      "unit": "ms",
+      "distribution": {
+        "type": "LOG_NORMAL",
+        "mu": 4.5,
+        "sigma": 0.45
+      },
+      "tags": {
+        "span.name": "catalog/search"
+      },
+      "histogramBounds": [],
+      "histogramCountMean": 120.0
+    },
+    {
+      "name": "spanmetrics.calls",
+      "type": "SUM",
+      "unit": "1",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 90.0
+      },
+      "tags": {
+        "span.name": "catalog/product-details"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "spanmetrics.errors",
+      "type": "SUM",
+      "unit": "1",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 0.9
+      },
+      "tags": {
+        "span.name": "catalog/product-details"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "spanmetrics.duration",
+      "type": "HISTO",
+      "unit": "ms",
+      "distribution": {
+        "type": "LOG_NORMAL",
+        "mu": 4.6,
+        "sigma": 0.45
+      },
+      "tags": {
+        "span.name": "catalog/product-details"
+      },
+      "histogramBounds": [],
+      "histogramCountMean": 90.0
+    },
+    {
+      "name": "spanmetrics.calls",
+      "type": "SUM",
+      "unit": "1",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 60.0
+      },
+      "tags": {
+        "span.name": "catalog/recommendations"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "spanmetrics.errors",
+      "type": "SUM",
+      "unit": "1",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 1.2
+      },
+      "tags": {
+        "span.name": "catalog/recommendations"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "spanmetrics.duration",
+      "type": "HISTO",
+      "unit": "ms",
+      "distribution": {
+        "type": "LOG_NORMAL",
+        "mu": 4.8,
+        "sigma": 0.5
+      },
+      "tags": {
+        "span.name": "catalog/recommendations"
+      },
+      "histogramBounds": [],
+      "histogramCountMean": 60.0
+    },
+    {
+      "name": "spanmetrics.calls",
+      "type": "SUM",
+      "unit": "1",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 70.0
+      },
+      "tags": {
+        "span.name": "cart/add"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "spanmetrics.errors",
+      "type": "SUM",
+      "unit": "1",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 1.05
+      },
+      "tags": {
+        "span.name": "cart/add"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "spanmetrics.duration",
+      "type": "HISTO",
+      "unit": "ms",
+      "distribution": {
+        "type": "LOG_NORMAL",
+        "mu": 4.7,
+        "sigma": 0.5
+      },
+      "tags": {
+        "span.name": "cart/add"
+      },
+      "histogramBounds": [],
+      "histogramCountMean": 70.0
+    },
+    {
+      "name": "spanmetrics.calls",
+      "type": "SUM",
+      "unit": "1",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 40.0
+      },
+      "tags": {
+        "span.name": "cart/remove"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "spanmetrics.errors",
+      "type": "SUM",
+      "unit": "1",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 0.4
+      },
+      "tags": {
+        "span.name": "cart/remove"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "spanmetrics.duration",
+      "type": "HISTO",
+      "unit": "ms",
+      "distribution": {
+        "type": "LOG_NORMAL",
+        "mu": 4.4,
+        "sigma": 0.45
+      },
+      "tags": {
+        "span.name": "cart/remove"
+      },
+      "histogramBounds": [],
+      "histogramCountMean": 40.0
+    },
+    {
+      "name": "spanmetrics.calls",
+      "type": "SUM",
+      "unit": "1",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 35.0
+      },
+      "tags": {
+        "span.name": "cart/checkout"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "spanmetrics.errors",
+      "type": "SUM",
+      "unit": "1",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 0.7000000000000001
+      },
+      "tags": {
+        "span.name": "cart/checkout"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "spanmetrics.duration",
+      "type": "HISTO",
+      "unit": "ms",
+      "distribution": {
+        "type": "LOG_NORMAL",
+        "mu": 4.9,
+        "sigma": 0.55
+      },
+      "tags": {
+        "span.name": "cart/checkout"
+      },
+      "histogramBounds": [],
+      "histogramCountMean": 35.0
+    },
+    {
+      "name": "spanmetrics.calls",
+      "type": "SUM",
+      "unit": "1",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 35.0
+      },
+      "tags": {
+        "span.name": "checkout/complete"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "spanmetrics.errors",
+      "type": "SUM",
+      "unit": "1",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 1.05
+      },
+      "tags": {
+        "span.name": "checkout/complete"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "spanmetrics.duration",
+      "type": "HISTO",
+      "unit": "ms",
+      "distribution": {
+        "type": "LOG_NORMAL",
+        "mu": 5.1,
+        "sigma": 0.55
+      },
+      "tags": {
+        "span.name": "checkout/complete"
+      },
+      "histogramBounds": [],
+      "histogramCountMean": 35.0
+    },
+    {
+      "name": "spanmetrics.calls",
+      "type": "SUM",
+      "unit": "1",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 55.0
+      },
+      "tags": {
+        "span.name": "checkout/price"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "spanmetrics.errors",
+      "type": "SUM",
+      "unit": "1",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 0.825
+      },
+      "tags": {
+        "span.name": "checkout/price"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "spanmetrics.duration",
+      "type": "HISTO",
+      "unit": "ms",
+      "distribution": {
+        "type": "LOG_NORMAL",
+        "mu": 4.7,
+        "sigma": 0.5
+      },
+      "tags": {
+        "span.name": "checkout/price"
+      },
+      "histogramBounds": [],
+      "histogramCountMean": 55.0
+    },
+    {
+      "name": "spanmetrics.calls",
+      "type": "SUM",
+      "unit": "1",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 40.0
+      },
+      "tags": {
+        "span.name": "checkout/shipping"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "spanmetrics.errors",
+      "type": "SUM",
+      "unit": "1",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 0.8
+      },
+      "tags": {
+        "span.name": "checkout/shipping"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "spanmetrics.duration",
+      "type": "HISTO",
+      "unit": "ms",
+      "distribution": {
+        "type": "LOG_NORMAL",
+        "mu": 4.8,
+        "sigma": 0.5
+      },
+      "tags": {
+        "span.name": "checkout/shipping"
+      },
+      "histogramBounds": [],
+      "histogramCountMean": 40.0
+    },
+    {
+      "name": "spanmetrics.calls",
+      "type": "SUM",
+      "unit": "1",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 30.0
+      },
+      "tags": {
+        "span.name": "payment/authorize"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "spanmetrics.errors",
+      "type": "SUM",
+      "unit": "1",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 1.5
+      },
+      "tags": {
+        "span.name": "payment/authorize"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "spanmetrics.duration",
+      "type": "HISTO",
+      "unit": "ms",
+      "distribution": {
+        "type": "LOG_NORMAL",
+        "mu": 5.0,
+        "sigma": 0.6
+      },
+      "tags": {
+        "span.name": "payment/authorize"
+      },
+      "histogramBounds": [],
+      "histogramCountMean": 30.0
+    },
+    {
+      "name": "spanmetrics.calls",
+      "type": "SUM",
+      "unit": "1",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 25.0
+      },
+      "tags": {
+        "span.name": "payment/capture"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "spanmetrics.errors",
+      "type": "SUM",
+      "unit": "1",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 1.0
+      },
+      "tags": {
+        "span.name": "payment/capture"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "spanmetrics.duration",
+      "type": "HISTO",
+      "unit": "ms",
+      "distribution": {
+        "type": "LOG_NORMAL",
+        "mu": 5.1,
+        "sigma": 0.6
+      },
+      "tags": {
+        "span.name": "payment/capture"
+      },
+      "histogramBounds": [],
+      "histogramCountMean": 25.0
+    },
+    {
+      "name": "spanmetrics.calls",
+      "type": "SUM",
+      "unit": "1",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 10.0
+      },
+      "tags": {
+        "span.name": "payment/refund"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "spanmetrics.errors",
+      "type": "SUM",
+      "unit": "1",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 0.3
+      },
+      "tags": {
+        "span.name": "payment/refund"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "spanmetrics.duration",
+      "type": "HISTO",
+      "unit": "ms",
+      "distribution": {
+        "type": "LOG_NORMAL",
+        "mu": 5.2,
+        "sigma": 0.65
+      },
+      "tags": {
+        "span.name": "payment/refund"
+      },
+      "histogramBounds": [],
+      "histogramCountMean": 10.0
+    },
+    {
+      "name": "spanmetrics.calls",
+      "type": "SUM",
+      "unit": "1",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 30.0
+      },
+      "tags": {
+        "span.name": "payment-gateway/charge"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "spanmetrics.errors",
+      "type": "SUM",
+      "unit": "1",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 1.7999999999999998
+      },
+      "tags": {
+        "span.name": "payment-gateway/charge"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "spanmetrics.duration",
+      "type": "HISTO",
+      "unit": "ms",
+      "distribution": {
+        "type": "LOG_NORMAL",
+        "mu": 5.2,
+        "sigma": 0.65
+      },
+      "tags": {
+        "span.name": "payment-gateway/charge"
+      },
+      "histogramBounds": [],
+      "histogramCountMean": 30.0
+    },
+    {
+      "name": "spanmetrics.calls",
+      "type": "SUM",
+      "unit": "1",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 12.0
+      },
+      "tags": {
+        "span.name": "payment-gateway/refund"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "spanmetrics.errors",
+      "type": "SUM",
+      "unit": "1",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 0.6000000000000001
+      },
+      "tags": {
+        "span.name": "payment-gateway/refund"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "spanmetrics.duration",
+      "type": "HISTO",
+      "unit": "ms",
+      "distribution": {
+        "type": "LOG_NORMAL",
+        "mu": 5.3,
+        "sigma": 0.7
+      },
+      "tags": {
+        "span.name": "payment-gateway/refund"
+      },
+      "histogramBounds": [],
+      "histogramCountMean": 12.0
+    },
+    {
+      "name": "spanmetrics.calls",
+      "type": "SUM",
+      "unit": "1",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 40.0
+      },
+      "tags": {
+        "span.name": "inventory/reserve"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "spanmetrics.errors",
+      "type": "SUM",
+      "unit": "1",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 1.2
+      },
+      "tags": {
+        "span.name": "inventory/reserve"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "spanmetrics.duration",
+      "type": "HISTO",
+      "unit": "ms",
+      "distribution": {
+        "type": "LOG_NORMAL",
+        "mu": 4.9,
+        "sigma": 0.55
+      },
+      "tags": {
+        "span.name": "inventory/reserve"
+      },
+      "histogramBounds": [],
+      "histogramCountMean": 40.0
+    },
+    {
+      "name": "spanmetrics.calls",
+      "type": "SUM",
+      "unit": "1",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 30.0
+      },
+      "tags": {
+        "span.name": "inventory/release"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "spanmetrics.errors",
+      "type": "SUM",
+      "unit": "1",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 0.6
+      },
+      "tags": {
+        "span.name": "inventory/release"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "spanmetrics.duration",
+      "type": "HISTO",
+      "unit": "ms",
+      "distribution": {
+        "type": "LOG_NORMAL",
+        "mu": 4.6,
+        "sigma": 0.5
+      },
+      "tags": {
+        "span.name": "inventory/release"
+      },
+      "histogramBounds": [],
+      "histogramCountMean": 30.0
+    },
+    {
+      "name": "spanmetrics.calls",
+      "type": "SUM",
+      "unit": "1",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 50.0
+      },
+      "tags": {
+        "span.name": "inventory/check"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "spanmetrics.errors",
+      "type": "SUM",
+      "unit": "1",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 0.75
+      },
+      "tags": {
+        "span.name": "inventory/check"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "spanmetrics.duration",
+      "type": "HISTO",
+      "unit": "ms",
+      "distribution": {
+        "type": "LOG_NORMAL",
+        "mu": 4.5,
+        "sigma": 0.45
+      },
+      "tags": {
+        "span.name": "inventory/check"
+      },
+      "histogramBounds": [],
+      "histogramCountMean": 50.0
+    },
+    {
+      "name": "spanmetrics.calls",
+      "type": "SUM",
+      "unit": "1",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 30.0
+      },
+      "tags": {
+        "span.name": "shipping/quote"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "spanmetrics.errors",
+      "type": "SUM",
+      "unit": "1",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 0.6
+      },
+      "tags": {
+        "span.name": "shipping/quote"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "spanmetrics.duration",
+      "type": "HISTO",
+      "unit": "ms",
+      "distribution": {
+        "type": "LOG_NORMAL",
+        "mu": 4.8,
+        "sigma": 0.5
+      },
+      "tags": {
+        "span.name": "shipping/quote"
+      },
+      "histogramBounds": [],
+      "histogramCountMean": 30.0
+    },
+    {
+      "name": "spanmetrics.calls",
+      "type": "SUM",
+      "unit": "1",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 20.0
+      },
+      "tags": {
+        "span.name": "shipping/create-label"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "spanmetrics.errors",
+      "type": "SUM",
+      "unit": "1",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 0.4
+      },
+      "tags": {
+        "span.name": "shipping/create-label"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "spanmetrics.duration",
+      "type": "HISTO",
+      "unit": "ms",
+      "distribution": {
+        "type": "LOG_NORMAL",
+        "mu": 5.0,
+        "sigma": 0.55
+      },
+      "tags": {
+        "span.name": "shipping/create-label"
+      },
+      "histogramBounds": [],
+      "histogramCountMean": 20.0
+    },
+    {
+      "name": "spanmetrics.calls",
+      "type": "SUM",
+      "unit": "1",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 25.0
+      },
+      "tags": {
+        "span.name": "shipping/track"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "spanmetrics.errors",
+      "type": "SUM",
+      "unit": "1",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 0.375
+      },
+      "tags": {
+        "span.name": "shipping/track"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "spanmetrics.duration",
+      "type": "HISTO",
+      "unit": "ms",
+      "distribution": {
+        "type": "LOG_NORMAL",
+        "mu": 4.6,
+        "sigma": 0.45
+      },
+      "tags": {
+        "span.name": "shipping/track"
+      },
+      "histogramBounds": [],
+      "histogramCountMean": 25.0
+    },
+    {
+      "name": "spanmetrics.calls",
+      "type": "SUM",
+      "unit": "1",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 35.0
+      },
+      "tags": {
+        "span.name": "orders-db/write"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "spanmetrics.errors",
+      "type": "SUM",
+      "unit": "1",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 0.7000000000000001
+      },
+      "tags": {
+        "span.name": "orders-db/write"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "spanmetrics.duration",
+      "type": "HISTO",
+      "unit": "ms",
+      "distribution": {
+        "type": "LOG_NORMAL",
+        "mu": 4.7,
+        "sigma": 0.6
+      },
+      "tags": {
+        "span.name": "orders-db/write"
+      },
+      "histogramBounds": [],
+      "histogramCountMean": 35.0
+    },
+    {
+      "name": "spanmetrics.calls",
+      "type": "SUM",
+      "unit": "1",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 80.0
+      },
+      "tags": {
+        "span.name": "orders-db/read"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "spanmetrics.errors",
+      "type": "SUM",
+      "unit": "1",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 0.8
+      },
+      "tags": {
+        "span.name": "orders-db/read"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "spanmetrics.duration",
+      "type": "HISTO",
+      "unit": "ms",
+      "distribution": {
+        "type": "LOG_NORMAL",
+        "mu": 4.2,
+        "sigma": 0.45
+      },
+      "tags": {
+        "span.name": "orders-db/read"
+      },
+      "histogramBounds": [],
+      "histogramCountMean": 80.0
+    },
+    {
+      "name": "spanmetrics.calls",
+      "type": "SUM",
+      "unit": "1",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 25.0
+      },
+      "tags": {
+        "span.name": "notification/send-confirmation"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "spanmetrics.errors",
+      "type": "SUM",
+      "unit": "1",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 0.25
+      },
+      "tags": {
+        "span.name": "notification/send-confirmation"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "spanmetrics.duration",
+      "type": "HISTO",
+      "unit": "ms",
+      "distribution": {
+        "type": "LOG_NORMAL",
+        "mu": 4.3,
+        "sigma": 0.5
+      },
+      "tags": {
+        "span.name": "notification/send-confirmation"
+      },
+      "histogramBounds": [],
+      "histogramCountMean": 25.0
+    },
+    {
+      "name": "spanmetrics.calls",
+      "type": "SUM",
+      "unit": "1",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 20.0
+      },
+      "tags": {
+        "span.name": "notification/send-shipping"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "spanmetrics.errors",
+      "type": "SUM",
+      "unit": "1",
+      "distribution": {
+        "type": "POISSON",
+        "mean": 0.2
+      },
+      "tags": {
+        "span.name": "notification/send-shipping"
+      },
+      "histogramBounds": []
+    },
+    {
+      "name": "spanmetrics.duration",
+      "type": "HISTO",
+      "unit": "ms",
+      "distribution": {
+        "type": "LOG_NORMAL",
+        "mu": 4.2,
+        "sigma": 0.45
+      },
+      "tags": {
+        "span.name": "notification/send-shipping"
+      },
+      "histogramBounds": [],
+      "histogramCountMean": 20.0
+    }
+  ]
+}

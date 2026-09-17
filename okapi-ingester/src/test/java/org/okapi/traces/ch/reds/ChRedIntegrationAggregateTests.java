@@ -11,11 +11,13 @@ import com.clickhouse.client.api.Client;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import io.opentelemetry.proto.trace.v1.Status;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.TestInstance.Lifecycle;
 import org.okapi.ch.CreateChTablesSpec;
 import org.okapi.chtest.ChTestOnlyUtils;
 import org.okapi.metrics.ch.ChConstants;
@@ -27,12 +29,12 @@ import org.okapi.rest.traces.red.ServiceRedResponse;
 import org.okapi.testmodules.guice.TestChTracesModule;
 import org.okapi.timeutils.TimeUtils;
 import org.okapi.traces.OtelTestFactory;
-import org.okapi.traces.ch.ChTracesIngester;
 import org.okapi.traces.ch.ChTracesWalConsumerDriver;
+import org.okapi.traces.core.FakeTracesEventEmitter;
+import org.okapi.traces.core.TracesEvent;
 
+@TestInstance(Lifecycle.PER_CLASS)
 public class ChRedIntegrationAggregateTests {
-
-  @TempDir Path tempDir;
 
   private Injector injector;
   private Client client;
@@ -40,8 +42,9 @@ public class ChRedIntegrationAggregateTests {
   private long baseMs;
   private OtelTestFactory otelTestFactory;
 
-  @BeforeEach
+  @BeforeAll
   void setup() throws Exception {
+    Path tempDir = Files.createTempDirectory("okapi-red-aggregate-");
     injector = Guice.createInjector(new TestChTracesModule(tempDir.resolve("wal"), 16));
     client = injector.getInstance(Client.class);
     CreateChTablesSpec.migrate(client);
@@ -66,16 +69,21 @@ public class ChRedIntegrationAggregateTests {
 
     var serviceRed = response.getServiceRed();
     assertEquals(
-        RedMetrics.of(
-            List.of(baseMs + 1_000L),
-            List.of(2L),
-            List.of(1L),
-            List.of(200.0)),
+        RedMetrics.of(List.of(baseMs + 1_000L), List.of(2L), List.of(1L), List.of(200.0)),
         serviceRed);
+    assertEquals(List.of(2.0), serviceRed.getRps());
+    assertEquals(List.of(120.0), serviceRed.getRpm());
+    assertEquals(List.of(0.5), serviceRed.getErrorRates());
+    assertEquals(2L, serviceRed.getTotalRequests());
+    assertEquals(1L, serviceRed.getTotalErrors());
+    assertEquals(0.5, serviceRed.getAvailability());
+
+    assertEquals(serviceRed, response.getServiceOpReds().getFirst().getRedMetrics());
+    assertEquals(serviceRed, response.getPeerReds().getFirst().getRedMetrics());
   }
 
   private void ingestCorpus() throws Exception {
-    var ingester = injector.getInstance(ChTracesIngester.class);
+    var emitter = injector.getInstance(FakeTracesEventEmitter.class);
     var driver = injector.getInstance(ChTracesWalConsumerDriver.class);
 
     var spans =
@@ -89,9 +97,8 @@ public class ChRedIntegrationAggregateTests {
                 300L,
                 Status.StatusCode.STATUS_CODE_ERROR));
     var request =
-        otelTestFactory.buildRequest(
-            List.of(otelTestFactory.resourceSpans("svc-agg", spans)));
-    ingester.ingest(request);
+        otelTestFactory.buildRequest(List.of(otelTestFactory.resourceSpans("svc-agg", spans)));
+    emitter.add(new TracesEvent(request.toByteArray()));
     driver.onTick();
   }
 
@@ -109,5 +116,4 @@ public class ChRedIntegrationAggregateTests {
             .build();
     return redQueryService.queryRed(request);
   }
-
 }

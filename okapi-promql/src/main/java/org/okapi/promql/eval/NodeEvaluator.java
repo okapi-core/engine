@@ -4,24 +4,19 @@
  */
 package org.okapi.promql.eval;
 
+import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
+import org.apache.commons.math3.util.FastMath;
 import org.okapi.metrics.pojos.results.GaugeScan;
 import org.okapi.metrics.pojos.results.Scan;
 import org.okapi.metrics.pojos.results.SumScan;
 import org.okapi.promql.eval.VectorData.*;
 import org.okapi.promql.eval.exceptions.EvaluationException;
 import org.okapi.promql.eval.nodes.*;
-import org.okapi.promql.eval.ops.HistogramFunctions;
-import org.okapi.promql.eval.ops.InstantFunctions;
-import org.okapi.promql.eval.ops.RangeFunctions;
-import org.okapi.promql.eval.ops.RangeStats;
-import org.okapi.promql.eval.ops.SeriesIds;
-import org.okapi.promql.eval.ops.TrigFunctions;
+import org.okapi.promql.eval.ops.*;
 import org.okapi.promql.parse.LabelMatcher;
-import org.apache.commons.math3.util.FastMath;
-
-import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public final class NodeEvaluator {
 
@@ -65,8 +60,6 @@ public final class NodeEvaluator {
     return new RangeVectorResult(windows);
   }
 
-  // ---------- Instantize ----------
-
   private ExpressionResult evalInstantize(InstantizeExpr e, EvalContext ctx)
       throws EvaluationException {
     // Expand fetch window to include the staleness lookback so the selector retrieves
@@ -89,25 +82,29 @@ public final class NodeEvaluator {
 
   private void appendGaugeSamples(
       SeriesId id, GaugeScan scan, LogicalExpr inner, EvalContext ctx, List<SeriesSample> out) {
-      var tsList = scan.getTimestamps();
-      var valList = scan.getValues();
-      int n = tsList.size();
-      int idx = 0;
-      for (long t = ctx.startMs; t <= ctx.endMs; t += ctx.stepMs) {
-        // When the inner selector has an embedded @ or offset, the effective lookup
-        // time differs from the outer step time t. Use it for the staleness window.
-        long effT = effectiveStepTime(inner, t, ctx);
-        long winStart = effT - STALENESS_MS;
-        while (idx + 1 < n && tsList.get(idx + 1) <= effT) idx++;
-        if (n == 0) continue;
-        long ptsTs = tsList.get(idx);
-        if (ptsTs <= effT && ptsTs > winStart && !Staleness.isStale(valList.get(idx)))
-          out.add(new SeriesSample(id, new Sample(t, ptsTs, valList.get(idx))));
-      }
+    var tsList = scan.getTimestamps();
+    var valList = scan.getValues();
+    int n = tsList.size();
+    int idx = 0;
+    for (long t = ctx.startMs; t <= ctx.endMs; t += ctx.stepMs) {
+      // When the inner selector has an embedded @ or offset, the effective lookup
+      // time differs from the outer step time t. Use it for the staleness window.
+      long effT = effectiveStepTime(inner, t, ctx);
+      long winStart = effT - STALENESS_MS;
+      while (idx + 1 < n && tsList.get(idx + 1) <= effT) idx++;
+      if (n == 0) continue;
+      long ptsTs = tsList.get(idx);
+      if (ptsTs <= effT && ptsTs > winStart && !Staleness.isStale(valList.get(idx)))
+        out.add(new SeriesSample(id, new Sample(t, ptsTs, valList.get(idx))));
+    }
   }
 
   private void appendHistogramSamples(
-      SeriesId id, HistogramSeries series, LogicalExpr inner, EvalContext ctx, List<SeriesSample> out) {
+      SeriesId id,
+      HistogramSeries series,
+      LogicalExpr inner,
+      EvalContext ctx,
+      List<SeriesSample> out) {
     var points = series.getPoints();
     int n = points.size();
     int idx = 0;
@@ -130,7 +127,8 @@ public final class NodeEvaluator {
 
   private LogicalExpr resolveSelectorOffset(LogicalExpr inner, EvalContext ctx) {
     if (inner instanceof SelectorExpr s && s.offset != null) {
-      return new SelectorExpr(s.metricOrNull, s.matchers, s.atTsMs, DurationExpr.fixedMs(s.offset.evalMs(ctx)));
+      return new SelectorExpr(
+          s.metricOrNull, s.matchers, s.atTsMs, DurationExpr.fixedMs(s.offset.evalMs(ctx)));
     }
     return inner;
   }
@@ -138,7 +136,7 @@ public final class NodeEvaluator {
   private long effectiveStepTime(LogicalExpr inner, long outerT, EvalContext ctx) {
     if (inner instanceof SelectorExpr s) {
       long base = s.atTsMs != null ? s.atTsMs : outerT;
-      long off  = s.offset != null ? s.offset.evalMs(ctx) : 0L;
+      long off = s.offset != null ? s.offset.evalMs(ctx) : 0L;
       return base - off;
     }
     return outerT;
@@ -163,7 +161,8 @@ public final class NodeEvaluator {
       start -= offset;
       end -= offset;
     }
-    var base = new SelectorExpr(e.base.metricOrNull, e.base.matchers, e.base.atTsMs, (DurationExpr) null);
+    var base =
+        new SelectorExpr(e.base.metricOrNull, e.base.matchers, e.base.atTsMs, (DurationExpr) null);
     var rv = (RangeVectorResult) evalSelector(base, ctx.withWindow(start, end));
 
     // When an offset is applied, the raw data timestamps are in shifted time. Advance them
@@ -175,20 +174,26 @@ public final class NodeEvaluator {
       if (w.scan() instanceof GaugeScan gs) {
         List<Long> ts = new ArrayList<>(gs.getTimestamps().size());
         for (Long t : gs.getTimestamps()) ts.add(t + offset);
-        shifted.add(new SeriesWindow(w.id(), GaugeScan.builder()
-            .universalPath(gs.getUniversalPath())
-            .timestamps(Collections.unmodifiableList(ts))
-            .values(gs.getValues())
-            .build()));
+        shifted.add(
+            new SeriesWindow(
+                w.id(),
+                GaugeScan.builder()
+                    .universalPath(gs.getUniversalPath())
+                    .timestamps(Collections.unmodifiableList(ts))
+                    .values(gs.getValues())
+                    .build()));
       } else if (w.scan() instanceof SumScan ss) {
         List<Long> ts = new ArrayList<>(ss.getTs().size());
         for (Long t : ss.getTs()) ts.add(t + offset);
-        shifted.add(new SeriesWindow(w.id(), SumScan.builder()
-            .universalPath(ss.getUniversalPath())
-            .ts(Collections.unmodifiableList(ts))
-            .windowSize(ss.getWindowSize())
-            .counts(ss.getCounts())
-            .build()));
+        shifted.add(
+            new SeriesWindow(
+                w.id(),
+                SumScan.builder()
+                    .universalPath(ss.getUniversalPath())
+                    .ts(Collections.unmodifiableList(ts))
+                    .windowSize(ss.getWindowSize())
+                    .counts(ss.getCounts())
+                    .build()));
       } else if (w.scan() instanceof HistogramSeries hs) {
         List<HistogramSeries.SeriesSample> points = new ArrayList<>(hs.getPoints().size());
         for (var point : hs.getPoints()) points.add(retime(point, point.endMs() + offset));
@@ -230,7 +235,7 @@ public final class NodeEvaluator {
     if (after == ts.size()) return vals.get(vals.size() - 1).doubleValue();
     int before = after - 1;
     double ratio = (double) (target - ts.get(before)) / (ts.get(after) - ts.get(before));
-    return (double) (vals.get(before) + ratio * (vals.get(after) - vals.get(before)));
+    return (vals.get(before) + ratio * (vals.get(after) - vals.get(before)));
   }
 
   private boolean isEmptyScan(Scan scan) {
@@ -347,13 +352,28 @@ public final class NodeEvaluator {
       return new HistogramSeries.FloatSample(ts, ts, sample.value());
     if (point instanceof HistogramSeries.NativeHistogramSample sample)
       return new HistogramSeries.NativeHistogramSample(
-          ts, ts, sample.schema(), sample.zeroThreshold(), sample.zeroCount(),
-          sample.positiveOffset(), sample.positiveBuckets(), sample.negativeOffset(),
-          sample.negativeBuckets(), sample.customValues(), sample.sum(), sample.count(),
+          ts,
+          ts,
+          sample.schema(),
+          sample.zeroThreshold(),
+          sample.zeroCount(),
+          sample.positiveOffset(),
+          sample.positiveBuckets(),
+          sample.negativeOffset(),
+          sample.negativeBuckets(),
+          sample.customValues(),
+          sample.sum(),
+          sample.count(),
           sample.counterResetHint());
     var sample = (HistogramSeries.ExplicitHistogramSample) point;
     return new HistogramSeries.ExplicitHistogramSample(
-        ts, ts, sample.temporality(), sample.upperBounds(), sample.counts(), sample.sum(), sample.count());
+        ts,
+        ts,
+        sample.temporality(),
+        sample.upperBounds(),
+        sample.counts(),
+        sample.sum(),
+        sample.count());
   }
 
   // ---------- Binary op ----------
@@ -379,17 +399,19 @@ public final class NodeEvaluator {
   }
 
   private ExpressionResult evalScalarScalar(BinaryOpExpr e, double a, double b) {
-    if (isArithmetic(e.op)) return new ScalarResult(applyArith(a, b, e.op));
+    if (isArithmetic(e.op)) return new ScalarResult(arithmethicOp(a, b, e.op));
     if (isComparison(e.op)) {
       boolean ok = compare(a, b, e.op);
-      return e.boolModifier ? new ScalarResult(ok ? 1f : 0f) : (ok ? new ScalarResult(a) : new ScalarResult(Double.NaN));
+      return e.boolModifier
+          ? new ScalarResult(ok ? 1f : 0f)
+          : (ok ? new ScalarResult(a) : new ScalarResult(Double.NaN));
     }
     throw new EvaluationException("set operators require instant vectors, not scalars");
   }
 
   private InstantVectorResult evalScalarVector(BinaryOpExpr e, double s, InstantVectorResult v) {
     if (isArithmetic(e.op))
-      return mapVectorArithmetic(v, e.op, val -> applyArith(s, val, e.op), s, true);
+      return mapVectorArithmetic(v, e.op, val -> arithmethicOp(s, val, e.op), s, true);
     if (isComparison(e.op)) {
       return e.boolModifier
           ? mapVectorDropName(v, val -> compare(s, val, e.op) ? 1d : 0d)
@@ -402,7 +424,7 @@ public final class NodeEvaluator {
     if (e.op.equals("</") || e.op.equals(">/"))
       return HistogramFunctions.trim(v, s, e.op.equals(">/"));
     if (isArithmetic(e.op))
-      return mapVectorArithmetic(v, e.op, val -> applyArith(val, s, e.op), s, false);
+      return mapVectorArithmetic(v, e.op, val -> arithmethicOp(val, s, e.op), s, false);
     if (isComparison(e.op)) {
       return e.boolModifier
           ? mapVectorDropName(v, val -> compare(val, s, e.op) ? 1d : 0d)
@@ -510,16 +532,18 @@ public final class NodeEvaluator {
     long ts = l.sample().ts();
     if (isCmp) {
       boolean ok = compare(a, b, e.op);
-      if (e.boolModifier) return Optional.of(new SeriesSample(SeriesIds.derived(l.series()), new Sample(ts, ok ? 1f : 0f)));
+      if (e.boolModifier)
+        return Optional.of(
+            new SeriesSample(SeriesIds.derived(l.series()), new Sample(ts, ok ? 1f : 0f)));
       if (!ok) return Optional.empty();
       if (e.matchSpec == null) return Optional.of(l);
       SeriesId merged = mergeLabels(l.series(), r.series(), e.matchSpec);
       return Optional.of(
-          new SeriesSample(
-              new SeriesId(l.series().metric(), merged.labels(), false), l.sample()));
+          new SeriesSample(new SeriesId(l.series().metric(), merged.labels(), false), l.sample()));
     }
-    double v = applyArith(a, b, e.op);
-    return Optional.of(new SeriesSample(mergeLabels(l.series(), r.series(), e.matchSpec), new Sample(ts, v)));
+    double v = arithmethicOp(a, b, e.op);
+    return Optional.of(
+        new SeriesSample(mergeLabels(l.series(), r.series(), e.matchSpec), new Sample(ts, v)));
   }
 
   private Optional<SeriesSample> combineHistograms(
@@ -567,7 +591,7 @@ public final class NodeEvaluator {
     }
     if (!e.op.equals("==") && !e.op.equals("!=")) return Optional.empty();
     boolean equal = HistogramSeries.sameValue(l.sample().histogram(), r.sample().histogram());
-    boolean ok = e.op.equals("==") ? equal : !equal;
+    boolean ok = e.op.equals("==") == equal;
     if (e.boolModifier)
       return Optional.of(
           new SeriesSample(
@@ -586,7 +610,9 @@ public final class NodeEvaluator {
   private SeriesSample filledSample(SeriesSample source, double value, MatchSpec projection) {
     var sample = source.sample();
     return new SeriesSample(
-        projection == null ? SeriesIds.derived(source.series()) : projectToMatchLabels(source.series(), projection),
+        projection == null
+            ? SeriesIds.derived(source.series())
+            : projectToMatchLabels(source.series(), projection),
         new Sample(sample.ts(), sample.sourceTs(), value));
   }
 
@@ -646,13 +672,11 @@ public final class NodeEvaluator {
       switch (op) {
         case "sum" -> {
           if (gauges.isEmpty()) addHistogramAggregate(out, histograms, id, ts, false);
-          else if (histograms.isEmpty())
-            addIfNotEmpty(out, gauges, id, ts, aggregateSum(gauges));
+          else if (histograms.isEmpty()) addIfNotEmpty(out, gauges, id, ts, aggregateSum(gauges));
         }
         case "avg" -> {
           if (gauges.isEmpty()) addHistogramAggregate(out, histograms, id, ts, true);
-          else if (histograms.isEmpty())
-            addIfNotEmpty(out, gauges, id, ts, aggregateAvg(gauges));
+          else if (histograms.isEmpty()) addIfNotEmpty(out, gauges, id, ts, aggregateAvg(gauges));
         }
         case "min" -> addIfNotEmpty(out, gauges, id, ts, aggregateExtrema(gauges, false));
         case "max" -> addIfNotEmpty(out, gauges, id, ts, aggregateExtrema(gauges, true));
@@ -681,7 +705,8 @@ public final class NodeEvaluator {
           double ratio = Math.abs(param);
           boolean invert = param < 0;
           for (SeriesSample candidate : list) {
-            double normalizedHash = Integer.toUnsignedLong(candidate.series().hashCode()) / 4294967296d;
+            double normalizedHash =
+                Integer.toUnsignedLong(candidate.series().hashCode()) / 4294967296d;
             if ((normalizedHash < ratio) != invert) out.add(candidate);
           }
         }
@@ -694,19 +719,25 @@ public final class NodeEvaluator {
 
   private InstantVectorResult evalCountValues(AggregateExpr e, EvalContext ctx) {
     if (e.args.size() != 2 || !(e.args.get(0) instanceof StringLiteralExpr labelArg))
-      throw new EvaluationException("count_values: expected a string label name and an instant-vector");
+      throw new EvaluationException(
+          "count_values: expected a string label name and an instant-vector");
     if (!isValidLabelName(labelArg.value))
       throw new EvaluationException("invalid label name \"" + labelArg.value + "\"");
     var iv = TypeChecks.requireInstantVector(eval(e.args.get(1), ctx), e.op);
     Map<GroupKey, Integer> counts = new LinkedHashMap<>();
     for (SeriesSample sample : iv.data()) {
-      Map<String, String> labels = new HashMap<>(groupKey(e.isBy, e.groupLabels, sample.series()).labels());
+      Map<String, String> labels =
+          new HashMap<>(groupKey(e.isBy, e.groupLabels, sample.series()).labels());
       labels.put(labelArg.value, formatPromValue(sample.sample()));
       counts.merge(new GroupKey(labels), 1, Integer::sum);
     }
     List<SeriesSample> out = new ArrayList<>(counts.size());
     for (var entry : counts.entrySet())
-      out.add(sample(new SeriesId("", new Labels(entry.getKey().labels())), ctx.startMs, entry.getValue()));
+      out.add(
+          sample(
+              new SeriesId("", new Labels(entry.getKey().labels())),
+              ctx.startMs,
+              entry.getValue()));
     return new InstantVectorResult(out);
   }
 
@@ -739,12 +770,18 @@ public final class NodeEvaluator {
   }
 
   private String formatPromValue(Sample sample) {
-    return sample.isHistogram() ? formatPromHistogram(sample.histogram()) : formatPromFloat(sample.value());
+    return sample.isHistogram()
+        ? formatPromHistogram(sample.histogram())
+        : formatPromFloat(sample.value());
   }
 
   private String formatPromHistogram(HistogramSeries.HistogramSample histogram) {
     if (!(histogram instanceof HistogramSeries.NativeHistogramSample nativeHistogram)) {
-      return "{count:" + formatPromDouble(histogram.count()) + ", sum:" + formatPromDouble(histogram.sum()) + "}";
+      return "{count:"
+          + formatPromDouble(histogram.count())
+          + ", sum:"
+          + formatPromDouble(histogram.sum())
+          + "}";
     }
     List<String> buckets = new ArrayList<>();
     double base = Math.pow(2d, Math.pow(2d, -nativeHistogram.schema()));
@@ -753,7 +790,13 @@ public final class NodeEvaluator {
       int bucket = nativeHistogram.negativeOffset() + i;
       double lower = -Math.pow(base, bucket);
       double upper = -Math.pow(base, bucket - 1);
-      buckets.add("[" + formatPromDouble(lower) + "," + formatPromDouble(upper) + "):" + formatPromDouble(negative[i]));
+      buckets.add(
+          "["
+              + formatPromDouble(lower)
+              + ","
+              + formatPromDouble(upper)
+              + "):"
+              + formatPromDouble(negative[i]));
     }
     if (nativeHistogram.zeroCount() != 0) {
       buckets.add(
@@ -769,7 +812,13 @@ public final class NodeEvaluator {
       int bucket = nativeHistogram.positiveOffset() + i;
       double lower = Math.pow(base, bucket - 1);
       double upper = Math.pow(base, bucket);
-      buckets.add("(" + formatPromDouble(lower) + "," + formatPromDouble(upper) + "]:" + formatPromDouble(positive[i]));
+      buckets.add(
+          "("
+              + formatPromDouble(lower)
+              + ","
+              + formatPromDouble(upper)
+              + "]:"
+              + formatPromDouble(positive[i]));
     }
     String suffix = buckets.isEmpty() ? "" : ", " + String.join(", ", buckets);
     return "{count:"
@@ -825,111 +874,276 @@ public final class NodeEvaluator {
     validateExtendedVectorMode(e);
     return switch (e.name.toLowerCase(Locale.ROOT)) {
       // counter transforms (range-vector → instant-vector)
-      case "rate"     -> RangeFunctions.rate    (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeEvalContextOf(e.args.get(0), ctx), anchorMsOf(e.args.get(0), ctx));
-      case "irate"    -> RangeFunctions.irate   (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
-      case "increase" -> RangeFunctions.increase(TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeEvalContextOf(e.args.get(0), ctx), anchorMsOf(e.args.get(0), ctx));
-      case "delta"    -> RangeFunctions.delta   (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeEvalContextOf(e.args.get(0), ctx), anchorMsOf(e.args.get(0), ctx));
-      case "idelta"   -> RangeFunctions.idelta  (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
-      case "deriv"    -> RangeFunctions.deriv   (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
+      case "rate" ->
+          RangeFunctions.rate(
+              TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name),
+              rangeEvalContextOf(e.args.get(0), ctx),
+              anchorMsOf(e.args.get(0), ctx));
+      case "irate" ->
+          RangeFunctions.irate(
+              TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name),
+              rangeOf(e, 0, ctx),
+              ctx,
+              anchorMsOf(e.args.get(0), ctx));
+      case "increase" ->
+          RangeFunctions.increase(
+              TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name),
+              rangeEvalContextOf(e.args.get(0), ctx),
+              anchorMsOf(e.args.get(0), ctx));
+      case "delta" ->
+          RangeFunctions.delta(
+              TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name),
+              rangeEvalContextOf(e.args.get(0), ctx),
+              anchorMsOf(e.args.get(0), ctx));
+      case "idelta" ->
+          RangeFunctions.idelta(
+              TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name),
+              rangeOf(e, 0, ctx),
+              ctx,
+              anchorMsOf(e.args.get(0), ctx));
+      case "deriv" ->
+          RangeFunctions.deriv(
+              TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name),
+              rangeOf(e, 0, ctx),
+              ctx,
+              anchorMsOf(e.args.get(0), ctx));
       // window stats (range-vector → instant-vector)
-      case "avg_over_time"     -> RangeStats.avg    (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
-      case "min_over_time"     -> RangeStats.min    (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
-      case "max_over_time"     -> RangeStats.max    (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
-      case "sum_over_time"     -> RangeStats.sum    (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
-      case "count_over_time"   -> RangeStats.count  (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
-      case "last_over_time"    -> RangeStats.last   (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
-      case "present_over_time" -> RangeStats.present(TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
-      case "quantile_over_time" -> RangeStats.quantile(
-          (float) TypeChecks.requireScalar(eval(e.args.get(0), ctx), e.name).value,
-          TypeChecks.requireRangeVector(eval(e.args.get(1), ctx), e.name),
-          rangeOf(e, 1, ctx), ctx, anchorMsOf(e.args.get(1), ctx));
-      case "first_over_time"   -> RangeStats.first  (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
-      case "stddev_over_time"  -> RangeStats.stddev (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
-      case "stdvar_over_time"  -> RangeStats.stdvar (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
-      case "mad_over_time"     -> RangeStats.mad    (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx));
-      case "ts_of_min_over_time" -> RangeStats.timestampOf(TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx), RangeStats.TimestampSelector.MIN);
-      case "ts_of_max_over_time" -> RangeStats.timestampOf(TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx), RangeStats.TimestampSelector.MAX);
-      case "ts_of_first_over_time" -> RangeStats.timestampOf(TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx), RangeStats.TimestampSelector.FIRST);
-      case "ts_of_last_over_time" -> RangeStats.timestampOf(TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx), RangeStats.TimestampSelector.LAST);
-      case "changes"           -> RangeStats.changes(TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeEvalContextOf(e.args.get(0), ctx), anchorMsOf(e.args.get(0), ctx));
-      case "resets"            -> RangeStats.resets (TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name), rangeEvalContextOf(e.args.get(0), ctx), anchorMsOf(e.args.get(0), ctx));
-      case "predict_linear" -> RangeFunctions.predictLinear(
-          TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name),
-          rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx),
-          TypeChecks.requireScalar(eval(e.args.get(1), ctx), e.name).value);
-      case "double_exponential_smoothing" -> RangeFunctions.doubleExponentialSmoothing(
-          TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name),
-          rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx),
-          (float) TypeChecks.requireScalar(eval(e.args.get(1), ctx), e.name).value,
-          (float) TypeChecks.requireScalar(eval(e.args.get(2), ctx), e.name).value);
+      case "avg_over_time" ->
+          RangeStats.avg(
+              TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name),
+              rangeOf(e, 0, ctx),
+              ctx,
+              anchorMsOf(e.args.get(0), ctx));
+      case "min_over_time" ->
+          RangeStats.min(
+              TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name),
+              rangeOf(e, 0, ctx),
+              ctx,
+              anchorMsOf(e.args.get(0), ctx));
+      case "max_over_time" ->
+          RangeStats.max(
+              TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name),
+              rangeOf(e, 0, ctx),
+              ctx,
+              anchorMsOf(e.args.get(0), ctx));
+      case "sum_over_time" ->
+          RangeStats.sum(
+              TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name),
+              rangeOf(e, 0, ctx),
+              ctx,
+              anchorMsOf(e.args.get(0), ctx));
+      case "count_over_time" ->
+          RangeStats.count(
+              TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name),
+              rangeOf(e, 0, ctx),
+              ctx,
+              anchorMsOf(e.args.get(0), ctx));
+      case "last_over_time" ->
+          RangeStats.last(
+              TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name),
+              rangeOf(e, 0, ctx),
+              ctx,
+              anchorMsOf(e.args.get(0), ctx));
+      case "present_over_time" ->
+          RangeStats.present(
+              TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name),
+              rangeOf(e, 0, ctx),
+              ctx,
+              anchorMsOf(e.args.get(0), ctx));
+      case "quantile_over_time" ->
+          RangeStats.quantile(
+              (float) TypeChecks.requireScalar(eval(e.args.get(0), ctx), e.name).value,
+              TypeChecks.requireRangeVector(eval(e.args.get(1), ctx), e.name),
+              rangeOf(e, 1, ctx),
+              ctx,
+              anchorMsOf(e.args.get(1), ctx));
+      case "first_over_time" ->
+          RangeStats.first(
+              TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name),
+              rangeOf(e, 0, ctx),
+              ctx,
+              anchorMsOf(e.args.get(0), ctx));
+      case "stddev_over_time" ->
+          RangeStats.stddev(
+              TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name),
+              rangeOf(e, 0, ctx),
+              ctx,
+              anchorMsOf(e.args.get(0), ctx));
+      case "stdvar_over_time" ->
+          RangeStats.stdvar(
+              TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name),
+              rangeOf(e, 0, ctx),
+              ctx,
+              anchorMsOf(e.args.get(0), ctx));
+      case "mad_over_time" ->
+          RangeStats.mad(
+              TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name),
+              rangeOf(e, 0, ctx),
+              ctx,
+              anchorMsOf(e.args.get(0), ctx));
+      case "ts_of_min_over_time" ->
+          RangeStats.timestampOf(
+              TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name),
+              rangeOf(e, 0, ctx),
+              ctx,
+              anchorMsOf(e.args.get(0), ctx),
+              RangeStats.TimestampSelector.MIN);
+      case "ts_of_max_over_time" ->
+          RangeStats.timestampOf(
+              TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name),
+              rangeOf(e, 0, ctx),
+              ctx,
+              anchorMsOf(e.args.get(0), ctx),
+              RangeStats.TimestampSelector.MAX);
+      case "ts_of_first_over_time" ->
+          RangeStats.timestampOf(
+              TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name),
+              rangeOf(e, 0, ctx),
+              ctx,
+              anchorMsOf(e.args.get(0), ctx),
+              RangeStats.TimestampSelector.FIRST);
+      case "ts_of_last_over_time" ->
+          RangeStats.timestampOf(
+              TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name),
+              rangeOf(e, 0, ctx),
+              ctx,
+              anchorMsOf(e.args.get(0), ctx),
+              RangeStats.TimestampSelector.LAST);
+      case "changes" ->
+          RangeStats.changes(
+              TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name),
+              rangeEvalContextOf(e.args.get(0), ctx),
+              anchorMsOf(e.args.get(0), ctx));
+      case "resets" ->
+          RangeStats.resets(
+              TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name),
+              rangeEvalContextOf(e.args.get(0), ctx),
+              anchorMsOf(e.args.get(0), ctx));
+      case "predict_linear" ->
+          RangeFunctions.predictLinear(
+              TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name),
+              rangeOf(e, 0, ctx),
+              ctx,
+              anchorMsOf(e.args.get(0), ctx),
+              TypeChecks.requireScalar(eval(e.args.get(1), ctx), e.name).value);
+      case "double_exponential_smoothing" ->
+          RangeFunctions.doubleExponentialSmoothing(
+              TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name),
+              rangeOf(e, 0, ctx),
+              ctx,
+              anchorMsOf(e.args.get(0), ctx),
+              (float) TypeChecks.requireScalar(eval(e.args.get(1), ctx), e.name).value,
+              (float) TypeChecks.requireScalar(eval(e.args.get(2), ctx), e.name).value);
       // instant-vector functions
-      case "abs"   -> InstantFunctions.mapDerivedSamples(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), Math::abs);
-      case "ceil"  -> InstantFunctions.mapDerivedSamples(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), Math::ceil);
-      case "floor" -> InstantFunctions.mapDerivedSamples(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), Math::floor);
-      case "exp" -> InstantFunctions.mapDerivedSamples(
-          TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name),
-          FastMath::exp);
-      case "ln" -> InstantFunctions.mapDerivedSamples(
-          TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name),
-          FastMath::log);
-      case "sqrt" -> InstantFunctions.mapDerivedSamples(
-          TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name),
-          FastMath::sqrt);
-      case "log2" -> InstantFunctions.mapDerivedSamples(
-          TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name),
-          v -> FastMath.log(v) / FastMath.log(2d));
-      case "log10" -> InstantFunctions.mapDerivedSamples(
-          TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name),
-          FastMath::log10);
-      case "sgn" -> InstantFunctions.mapDerivedSamples(
-          TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), Math::signum);
+      case "abs" ->
+          InstantFunctions.mapDerivedSamples(
+              TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), Math::abs);
+      case "ceil" ->
+          InstantFunctions.mapDerivedSamples(
+              TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), Math::ceil);
+      case "floor" ->
+          InstantFunctions.mapDerivedSamples(
+              TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), Math::floor);
+      case "exp" ->
+          InstantFunctions.mapDerivedSamples(
+              TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), FastMath::exp);
+      case "ln" ->
+          InstantFunctions.mapDerivedSamples(
+              TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), FastMath::log);
+      case "sqrt" ->
+          InstantFunctions.mapDerivedSamples(
+              TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), FastMath::sqrt);
+      case "log2" ->
+          InstantFunctions.mapDerivedSamples(
+              TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name),
+              v -> FastMath.log(v) / FastMath.log(2d));
+      case "log10" ->
+          InstantFunctions.mapDerivedSamples(
+              TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), FastMath::log10);
+      case "sgn" ->
+          InstantFunctions.mapDerivedSamples(
+              TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), Math::signum);
       case "round" -> evalRound(e, ctx);
-      case "clamp" -> InstantFunctions.clamp(
-          TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name),
-          TypeChecks.requireScalar(eval(e.args.get(1), ctx), e.name).value,
-          TypeChecks.requireScalar(eval(e.args.get(2), ctx), e.name).value);
-      case "clamp_min" -> InstantFunctions.clampMin(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), TypeChecks.requireScalar(eval(e.args.get(1), ctx), e.name).value);
-      case "clamp_max" -> InstantFunctions.clampMax(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), TypeChecks.requireScalar(eval(e.args.get(1), ctx), e.name).value);
-      case "sort"      -> InstantFunctions.sort(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), false);
-      case "sort_desc" -> InstantFunctions.sort(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), true);
+      case "clamp" ->
+          InstantFunctions.clamp(
+              TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name),
+              TypeChecks.requireScalar(eval(e.args.get(1), ctx), e.name).value,
+              TypeChecks.requireScalar(eval(e.args.get(2), ctx), e.name).value);
+      case "clamp_min" ->
+          InstantFunctions.clampMin(
+              TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name),
+              TypeChecks.requireScalar(eval(e.args.get(1), ctx), e.name).value);
+      case "clamp_max" ->
+          InstantFunctions.clampMax(
+              TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name),
+              TypeChecks.requireScalar(eval(e.args.get(1), ctx), e.name).value);
+      case "sort" ->
+          InstantFunctions.sort(
+              TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), false);
+      case "sort_desc" ->
+          InstantFunctions.sort(
+              TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name), true);
       case "sort_by_label", "sort_by_label_desc" -> {
         var vector = TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name);
         List<String> labels = new ArrayList<>();
         for (int i = 1; i < e.args.size(); i++)
           labels.add(((StringLiteralExpr) e.args.get(i)).value);
-        yield InstantFunctions.sortByLabel(vector, labels, e.name.equalsIgnoreCase("sort_by_label_desc"));
+        yield InstantFunctions.sortByLabel(
+            vector, labels, e.name.equalsIgnoreCase("sort_by_label_desc"));
       }
-      case "absent"    -> evalAbsent(e, ctx);
-      case "absent_over_time" -> RangeStats.absent(
-          TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name),
-          rangeOf(e, 0, ctx), ctx, anchorMsOf(e.args.get(0), ctx),
-          absentLabels(e.args.get(0)));
-      case "timestamp" -> InstantFunctions.timestamp(
-          TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name));
-      case "sin", "cos", "tan", "asin", "acos", "atan", "sinh", "cosh", "tanh",
-          "asinh", "acosh", "atanh", "rad", "deg" -> evalTrig(e, ctx);
+      case "absent" -> evalAbsent(e, ctx);
+      case "absent_over_time" ->
+          RangeStats.absent(
+              TypeChecks.requireRangeVector(eval(e.args.get(0), ctx), e.name),
+              rangeOf(e, 0, ctx),
+              ctx,
+              anchorMsOf(e.args.get(0), ctx),
+              absentLabels(e.args.get(0)));
+      case "timestamp" ->
+          InstantFunctions.timestamp(
+              TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name));
+      case "sin",
+          "cos",
+          "tan",
+          "asin",
+          "acos",
+          "atan",
+          "sinh",
+          "cosh",
+          "tanh",
+          "asinh",
+          "acosh",
+          "atanh",
+          "rad",
+          "deg" ->
+          evalTrig(e, ctx);
       case "pi" -> {
         requireArgCount(e, 0);
         yield new ScalarResult((double) FastMath.PI);
       }
       case "info" -> evalInfo(e, ctx);
-      case "histogram_count" -> HistogramFunctions.count(
-          TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name));
-      case "histogram_sum" -> HistogramFunctions.sum(
-          TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name));
-      case "histogram_avg" -> HistogramFunctions.avg(
-          TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name));
-      case "histogram_stddev" -> HistogramFunctions.stddev(
-          TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name));
-      case "histogram_stdvar" -> HistogramFunctions.stdvar(
-          TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name));
-      case "histogram_fraction" -> HistogramFunctions.fraction(
-          TypeChecks.requireScalar(eval(e.args.get(0), ctx), e.name).value,
-          TypeChecks.requireScalar(eval(e.args.get(1), ctx), e.name).value,
-          TypeChecks.requireInstantVector(eval(e.args.get(2), ctx), e.name));
-      case "histogram_quantile" -> HistogramFunctions.quantile(
-          TypeChecks.requireScalar(eval(e.args.get(0), ctx), e.name).value,
-          TypeChecks.requireInstantVector(eval(e.args.get(1), ctx), e.name));
+      case "histogram_count" ->
+          HistogramFunctions.count(
+              TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name));
+      case "histogram_sum" ->
+          HistogramFunctions.sum(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name));
+      case "histogram_avg" ->
+          HistogramFunctions.avg(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name));
+      case "histogram_stddev" ->
+          HistogramFunctions.stddev(
+              TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name));
+      case "histogram_stdvar" ->
+          HistogramFunctions.stdvar(
+              TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name));
+      case "histogram_fraction" ->
+          HistogramFunctions.fraction(
+              TypeChecks.requireScalar(eval(e.args.get(0), ctx), e.name).value,
+              TypeChecks.requireScalar(eval(e.args.get(1), ctx), e.name).value,
+              TypeChecks.requireInstantVector(eval(e.args.get(2), ctx), e.name));
+      case "histogram_quantile" ->
+          HistogramFunctions.quantile(
+              TypeChecks.requireScalar(eval(e.args.get(0), ctx), e.name).value,
+              TypeChecks.requireInstantVector(eval(e.args.get(1), ctx), e.name));
       case "histogram_quantiles" -> {
         var vector = TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name);
         String label = ((StringLiteralExpr) e.args.get(1)).value;
@@ -939,12 +1153,15 @@ public final class NodeEvaluator {
         yield HistogramFunctions.quantiles(vector, label, quantiles);
       }
       // vector → scalar
-      case "scalar" -> InstantFunctions.toScalar(TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name));
+      case "scalar" ->
+          InstantFunctions.toScalar(
+              TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name));
       // scalar → vector
       case "vector" -> {
         List<SeriesSample> vout = new ArrayList<>();
         for (long t = ctx.startMs; t <= ctx.endMs; t += ctx.stepMs) {
-          double v = TypeChecks.requireScalar(eval(e.args.get(0), ctx.withWindow(t, t)), e.name).value;
+          double v =
+              TypeChecks.requireScalar(eval(e.args.get(0), ctx.withWindow(t, t)), e.name).value;
           vout.add(new SeriesSample(new SeriesId("", new Labels(Map.of())), new Sample(t, v)));
         }
         yield new InstantVectorResult(vout);
@@ -953,10 +1170,19 @@ public final class NodeEvaluator {
       case "time" -> new ScalarResult(ctx.endMs / 1000f);
       case "start" -> new ScalarResult(ctx.queryStartMs / 1000d);
       case "end" -> new ScalarResult(ctx.queryEndMs / 1000d);
-      case "year", "month", "day_of_month", "day_of_week", "day_of_year", "days_in_month",
-          "hour", "minute" -> InstantFunctions.calendar(
+      case "year",
+          "month",
+          "day_of_month",
+          "day_of_week",
+          "day_of_year",
+          "days_in_month",
+          "hour",
+          "minute" ->
+          InstantFunctions.calendar(
               e.name,
-              e.args.isEmpty() ? null : TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name),
+              e.args.isEmpty()
+                  ? null
+                  : TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name),
               ctx);
       // label manipulation
       case "label_replace" -> {
@@ -1012,12 +1238,13 @@ public final class NodeEvaluator {
   }
 
   private Map<String, String> absentLabels(LogicalExpr expr) {
-    SelectorExpr selector = switch (expr) {
-      case InstantizeExpr instantize when instantize.inner instanceof SelectorExpr selected ->
-          selected;
-      case RangeSelectorExpr range -> range.base;
-      default -> null;
-    };
+    SelectorExpr selector =
+        switch (expr) {
+          case InstantizeExpr instantize when instantize.inner instanceof SelectorExpr selected ->
+              selected;
+          case RangeSelectorExpr range -> range.base;
+          default -> null;
+        };
     if (selector == null) return Map.of();
 
     Map<String, String> labels = new HashMap<>();
@@ -1046,7 +1273,8 @@ public final class NodeEvaluator {
     var base = TypeChecks.requireInstantVector(eval(e.args.get(0), ctx), e.name);
     InstantizeExpr infoArg =
         e.args.size() == 1
-            ? new InstantizeExpr(new SelectorExpr("target_info", List.of(), null, (DurationExpr) null))
+            ? new InstantizeExpr(
+                new SelectorExpr("target_info", List.of(), null, (DurationExpr) null))
             : requireInfoSelector(e.args.get(1));
     var selector = (SelectorExpr) infoArg.inner;
     boolean hasNameMatcher = selector.matchers.stream().anyMatch(m -> "__name__".equals(m.name()));
@@ -1088,7 +1316,8 @@ public final class NodeEvaluator {
       Map<String, String> labels = new HashMap<>(sample.series().labels().tags());
       for (var infoSample : infoSamples.values()) {
         for (var label : infoSample.series().labels().tags().entrySet()) {
-          if (!selectedDataLabels.isEmpty() && !selectedDataLabels.contains(label.getKey())) continue;
+          if (!selectedDataLabels.isEmpty() && !selectedDataLabels.contains(label.getKey()))
+            continue;
           labels.putIfAbsent(label.getKey(), label.getValue());
         }
       }
@@ -1146,7 +1375,7 @@ public final class NodeEvaluator {
     Pattern p;
     try {
       p = Pattern.compile(regex);
-    } catch (java.util.regex.PatternSyntaxException e) {
+    } catch (PatternSyntaxException e) {
       throw new EvaluationException("label_replace: invalid regex: " + e.getDescription());
     }
     List<SeriesSample> out = new ArrayList<>();
@@ -1168,7 +1397,9 @@ public final class NodeEvaluator {
           tags.put(dstLabel, newVal);
         }
       }
-      out.add(new SeriesSample(new SeriesId(id.metric(), new Labels(tags), id.dropMetricName()), s.sample()));
+      out.add(
+          new SeriesSample(
+              new SeriesId(id.metric(), new Labels(tags), id.dropMetricName()), s.sample()));
     }
     return new InstantVectorResult(out);
   }
@@ -1181,7 +1412,10 @@ public final class NodeEvaluator {
       SeriesId sourceId = sample.series();
       SeriesId id = sourceId;
       Map<String, String> tags = new HashMap<>(id.labels().tags());
-      String joined = srcLabels.stream().map(label -> labelValue(sourceId, label)).collect(java.util.stream.Collectors.joining(separator));
+      String joined =
+          srcLabels.stream()
+              .map(label -> labelValue(sourceId, label))
+              .collect(java.util.stream.Collectors.joining(separator));
       if ("__name__".equals(dstLabel)) {
         id = SeriesIds.withMetric(id, joined);
       } else if (joined.isEmpty()) {
@@ -1189,7 +1423,9 @@ public final class NodeEvaluator {
       } else {
         tags.put(dstLabel, joined);
       }
-      out.add(new SeriesSample(new SeriesId(id.metric(), new Labels(tags), id.dropMetricName()), sample.sample()));
+      out.add(
+          new SeriesSample(
+              new SeriesId(id.metric(), new Labels(tags), id.dropMetricName()), sample.sample()));
     }
     return new InstantVectorResult(out);
   }
@@ -1199,17 +1435,12 @@ public final class NodeEvaluator {
   }
 
   private void requireValidLabelName(String label) {
-    if (!isValidLabelName(label)) throw new EvaluationException("invalid label name \"" + label + "\"");
+    if (!isValidLabelName(label))
+      throw new EvaluationException("invalid label name \"" + label + "\"");
   }
 
   private boolean isValidLabelName(String label) {
     return "__name__".equals(label) || label.matches("[a-zA-Z_][a-zA-Z0-9_]*");
-  }
-
-  private String summarize(ExpressionResult result) {
-    if (result instanceof InstantVectorResult iv) return "InstantVector" + iv.data();
-    if (result instanceof RangeVectorResult rv) return "RangeVector(size=" + rv.data().size() + ")";
-    return String.valueOf(result);
   }
 
   private long rangeOf(FunctionExpr e, int argIdx, EvalContext ctx) {
@@ -1221,7 +1452,8 @@ public final class NodeEvaluator {
     if (expr instanceof SubqueryExpr sq) return sq.range.evalMs(ctx);
     if (expr instanceof AtExpr at) return rangeOfExpr(at.inner, fnName, argIdx, ctx);
     if (expr instanceof OffsetExpr off) return rangeOfExpr(off.inner, fnName, argIdx, ctx);
-    throw new EvaluationException(fnName + ": arg[" + argIdx + "] must be a range selector or subquery");
+    throw new EvaluationException(
+        fnName + ": arg[" + argIdx + "] must be a range selector or subquery");
   }
 
   private RangeEvalContext rangeEvalContextOf(LogicalExpr expr, EvalContext ctx) {
@@ -1265,25 +1497,33 @@ public final class NodeEvaluator {
     if (expr instanceof AtExpr at) {
       try {
         return (long) (TypeChecks.requireScalar(eval(at.atScalar, ctx), "@").value * 1000L);
-      } catch (EvaluationException ignored) { return -1L; }
+      } catch (EvaluationException ignored) {
+        return -1L;
+      }
     }
     return -1L;
   }
 
   private boolean isArithmetic(String op) {
-    return switch (op) { case "+", "-", "*", "/", "%", "^", "atan2" -> true; default -> false; };
+    return switch (op) {
+      case "+", "-", "*", "/", "%", "^", "atan2" -> true;
+      default -> false;
+    };
   }
 
   private boolean isComparison(String op) {
-    return switch (op) { case "==", "!=", ">", "<", ">=", "<=" -> true; default -> false; };
+    return switch (op) {
+      case "==", "!=", ">", "<", ">=", "<=" -> true;
+      default -> false;
+    };
   }
 
-  private double applyArith(double a, double b, String op) {
+  private double arithmethicOp(double a, double b, String op) {
     return switch (op) {
       case "+" -> a + b;
       case "-" -> a - b;
       case "*" -> a * b;
-      case "/" -> a / b;  // IEEE 754: 1/0=+Inf, -1/0=-Inf, 0/0=NaN
+      case "/" -> a / b; // IEEE 754: 1/0=+Inf, -1/0=-Inf, 0/0=NaN
       case "%" -> a % b;
       case "^" -> Math.pow(a, b);
       case "atan2" -> Math.atan2(a, b);
@@ -1295,27 +1535,16 @@ public final class NodeEvaluator {
     return switch (op) {
       case "==" -> a == b;
       case "!=" -> a != b;
-      case ">"  -> a > b;
-      case "<"  -> a < b;
+      case ">" -> a > b;
+      case "<" -> a < b;
       case ">=" -> a >= b;
       case "<=" -> a <= b;
       default -> throw new EvaluationException("unknown op: " + op);
     };
   }
 
-  private InstantVectorResult mapVector(InstantVectorResult iv, java.util.function.Function<Double, Double> fn) {
-    List<SeriesSample> out = new ArrayList<>(iv.data().size());
-    for (var s : iv.data()) {
-      if (s.sample().isHistogram()) continue;
-      out.add(
-          new SeriesSample(
-              s.series(),
-              new Sample(s.sample().ts(), s.sample().sourceTs(), fn.apply(s.sample().value()))));
-    }
-    return new InstantVectorResult(out);
-  }
-
-  private InstantVectorResult mapVectorDropName(InstantVectorResult iv, java.util.function.Function<Double, Double> fn) {
+  private InstantVectorResult mapVectorDropName(
+      InstantVectorResult iv, java.util.function.Function<Double, Double> fn) {
     List<SeriesSample> out = new ArrayList<>(iv.data().size());
     for (var s : iv.data()) {
       if (s.sample().isHistogram()) continue;
@@ -1356,7 +1585,8 @@ public final class NodeEvaluator {
     return new InstantVectorResult(out);
   }
 
-  private InstantVectorResult filterVector(InstantVectorResult iv, java.util.function.Predicate<Double> pred) {
+  private InstantVectorResult filterVector(
+      InstantVectorResult iv, java.util.function.Predicate<Double> pred) {
     List<SeriesSample> out = new ArrayList<>();
     for (var s : iv.data()) {
       if (!s.sample().isHistogram() && pred.test(s.sample().value())) out.add(s);
@@ -1402,8 +1632,10 @@ public final class NodeEvaluator {
       List<SeriesSample> left, List<SeriesSample> right) {
     Set<String> ignored = new HashSet<>();
     for (String label : List.of("__type__", "__unit__")) {
-      boolean leftHasLabel = left.stream().anyMatch(s -> s.series().labels().tags().containsKey(label));
-      boolean rightHasLabel = right.stream().anyMatch(s -> s.series().labels().tags().containsKey(label));
+      boolean leftHasLabel =
+          left.stream().anyMatch(s -> s.series().labels().tags().containsKey(label));
+      boolean rightHasLabel =
+          right.stream().anyMatch(s -> s.series().labels().tags().containsKey(label));
       if (!leftHasLabel || !rightHasLabel) ignored.add(label);
     }
     return ignored;
@@ -1468,11 +1700,12 @@ public final class NodeEvaluator {
     if (q > 1f) return Double.POSITIVE_INFINITY;
     var arr = new ArrayList<Double>();
     for (SeriesSample sample : list) arr.add((double) sample.sample().value());
-    arr.sort((a, b) -> {
-      if (Double.isNaN(a)) return Double.isNaN(b) ? 0 : -1;
-      if (Double.isNaN(b)) return 1;
-      return Double.compare(a, b);
-    });
+    arr.sort(
+        (a, b) -> {
+          if (Double.isNaN(a)) return Double.isNaN(b) ? 0 : -1;
+          if (Double.isNaN(b)) return 1;
+          return Double.compare(a, b);
+        });
     int n = arr.size();
     if (n == 1) return arr.get(0);
     double idx = q * (n - 1);
@@ -1547,10 +1780,15 @@ public final class NodeEvaluator {
   }
 
   private record JoinKey(Map<String, String> labels, long ts) {
-    @Override public boolean equals(Object o) {
+    @Override
+    public boolean equals(Object o) {
       return o instanceof JoinKey k && Objects.equals(labels, k.labels) && ts == k.ts;
     }
-    @Override public int hashCode() { return Objects.hash(labels, ts); }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(labels, ts);
+    }
   }
 
   private record GroupKey(Map<String, String> labels) {}

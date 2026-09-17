@@ -4,7 +4,8 @@
  */
 package org.okapi.promql.testing;
 
-public record TestExpectationDifference(String expression, String message, String expected, String actual) {
+public record TestExpectationDifference(
+    String expression, String message, String expected, String actual) {
   @Override
   public String toString() {
     StringBuilder sb = new StringBuilder();

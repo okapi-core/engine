@@ -4,7 +4,7 @@
  */
 package org.okapi.data.dao;
 
-import java.util.Iterator;
+import java.util.List;
 import java.util.Optional;
 import org.okapi.data.exceptions.UserAlreadyExistsException;
 import org.okapi.data.model.User;
@@ -14,10 +14,11 @@ public interface UsersDao {
 
   Optional<User> getWithEmail(String email);
 
-  User createIfNotExists(String firstName, String lastName, String email, String password)
+  User createIfNotExists(
+      String firstName, String lastName, String email, String password, String orgId)
       throws UserAlreadyExistsException;
 
-  Iterator<User> listAllUsers();
-
   void update(User user);
+
+  List<User> getAll(String orgId);
 }

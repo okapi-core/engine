@@ -1,8 +1,0 @@
-server:
-  port: 9002
-okapi:
-  agent:
-    config-file: "./sample.yaml"
-  gateway:
-    endpoint: http://localhost:9001
-    gatewayToken: test-gateway-token

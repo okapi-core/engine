@@ -8,7 +8,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
 import org.okapi.promql.testing.PromQlTestAst.PointExpr;
 import org.okapi.promql.testing.PromQlTestAst.SeriesDef;
 

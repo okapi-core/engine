@@ -13,6 +13,7 @@ import org.okapi.metrics.ch.ChWalResources;
 import org.okapi.metrics.core.KafkaMetricsEventEmitter;
 import org.okapi.metrics.core.MetricsEventEmitter;
 import org.okapi.metrics.core.WalMetricsEventEmitter;
+import org.okapi.spring.configs.Profiles;
 import org.okapi.spring.configs.Qualifiers;
 import org.okapi.spring.configs.properties.MetricsConsumptionCfg;
 import org.okapi.wal.manager.WalManager;
@@ -25,6 +26,7 @@ class MetricsEventEmitterConfigTests {
   void wiresWalEmitterByDefault() {
     new ApplicationContextRunner()
         .withUserConfiguration(MetricsEventEmitterConfig.class)
+        .withInitializer(context -> context.getEnvironment().setActiveProfiles(Profiles.PROFILE_CH))
         .withBean(
             Qualifiers.METRICS_CH_WAL_RESOURCES,
             ChWalResources.class,
@@ -45,6 +47,7 @@ class MetricsEventEmitterConfigTests {
 
     new ApplicationContextRunner()
         .withUserConfiguration(MetricsEventEmitterConfig.class)
+        .withInitializer(context -> context.getEnvironment().setActiveProfiles(Profiles.PROFILE_CH))
         .withPropertyValues("okapi.metrics.consumptionType=kafka")
         .withBean(MetricsConsumptionCfg.class, () -> cfg)
         .run(

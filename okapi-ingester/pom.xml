@@ -38,9 +38,8 @@
         </dependency>
 
         <dependency>
-            <groupId>org.okapi</groupId>
-            <artifactId>okapi-otel-protos</artifactId>
-            <version>${project.version}</version>
+            <groupId>io.opentelemetry.proto</groupId>
+            <artifactId>opentelemetry-proto</artifactId>
         </dependency>
 
         <dependency>
@@ -60,6 +59,10 @@
         <dependency>
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-otlp</artifactId>
         </dependency>
 
         <dependency>
@@ -88,12 +91,6 @@
         <dependency>
             <groupId>org.awaitility</groupId>
             <artifactId>awaitility</artifactId>
-            <scope>test</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>org.testcontainers</groupId>
-            <artifactId>localstack</artifactId>
             <scope>test</scope>
         </dependency>
 
@@ -179,6 +176,12 @@
         <dependency>
             <groupId>gg.jte</groupId>
             <artifactId>jte</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.okapi</groupId>
+            <artifactId>okapi-ql</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
         </dependency>
 
     </dependencies>

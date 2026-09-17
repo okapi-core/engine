@@ -1,7 +1,12 @@
+/*
+ * Copyright The OkapiCore Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
 package org.okapi.oscar.session;
 
 import java.util.List;
 import org.okapi.rest.session.SESSION_STATE;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -26,4 +31,7 @@ public interface SessionMetaRepository extends JpaRepository<SessionMetaEntity, 
 
   List<SessionMetaEntity> findByOwnerIdAndStartTimeBetweenOrderByStartTimeDesc(
       String ownerId, long startTime, long endTime);
+
+  List<SessionMetaEntity> findByOwnerIdAndStartTimeBetweenOrderByStartTimeDesc(
+      String ownerId, long startTime, long endTime, Pageable pageable);
 }

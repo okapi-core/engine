@@ -1,3 +1,7 @@
+/*
+ * Copyright The OkapiCore Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
 package org.okapi.traces;
 
 import io.opentelemetry.proto.collector.trace.v1.ExportTraceServiceRequest;
@@ -7,14 +11,18 @@ import io.opentelemetry.proto.trace.v1.ScopeSpans;
 import io.opentelemetry.proto.trace.v1.Span;
 import io.opentelemetry.proto.trace.v1.Status;
 import java.util.List;
+import org.okapi.otelshorthand.OtelShortHands;
 import org.okapi.timeutils.TimeUtils;
-import org.okapi.traces.testutil.OtelShortHands;
 
 public class OtelTestFactory {
   private int idCounter = 1;
 
   public Span span(
-      String spanName, String peerService, long startMs, long durationMs, Status.StatusCode status) {
+      String spanName,
+      String peerService,
+      long startMs,
+      long durationMs,
+      Status.StatusCode status) {
     var startNs = TimeUtils.millisToNanos(startMs);
     var endNs = TimeUtils.millisToNanos(startMs + durationMs);
     return Span.newBuilder()

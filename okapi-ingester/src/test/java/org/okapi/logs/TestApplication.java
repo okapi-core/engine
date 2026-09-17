@@ -10,6 +10,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @SpringBootApplication(
     scanBasePackages = {
       "org.okapi.runtime",
+      "org.okapi.engine",
       "org.okapi.logs",
       "org.okapi.traces",
       "org.okapi.metrics",

@@ -9,32 +9,28 @@ import com.clickhouse.client.api.enums.Protocol;
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import org.okapi.metrics.ch.ChWalResources;
+import java.util.List;
 import org.okapi.metrics.ch.ChWriter;
 import org.okapi.traces.ch.ChSpanAttributeHintsService;
 import org.okapi.traces.ch.ChSpanStatsQueryService;
 import org.okapi.traces.ch.ChTraceQueryService;
-import org.okapi.traces.ch.ChTracesIngester;
 import org.okapi.traces.ch.ChTracesWalConsumer;
 import org.okapi.traces.ch.ChTracesWalConsumerDriver;
-import org.okapi.traces.ch.reds.ChRedQueryService;
 import org.okapi.traces.ch.NoopSpanFilterStrategy;
 import org.okapi.traces.ch.NoopTraceFilterStrategy;
 import org.okapi.traces.ch.OtelTracesToChRowsConverter;
 import org.okapi.traces.ch.SpanFilterStrategy;
 import org.okapi.traces.ch.TraceFilterStrategy;
+import org.okapi.traces.ch.reds.ChRedQueryService;
 import org.okapi.traces.ch.template.ChTraceTemplateEngine;
-import org.okapi.wal.manager.WalManager;
+import org.okapi.traces.core.FakeTracesEventEmitter;
+import org.okapi.traces.core.TracesEventEmitter;
 
 public class TestChTracesModule extends AbstractModule {
-  private final Path walDir;
   private final int batchSize;
 
-  public TestChTracesModule(Path walDir, int batchSize) {
-    this.walDir = walDir;
+  public TestChTracesModule(Path ignoredWalDir, int batchSize) {
     this.batchSize = batchSize;
   }
 
@@ -42,19 +38,6 @@ public class TestChTracesModule extends AbstractModule {
   @Singleton
   Client provideClient() {
     return getChClient();
-  }
-
-  @Provides
-  @Singleton
-  WalManager.WalConfig provideWalConfig() {
-    return new WalManager.WalConfig(1_048_576);
-  }
-
-  @Provides
-  @Singleton
-  ChWalResources provideWalResources(WalManager.WalConfig walConfig) throws IOException {
-    Files.createDirectories(walDir);
-    return new ChWalResources(walDir, walConfig);
   }
 
   @Provides
@@ -77,8 +60,14 @@ public class TestChTracesModule extends AbstractModule {
 
   @Provides
   @Singleton
-  ChTracesIngester provideChTracesIngester(ChWalResources walResources) {
-    return new ChTracesIngester(walResources);
+  FakeTracesEventEmitter provideFakeTracesEventEmitter() {
+    return new FakeTracesEventEmitter(List.of());
+  }
+
+  @Provides
+  @Singleton
+  TracesEventEmitter provideTracesEventEmitter(FakeTracesEventEmitter emitter) {
+    return emitter;
   }
 
   @Provides
@@ -90,13 +79,13 @@ public class TestChTracesModule extends AbstractModule {
   @Provides
   @Singleton
   ChTracesWalConsumer provideChTracesWalConsumer(
-      ChWalResources walResources,
+      TracesEventEmitter eventEmitter,
       ChWriter writer,
       TraceFilterStrategy traceFilterStrategy,
       SpanFilterStrategy spanFilterStrategy,
       OtelTracesToChRowsConverter converter) {
     return new ChTracesWalConsumer(
-        walResources, batchSize, writer, converter, traceFilterStrategy, spanFilterStrategy);
+        eventEmitter, batchSize, writer, converter, traceFilterStrategy, spanFilterStrategy);
   }
 
   @Provides
@@ -143,8 +132,7 @@ public class TestChTracesModule extends AbstractModule {
         .addEndpoint(
             Protocol.HTTP,
             System.getenv().getOrDefault("OKAPI_TEST_CLICKHOUSE_HOST", "127.0.0.1"),
-            Integer.parseInt(
-                System.getenv().getOrDefault("OKAPI_TEST_CLICKHOUSE_PORT", "8123")),
+            Integer.parseInt(System.getenv().getOrDefault("OKAPI_TEST_CLICKHOUSE_PORT", "8123")),
             false)
         .setUsername("default")
         .setPassword("okapi_testing_password")

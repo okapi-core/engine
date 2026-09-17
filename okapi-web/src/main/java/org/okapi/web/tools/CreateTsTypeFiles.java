@@ -8,7 +8,6 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
-import org.okapi.rest.annotations.TsResponseType;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.net.JarURLConnection;
@@ -23,6 +22,7 @@ import java.util.*;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import lombok.extern.slf4j.Slf4j;
+import org.okapi.rest.annotations.TsResponseType;
 
 @Slf4j
 public class CreateTsTypeFiles {
@@ -55,8 +55,11 @@ public class CreateTsTypeFiles {
         }
       }
 
-      String requestOutput = generateTypeScript(requestRoots, basePackage);
-      String responseOutput = generateTypeScript(responseRoots, basePackage);
+      TypePartitions partitions = new TypePartitions(requestRoots, responseRoots);
+      String requestOutput =
+          generateTypeScript(requestRoots, basePackage, TypeFile.REQUEST, partitions);
+      String responseOutput =
+          generateTypeScript(responseRoots, basePackage, TypeFile.RESPONSE, partitions);
 
       Path reqPath = Paths.get("request-types.ts");
       Path respPath = Paths.get("response-types.ts");
@@ -72,10 +75,33 @@ public class CreateTsTypeFiles {
     }
   }
 
-  private static String generateTypeScript(List<Class<?>> roots, String basePackage) {
+  private enum TypeFile {
+    REQUEST,
+    RESPONSE
+  }
+
+  private static class TypePartitions {
+    private final Set<Class<?>> requestTypes;
+    private final Set<Class<?>> responseTypes;
+
+    TypePartitions(List<Class<?>> requestTypes, List<Class<?>> responseTypes) {
+      this.requestTypes = new HashSet<>(requestTypes);
+      this.responseTypes = new HashSet<>(responseTypes);
+    }
+
+    TypeFile ownerOf(Class<?> cls) {
+      if (requestTypes.contains(cls)) return TypeFile.REQUEST;
+      if (responseTypes.contains(cls)) return TypeFile.RESPONSE;
+      return null;
+    }
+  }
+
+  private static String generateTypeScript(
+      List<Class<?>> roots, String basePackage, TypeFile currentFile, TypePartitions partitions) {
     StringBuilder sb = new StringBuilder();
     // Use stable ordering of outputs
     Map<String, String> definitions = new TreeMap<>();
+    Map<String, String> imports = new TreeMap<>();
     Set<Class<?>> visited = new HashSet<>();
     Deque<Class<?>> queue = new ArrayDeque<>(roots);
 
@@ -83,6 +109,12 @@ public class CreateTsTypeFiles {
       Class<?> cls = queue.removeFirst();
       if (visited.contains(cls)) continue;
       visited.add(cls);
+
+      TypeFile owner = partitions.ownerOf(cls);
+      if (owner != null && owner != currentFile) {
+        imports.put(cls.getSimpleName(), importPath(owner));
+        continue;
+      }
 
       if (cls.isEnum()) {
         String def = renderEnum(cls);
@@ -95,14 +127,30 @@ public class CreateTsTypeFiles {
         continue;
       }
 
-      String def = renderInterface(cls, queue, basePackage);
+      String def = renderInterface(cls, queue, basePackage, currentFile, partitions, imports);
       definitions.put(cls.getSimpleName(), def);
     }
+
+    for (Map.Entry<String, String> entry : imports.entrySet()) {
+      sb.append("import { ")
+          .append(entry.getKey())
+          .append(" } from '")
+          .append(entry.getValue())
+          .append("';\n");
+    }
+    if (!imports.isEmpty()) sb.append("\n");
 
     for (String key : definitions.keySet()) {
       sb.append(definitions.get(key)).append("\n");
     }
     return sb.toString();
+  }
+
+  private static String importPath(TypeFile typeFile) {
+    return switch (typeFile) {
+      case REQUEST -> "./request-types";
+      case RESPONSE -> "./response-types";
+    };
   }
 
   private static String renderEnum(Class<?> enumClass) {
@@ -114,13 +162,20 @@ public class CreateTsTypeFiles {
     return "export type " + enumClass.getSimpleName() + " = " + String.join(" | ", parts) + ";";
   }
 
-  private static String renderInterface(Class<?> cls, Deque<Class<?>> queue, String basePackage) {
+  private static String renderInterface(
+      Class<?> cls,
+      Deque<Class<?>> queue,
+      String basePackage,
+      TypeFile currentFile,
+      TypePartitions partitions,
+      Map<String, String> imports) {
     StringBuilder sb = new StringBuilder();
     sb.append("export interface ").append(cls.getSimpleName()).append(" {\n");
 
     for (Field f : cls.getDeclaredFields()) {
       if (java.lang.reflect.Modifier.isStatic(f.getModifiers())) continue;
-      String tsType = mapJavaTypeToTs(f.getGenericType(), queue, basePackage);
+      String tsType =
+          mapJavaTypeToTs(f.getGenericType(), queue, basePackage, currentFile, partitions, imports);
       boolean required = hasNotNull(f.getAnnotations());
       sb.append("  ")
           .append(f.getName())
@@ -143,11 +198,19 @@ public class CreateTsTypeFiles {
     return false;
   }
 
-  private static String mapJavaTypeToTs(Type type, Deque<Class<?>> queue, String basePackage) {
+  private static String mapJavaTypeToTs(
+      Type type,
+      Deque<Class<?>> queue,
+      String basePackage,
+      TypeFile currentFile,
+      TypePartitions partitions,
+      Map<String, String> imports) {
     if (type instanceof Class) {
       Class<?> cls = (Class<?>) type;
       if (cls.isArray()) {
-        String elem = mapJavaTypeToTs(cls.getComponentType(), queue, basePackage);
+        String elem =
+            mapJavaTypeToTs(
+                cls.getComponentType(), queue, basePackage, currentFile, partitions, imports);
         return elem + "[]";
       }
       // primitives and common types
@@ -165,7 +228,12 @@ public class CreateTsTypeFiles {
 
       // If the class is within our base package, enqueue for interface generation
       if (cls.getName().startsWith(basePackage)) {
-        queue.addLast(cls);
+        TypeFile owner = partitions.ownerOf(cls);
+        if (owner != null && owner != currentFile) {
+          imports.put(cls.getSimpleName(), importPath(owner));
+        } else {
+          queue.addLast(cls);
+        }
         return cls.getSimpleName();
       }
 
@@ -182,17 +250,26 @@ public class CreateTsTypeFiles {
       Type raw = pt.getRawType();
       Type[] args = pt.getActualTypeArguments();
       if (raw instanceof Class && isList((Class<?>) raw)) {
-        String elem = args.length == 1 ? mapJavaTypeToTs(args[0], queue, basePackage) : "any";
+        String elem =
+            args.length == 1
+                ? mapJavaTypeToTs(args[0], queue, basePackage, currentFile, partitions, imports)
+                : "any";
         return elem + "[]";
       }
       if (raw instanceof Class && isSet((Class<?>) raw)) {
-        String elem = args.length == 1 ? mapJavaTypeToTs(args[0], queue, basePackage) : "any";
+        String elem =
+            args.length == 1
+                ? mapJavaTypeToTs(args[0], queue, basePackage, currentFile, partitions, imports)
+                : "any";
         return elem + "[]";
       }
       if (raw instanceof Class && isMap((Class<?>) raw)) {
         // Only support string keys; fall back to string if unknown
         String keyTs = args.length > 0 ? mapMapKeyToTs(args[0]) : "string";
-        String valTs = args.length > 1 ? mapJavaTypeToTs(args[1], queue, basePackage) : "any";
+        String valTs =
+            args.length > 1
+                ? mapJavaTypeToTs(args[1], queue, basePackage, currentFile, partitions, imports)
+                : "any";
         return "Record<" + keyTs + ", " + valTs + ">";
       }
       // Fallback to any for unknown parameterized types

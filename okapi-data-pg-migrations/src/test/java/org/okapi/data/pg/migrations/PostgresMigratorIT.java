@@ -41,7 +41,7 @@ class PostgresMigratorIT {
       assertThrows(
           FlywayException.class,
           () -> PostgresMigrator.validate(schemaUrl, MIGRATION_USER, MIGRATION_PASSWORD));
-      assertEquals(2, PostgresMigrator.migrate(schemaUrl, MIGRATION_USER, MIGRATION_PASSWORD));
+      assertEquals(1, PostgresMigrator.migrate(schemaUrl, MIGRATION_USER, MIGRATION_PASSWORD));
       assertEquals(0, PostgresMigrator.migrate(schemaUrl, MIGRATION_USER, MIGRATION_PASSWORD));
       PostgresMigrator.validate(schemaUrl, MIGRATION_USER, MIGRATION_PASSWORD);
       assertTrue(tableExists(schema));

@@ -18,6 +18,10 @@
         </dependency>
 
         <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+        </dependency>
+        <dependency>
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
         </dependency>
@@ -58,9 +62,12 @@
         </dependency>
 
         <dependency>
-            <groupId>org.okapi</groupId>
-            <artifactId>okapi-otel-protos</artifactId>
-            <version>0.0.1-SNAPSHOT</version>
+            <groupId>io.opentelemetry.proto</groupId>
+            <artifactId>opentelemetry-proto</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-model</artifactId>
         </dependency>
 
     </dependencies>

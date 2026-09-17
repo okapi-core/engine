@@ -14,61 +14,73 @@ dashboard:
       panels:
         - id: request-time-50p
           title: Request Time 50p
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"kafka_request_time_50p","tags":{"service_instance_id":"$__{service_instance_id}"},"start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"kafka_request_time_50p","tags":{"service_instance_id":"$__{service_instance_id}"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: request-time-99p
           title: Request Time 99p
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"kafka_request_time_99p","tags":{"service_instance_id":"$__{service_instance_id}"},"start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"kafka_request_time_99p","tags":{"service_instance_id":"$__{service_instance_id}"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: request-time-avg
           title: Request Time Avg
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"kafka_request_time_avg","tags":{"service_instance_id":"$__{service_instance_id}"},"start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"kafka_request_time_avg","tags":{"service_instance_id":"$__{service_instance_id}"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: request-queue
           title: Request Queue
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"kafka_request_queue","tags":{"service_instance_id":"$__{service_instance_id}"},"start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"kafka_request_queue","tags":{"service_instance_id":"$__{service_instance_id}"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: purgatory-size
           title: Purgatory Size
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"kafka_purgatory_size","tags":{"service_instance_id":"$__{service_instance_id}"},"start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"kafka_purgatory_size","tags":{"service_instance_id":"$__{service_instance_id}"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: partition-count
           title: Partition Count
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"kafka_partition_count","tags":{"service_instance_id":"$__{service_instance_id}"},"start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"kafka_partition_count","tags":{"service_instance_id":"$__{service_instance_id}"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: partition-offline
           title: Partition Offline
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"kafka_partition_offline","tags":{"service_instance_id":"$__{service_instance_id}"},"start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"kafka_partition_offline","tags":{"service_instance_id":"$__{service_instance_id}"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: partition-under-replicated
           title: Partition Under Replicated
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"kafka_partition_under_replicated","tags":{"service_instance_id":"$__{service_instance_id}"},"start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"kafka_partition_under_replicated","tags":{"service_instance_id":"$__{service_instance_id}"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: max-lag
           title: Max Lag
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"kafka_max_lag","tags":{"service_instance_id":"$__{service_instance_id}"},"start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"kafka_max_lag","tags":{"service_instance_id":"$__{service_instance_id}"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: controller-active-count
           title: Controller Active Count
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"kafka_controller_active_count","tags":{"service_instance_id":"$__{service_instance_id}"},"start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"kafka_controller_active_count","tags":{"service_instance_id":"$__{service_instance_id}"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: logs-flush-time-50p
           title: Logs Flush Time 50p
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"kafka_logs_flush_time_50p","tags":{"service_instance_id":"$__{service_instance_id}"},"start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"kafka_logs_flush_time_50p","tags":{"service_instance_id":"$__{service_instance_id}"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: logs-flush-time-99p
           title: Logs Flush Time 99p
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"kafka_logs_flush_time_99p","tags":{"service_instance_id":"$__{service_instance_id}"},"start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"kafka_logs_flush_time_99p","tags":{"service_instance_id":"$__{service_instance_id}"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}

@@ -9,6 +9,7 @@ import org.okapi.logs.core.KafkaLogsEventEmitter;
 import org.okapi.logs.core.LogsEventEmitter;
 import org.okapi.logs.core.WalLogsEventEmitter;
 import org.okapi.metrics.ch.ChWalResources;
+import org.okapi.spring.configs.Profiles;
 import org.okapi.spring.configs.Qualifiers;
 import org.okapi.spring.configs.properties.LogsConsumptionCfg;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,8 +17,10 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 
 @Configuration
+@Profile(Profiles.PROFILE_CH)
 public class LogsEventEmitterConfig {
   @Bean
   @ConditionalOnProperty(

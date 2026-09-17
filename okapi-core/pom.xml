@@ -39,12 +39,6 @@
             <artifactId>jsoup</artifactId>
         </dependency>
 
-        <!-- https://mvnrepository.com/artifact/software.amazon.awssdk/secretsmanager -->
-        <dependency>
-            <groupId>software.amazon.awssdk</groupId>
-            <artifactId>secretsmanager</artifactId>
-        </dependency>
-
         <!-- https://mvnrepository.com/artifact/commons-io/commons-io -->
         <dependency>
             <groupId>commons-io</groupId>
@@ -90,14 +84,8 @@
         </dependency>
 
         <dependency>
-            <groupId>com.auth0</groupId>
-            <artifactId>java-jwt</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>com.okapi</groupId>
-            <artifactId>okapi-metrics-message</artifactId>
-            <version>0.0.1-SNAPSHOT</version>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-web</artifactId>
         </dependency>
 
         <dependency>
@@ -128,6 +116,7 @@
             <artifactId>okapi-pojos</artifactId>
             <version>0.0.1-SNAPSHOT</version>
         </dependency>
+
         <dependency>
             <groupId>org.okapi</groupId>
             <artifactId>okapi-rest</artifactId>

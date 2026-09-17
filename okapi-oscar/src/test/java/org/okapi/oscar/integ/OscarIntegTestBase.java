@@ -1,6 +1,14 @@
+/*
+ * Copyright The OkapiCore Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
 package org.okapi.oscar.integ;
 
+import static org.awaitility.Awaitility.await;
+
 import com.google.gson.Gson;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.TestInstance;
 import org.okapi.ingester.client.IngesterClient;
 import org.okapi.oscar.integ.judge.JudgeAgent;
@@ -17,11 +25,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
-
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-
-import static org.awaitility.Awaitility.await;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.NONE)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)

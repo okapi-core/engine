@@ -25,31 +25,33 @@
         <module>okapi-protos</module>
         <module>okapi-core</module>
         <module>okapi-static-server</module>
-        <module>okapi-metrics</module>
         <module>okapi-web</module>
         <module>okapi-rest</module>
         <module>okapi-pojos</module>
-        <module>okapi-data-ddb</module>
+        <module>okapi-data-api</module>
+        <module>okapi-data-pg-migrations</module>
+        <module>okapi-data-pg</module>
         <module>okapi-wal</module>
         <module>okapi-promql</module>
         <module>okapi-statistics</module>
-        <module>okapi-otel-protos</module>
         <module>okapi-ingester</module>
         <module>okapi-cloud-web-dtos</module>
-        <module>okapi-agent-dtos</module>
-        <module>okapi-agent-main</module>
         <module>okapi-demo-server</module>
         <module>okapi-datagen</module>
         <module>okapi-ops</module>
+        <module>okapi-oscar</module>
+        <module>okapi-ingester-client</module>
+        <module>okapi-oscar-client</module>
+        <module>okapi-ql</module>
     </modules>
     <properties>
         <java.version>21</java.version>
-        <aws-sdk-version>1.12.781</aws-sdk-version>
         <aws-sdk-2-version>2.32.20</aws-sdk-2-version>
         <spotless.version>2.44.4</spotless.version>
         <googleFormat.version>1.26.0</googleFormat.version>
         <org.mapstruct.version>1.6.3</org.mapstruct.version>
-        <protobuf.version>3.25.3</protobuf.version>
+        <protobuf.version>4.32.0</protobuf.version>
+        <opentelemetry-proto.version>1.8.0-alpha</opentelemetry-proto.version>
         <protobuf.maven.plugin.version>0.6.1</protobuf.maven.plugin.version>
         <os-maven-plugin.version>1.7.1</os-maven-plugin.version>
         <maven.compiler.plugin.version>3.11.0</maven.compiler.plugin.version>
@@ -60,6 +62,9 @@
         <antlr4.version>4.13.1</antlr4.version>
         <grpc.version>1.65.0</grpc.version>
         <testcontainers.version>1.19.8</testcontainers.version>
+        <spring-ai.version>2.0.0-M1</spring-ai.version>
+        <spring-vault.version>4.0.0</spring-vault.version>
+        <springdoc-openapi.version>3.1.0</springdoc-openapi.version>
     </properties>
 
     <repositories>
@@ -86,6 +91,20 @@
             </dependency>
 
             <dependency>
+                <groupId>org.springframework.ai</groupId>
+                <artifactId>spring-ai-bom</artifactId>
+                <version>${spring-ai.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-starter-webmvc-api</artifactId>
+                <version>${springdoc-openapi.version}</version>
+            </dependency>
+
+            <dependency>
                 <groupId>gg.jte</groupId>
                 <artifactId>jte</artifactId>
                 <version>3.2.2</version>
@@ -97,12 +116,6 @@
                 <version>1.18.38</version>
             </dependency>
 
-
-            <dependency>
-                <groupId>com.auth0</groupId>
-                <artifactId>java-jwt</artifactId>
-                <version>4.5.0</version>
-            </dependency>
 
             <!-- OkHttp versions are inherited from the BOM above -->
             <dependency>
@@ -205,6 +218,12 @@
                 <groupId>com.google.protobuf</groupId>
                 <artifactId>protobuf-java</artifactId>
                 <version>${protobuf.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.opentelemetry.proto</groupId>
+                <artifactId>opentelemetry-proto</artifactId>
+                <version>${opentelemetry-proto.version}</version>
             </dependency>
 
             <dependency>
@@ -349,6 +368,20 @@
                 <artifactId>client-v2</artifactId>
                 <version>0.8.6</version>
             </dependency>
+
+            <dependency>
+                <groupId>org.springframework.vault</groupId>
+                <artifactId>spring-vault-core</artifactId>
+                <version>${spring-vault.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.junit-pioneer</groupId>
+                <artifactId>junit-pioneer</artifactId>
+                <version>2.3.0</version>
+                <scope>test</scope>
+            </dependency>
+
         </dependencies>
 
 
@@ -372,7 +405,10 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-compiler-plugin</artifactId>
+                    <version>${maven.compiler.plugin.version}</version>
                     <configuration>
+                        <source>${java.version}</source>
+                        <target>${java.version}</target>
                         <annotationProcessorPaths>
                             <path>
                                 <groupId>org.projectlombok</groupId>
@@ -396,14 +432,6 @@
                     <groupId>org.xolstice.maven.plugins</groupId>
                     <artifactId>protobuf-maven-plugin</artifactId>
                     <version>${protobuf.maven.plugin.version}</version>
-                </plugin>
-                <plugin>
-                    <artifactId>maven-compiler-plugin</artifactId>
-                    <version>${maven.compiler.plugin.version}</version>
-                    <configuration>
-                        <source>${java.version}</source>
-                        <target>${java.version}</target>
-                    </configuration>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.avro</groupId>
@@ -436,6 +464,14 @@
                 <groupId>com.diffplug.spotless</groupId>
                 <artifactId>spotless-maven-plugin</artifactId>
                 <version>${spotless.version}</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                        <phase>package</phase>
+                    </execution>
+                </executions>
                 <configuration>
                     <formats>
                         <format>
@@ -473,7 +509,6 @@
                                 <include>**/*.py</include>
                                 <include>**/*.yaml</include>
                                 <include>**/*.yml</include>
-                                <include>**/*.properties</include>
                                 <include>**/*.toml</include>
                                 <include>Dockerfile</include>
                             </includes>
@@ -487,6 +522,26 @@
                                 <delimiter>\A</delimiter>
                                 <skipLinesMatching>^#!.*</skipLinesMatching>
                             </licenseHeader>
+                        </format>
+                        <format>
+                            <includes>
+                                <include>**/*.properties</include>
+                            </includes>
+                            <excludes>
+                                <exclude>**/target/**</exclude>
+                                <exclude>**/build/**</exclude>
+                                <exclude>**/out/**</exclude>
+                            </excludes>
+                            <licenseHeader>
+                                <file>${maven.multiModuleProjectDirectory}/build-scripts/spotless/license-header-hash.txt</file>
+                                <delimiter>\A</delimiter>
+                            </licenseHeader>
+                            <nativeCmd>
+                                <name>sort-properties</name>
+                                <pathToExe>${maven.multiModuleProjectDirectory}/scripts/sort_properties.py</pathToExe>
+                            </nativeCmd>
+                            <trimTrailingWhitespace/>
+                            <endWithNewline/>
                         </format>
                     </formats>
                     <java>

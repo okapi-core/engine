@@ -28,7 +28,6 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.okapi.Constants;
 import org.okapi.ch.CreateChTablesSpec;
 import org.okapi.metrics.ch.ChConstants;
 import org.okapi.metrics.ch.ChMetricsIngester;
@@ -83,12 +82,7 @@ public class PromQlHistogramWindowTests {
     driver.onTick();
 
     var result =
-        promql.queryRange(
-            Constants.DEFAULT_TENANT,
-            "histogram_quantile(0.5, latency_histo)",
-            1_000L,
-            2_000L,
-            1_000L);
+        promql.queryRange("histogram_quantile(0.5, latency_histo)", 1_000L, 2_000L, 1_000L);
     assertNotNull(result);
     var matrix = ((InstantVectorResult) result).toMatrix();
     assertFalse(matrix.isEmpty());
@@ -98,9 +92,7 @@ public class PromQlHistogramWindowTests {
     assertEquals(5.0f, samples.get(0).value());
     assertEquals(15.0f, samples.get(1).value());
 
-    var sumResult =
-        promql.queryRange(
-            Constants.DEFAULT_TENANT, "histogram_sum(latency_histo)", 1_000L, 2_000L, 1_000L);
+    var sumResult = promql.queryRange("histogram_sum(latency_histo)", 1_000L, 2_000L, 1_000L);
     var sumSamples = ((InstantVectorResult) sumResult).toMatrix().values().iterator().next();
     assertEquals(5.0f, sumSamples.get(0).value());
     assertEquals(15.0f, sumSamples.get(1).value());
@@ -120,7 +112,7 @@ public class PromQlHistogramWindowTests {
         buildGaugeRequest(resource, metric, tags, List.of(1_000L), List.of(1.0)));
     driver.onTick();
 
-    var discovery = discoveryFactory.get(Constants.DEFAULT_TENANT);
+    var discovery = discoveryFactory.get();
     var series = discovery.expand(metric, List.of(), 0, 5_000);
     assertFalse(series.isEmpty());
     var labels = series.getFirst().labels().tags();
@@ -142,7 +134,7 @@ public class PromQlHistogramWindowTests {
         buildGaugeRequest(resource, metric, tags, List.of(1_000L), List.of(1.0)));
     driver.onTick();
 
-    var discovery = discoveryFactory.get(Constants.DEFAULT_TENANT);
+    var discovery = discoveryFactory.get();
     var matchers = List.of(new LabelMatcher("__name__", LabelOp.EQ, metric));
     var series = discovery.expand(null, matchers, 0, 5_000);
     assertFalse(series.isEmpty());

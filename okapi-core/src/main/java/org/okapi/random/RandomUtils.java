@@ -9,13 +9,8 @@ import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
 
 public class RandomUtils {
-
-  public <T> T getRandomSample(List<T> collection) {
-    var size = collection.size();
-    var random = ThreadLocalRandom.current();
-    var item = (int) (random.nextDouble() * size);
-    return collection.get(item);
-  }
+  private static final char[] RANDOM_STRING_ALPHABET =
+      "abcdefghijklmnopqrstuvwxyz0123456789".toCharArray();
 
   public static <T> T getWeightedRandomSample(
       List<T> collection, List<Double> weights, Random random) {
@@ -43,17 +38,19 @@ public class RandomUtils {
     return randomBytes(random, 16);
   }
 
-  public static byte[] randomOtelTraceId() {
-    var random = new Random();
-    return randomBytes(random, 16);
-  }
-
   public static byte[] getRanomOtelSpanId(Random random) {
     return randomBytes(random, 8);
   }
 
-  public static byte[] getRanomOtelSpanId() {
-    var random = new Random();
-    return randomBytes(random, 8);
+  public static String randomString(int len) {
+    if (len < 0) {
+      throw new IllegalArgumentException("len must be non-negative");
+    }
+    var random = ThreadLocalRandom.current();
+    var chars = new char[len];
+    for (int i = 0; i < len; i++) {
+      chars[i] = RANDOM_STRING_ALPHABET[random.nextInt(RANDOM_STRING_ALPHABET.length)];
+    }
+    return new String(chars);
   }
 }

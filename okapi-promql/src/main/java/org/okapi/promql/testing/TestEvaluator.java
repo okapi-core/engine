@@ -32,7 +32,8 @@ public final class TestEvaluator {
   public TestEvaluator() {
     this.store = new InMemoryTimeSeriesStore();
     ExecutorService exec = Executors.newFixedThreadPool(2);
-    this.promql = new ExpressionEvaluator(store.tsClient, store.discovery, exec, NoopStatsMerger.INSTANCE);
+    this.promql =
+        new ExpressionEvaluator(store.tsClient, store.discovery, exec, NoopStatsMerger.INSTANCE);
     this.comparator = new TestResultComparator();
   }
 
@@ -45,8 +46,8 @@ public final class TestEvaluator {
     for (Command cmd : file.commands()) {
       switch (cmd) {
         case ClearCmd ignored -> store.clear();
-        case LoadCmd l        -> store.ingest(l);
-        case EvalCmd e        -> failures.addAll(evaluate(e));
+        case LoadCmd l -> store.ingest(l);
+        case EvalCmd e -> failures.addAll(evaluate(e));
       }
     }
     return failures;
@@ -60,16 +61,19 @@ public final class TestEvaluator {
 
     try {
       PromQLParser parser = buildParser(cmd.expression());
-      result = switch (cmd.evalType()) {
-        case InstantEval instant -> promql.evaluateAt(
-            cmd.expression(), DurationParser.toMillis(instant.at().text()), parser);
-        case RangeEval range -> promql.evaluate(
-            cmd.expression(),
-            DurationParser.toMillis(range.from().text()),
-            DurationParser.toMillis(range.to().text()),
-            DurationParser.toMillis(range.step().text()),
-            parser);
-      };
+      result =
+          switch (cmd.evalType()) {
+            case InstantEval instant ->
+                promql.evaluateAt(
+                    cmd.expression(), DurationParser.toMillis(instant.at().text()), parser);
+            case RangeEval range ->
+                promql.evaluate(
+                    cmd.expression(),
+                    DurationParser.toMillis(range.from().text()),
+                    DurationParser.toMillis(range.to().text()),
+                    DurationParser.toMillis(range.step().text()),
+                    parser);
+          };
     } catch (EvaluationException ex) {
       evalError = ex;
     }
@@ -83,8 +87,9 @@ public final class TestEvaluator {
       return checkFailExpectation(cmd, evalError, failExpect);
     }
     if (evalError != null) {
-      return List.of(TestExpectationDifference.of(
-          cmd.expression(), "unexpected evaluation error", null, evalError.getMessage()));
+      return List.of(
+          TestExpectationDifference.of(
+              cmd.expression(), "unexpected evaluation error", null, evalError.getMessage()));
     }
 
     // Check unsupported annotations
@@ -92,8 +97,12 @@ public final class TestEvaluator {
     for (Expectation exp : cmd.expectations()) {
       if (exp instanceof ExpectAnnotation ann) {
         switch (ann.type()) {
-          case FAIL -> { /* handled above */ }
-          case NO_INFO, NO_WARN, INFO, WARN, ORDERED -> { /* not yet implemented, skip */ }
+          case FAIL -> {
+            /* handled above */
+          }
+          case NO_INFO, NO_WARN, INFO, WARN, ORDERED -> {
+            /* not yet implemented, skip */
+          }
         }
       }
     }
@@ -105,14 +114,19 @@ public final class TestEvaluator {
   private List<TestExpectationDifference> checkFailExpectation(
       EvalCmd cmd, EvaluationException evalError, ExpectAnnotation failExpect) {
     if (evalError == null) {
-      return List.of(TestExpectationDifference.of(
-          cmd.expression(), "expected failure but evaluation succeeded", null, null));
+      return List.of(
+          TestExpectationDifference.of(
+              cmd.expression(), "expected failure but evaluation succeeded", null, null));
     }
-    if (failExpect.matchType() != null && failExpect.pattern() != null
+    if (failExpect.matchType() != null
+        && failExpect.pattern() != null
         && !matchExpectation(evalError.getMessage(), failExpect)) {
-      return List.of(TestExpectationDifference.of(
-          cmd.expression(), "failure message mismatch",
-          failExpect.pattern(), evalError.getMessage()));
+      return List.of(
+          TestExpectationDifference.of(
+              cmd.expression(),
+              "failure message mismatch",
+              failExpect.pattern(),
+              evalError.getMessage()));
     }
     return List.of();
   }
@@ -133,7 +147,7 @@ public final class TestEvaluator {
   private static boolean matchExpectation(String actual, ExpectAnnotation expect) {
     if (expect.matchType() == null || expect.pattern() == null) return true;
     return switch (expect.matchType()) {
-      case MSG   -> expect.pattern().equals(actual);
+      case MSG -> expect.pattern().equals(actual);
       case REGEX -> java.util.regex.Pattern.compile(expect.pattern()).matcher(actual).find();
     };
   }

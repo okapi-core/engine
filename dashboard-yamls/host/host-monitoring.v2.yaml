@@ -23,98 +23,115 @@ dashboard:
       panels:
         - id: cpu-user-utilization
           title: CPU User Utilization
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"system.cpu.utilization","tags":{"host.name":"$__{host}","state":"user"},"start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"system.cpu.utilization","tags":{"host.name":"$__{host}","state":"user"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: cpu-system-utilization
           title: CPU System Utilization
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"system.cpu.utilization","tags":{"host.name":"$__{host}","state":"system"},"start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"system.cpu.utilization","tags":{"host.name":"$__{host}","state":"system"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: cpu-idle-utilization
           title: CPU Idle Utilization
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"system.cpu.utilization","tags":{"host.name":"$__{host}","state":"idle"},"start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"system.cpu.utilization","tags":{"host.name":"$__{host}","state":"idle"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: load-average-1m
           title: Load Average 1m
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"system.load.average.1m","tags":{"host.name":"$__{host}"},"start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"system.load.average.1m","tags":{"host.name":"$__{host}"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: load-average-5m
           title: Load Average 5m
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"system.load.average.5m","tags":{"host.name":"$__{host}"},"start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"system.load.average.5m","tags":{"host.name":"$__{host}"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: load-average-15m
           title: Load Average 15m
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"system.load.average.15m","tags":{"host.name":"$__{host}"},"start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"system.load.average.15m","tags":{"host.name":"$__{host}"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
     - id: host-memory
       title: Memory
       panels:
         - id: memory-utilization
           title: Memory Utilization
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"system.memory.utilization","tags":{"host.name":"$__{host}","state":"used"},"start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"system.memory.utilization","tags":{"host.name":"$__{host}","state":"used"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: memory-usage
           title: Memory Usage
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"system.memory.usage","tags":{"host.name":"$__{host}","state":"used"},"start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"system.memory.usage","tags":{"host.name":"$__{host}","state":"used"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
     - id: host-disk
       title: Disk
       panels:
         - id: disk-read-bytes
           title: Disk Read Bytes
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"system.disk.io","tags":{"host.name":"$__{host}","device":"$__{device}","direction":"read"},"start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"system.disk.io","tags":{"host.name":"$__{host}","device":"$__{device}","direction":"read"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: disk-write-bytes
           title: Disk Write Bytes
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"system.disk.io","tags":{"host.name":"$__{host}","device":"$__{device}","direction":"write"},"start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"system.disk.io","tags":{"host.name":"$__{host}","device":"$__{device}","direction":"write"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: disk-io-time
           title: Disk I/O Time
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"system.disk.io_time","tags":{"host.name":"$__{host}","device":"$__{device}"},"start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"system.disk.io_time","tags":{"host.name":"$__{host}","device":"$__{device}"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
     - id: host-filesystem
       title: Filesystem
       panels:
         - id: filesystem-utilization
           title: Filesystem Utilization
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"system.filesystem.utilization","tags":{"host.name":"$__{host}","mountpoint":"$__{mountpoint}"},"start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"system.filesystem.utilization","tags":{"host.name":"$__{host}","mountpoint":"$__{mountpoint}"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: filesystem-usage
           title: Filesystem Usage
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"system.filesystem.usage","tags":{"host.name":"$__{host}","mountpoint":"$__{mountpoint}","state":"used"},"start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"system.filesystem.usage","tags":{"host.name":"$__{host}","mountpoint":"$__{mountpoint}","state":"used"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
     - id: host-network
       title: Network
       panels:
         - id: network-receive-bytes
           title: Network Receive Bytes
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"system.network.io","tags":{"host.name":"$__{host}","network.interface":"$__{network_interface}","direction":"receive"},"start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"system.network.io","tags":{"host.name":"$__{host}","network.interface":"$__{network_interface}","direction":"receive"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: network-transmit-bytes
           title: Network Transmit Bytes
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"system.network.io","tags":{"host.name":"$__{host}","network.interface":"$__{network_interface}","direction":"transmit"},"start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"system.network.io","tags":{"host.name":"$__{host}","network.interface":"$__{network_interface}","direction":"transmit"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: network-receive-errors
           title: Network Receive Errors
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"system.network.errors","tags":{"host.name":"$__{host}","network.interface":"$__{network_interface}","direction":"receive"},"start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"system.network.errors","tags":{"host.name":"$__{host}","network.interface":"$__{network_interface}","direction":"receive"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: network-transmit-errors
           title: Network Transmit Errors
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"system.network.errors","tags":{"host.name":"$__{host}","network.interface":"$__{network_interface}","direction":"transmit"},"start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"system.network.errors","tags":{"host.name":"$__{host}","network.interface":"$__{network_interface}","direction":"transmit"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}

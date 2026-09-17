@@ -7,18 +7,17 @@ package org.okapi.metrics.ch;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import com.google.gson.Gson;
-import lombok.extern.slf4j.Slf4j;
-import org.okapi.metrics.core.MetricsEventEmitter;
-import org.okapi.rest.metrics.Exemplar;
-import org.okapi.rest.metrics.ExportMetricsRequest;
-import org.okapi.rest.metrics.query.METRIC_TYPE;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
+import lombok.extern.slf4j.Slf4j;
+import org.okapi.metrics.core.MetricsEventEmitter;
+import org.okapi.rest.metrics.Exemplar;
+import org.okapi.rest.metrics.ExportMetricsRequest;
+import org.okapi.rest.metrics.query.METRIC_TYPE;
+import org.okapi.telemetry.OkapiInternalMetrics;
 
 @Slf4j
 public class ChMetricsWalConsumer {
@@ -26,11 +25,21 @@ public class ChMetricsWalConsumer {
   private final MetricsEventEmitter eventEmitter;
   private final ChWriter chWriter;
   Gson gson = new Gson();
+  private final OkapiInternalMetrics metrics;
 
   public ChMetricsWalConsumer(int batchSize, ChWriter chWriter, MetricsEventEmitter eventEmitter) {
+    this(batchSize, chWriter, eventEmitter, null);
+  }
+
+  public ChMetricsWalConsumer(
+      int batchSize,
+      ChWriter chWriter,
+      MetricsEventEmitter eventEmitter,
+      OkapiInternalMetrics metrics) {
     this.batchSize = batchSize;
     this.chWriter = chWriter;
     this.eventEmitter = eventEmitter;
+    this.metrics = metrics;
   }
 
   public record ChWriteWork(String mainTable, List<String> rows, List<String> meta) {}
@@ -217,6 +226,9 @@ public class ChMetricsWalConsumer {
     if (request.getHisto() != null && request.getHisto().getExemplars() != null) {
       rows.addAll(reqToExemplars(request.getHisto().getExemplars()));
     }
+    if (request.getSum() != null && request.getSum().getExemplars() != null) {
+      rows.addAll(reqToExemplars(request.getSum().getExemplars()));
+    }
     return rows;
   }
 
@@ -225,8 +237,11 @@ public class ChMetricsWalConsumer {
     return new ChWriteWork(ChConstants.TBL_EXEMPLAR, exemplars, Collections.emptyList());
   }
 
-  public void consumeRecords() throws IOException, InterruptedException, ExecutionException {
+  public void consumeRecords() throws IOException {
     var batch = eventEmitter.next(batchSize);
+    if (metrics != null) {
+      metrics.recordConsumerBatch("metrics", batch.size());
+    }
 
     Multimap<String, String> writeLoad = ArrayListMultimap.create();
 
@@ -249,6 +264,8 @@ public class ChMetricsWalConsumer {
       writeLoad.putAll(ChConstants.TBL_METRIC_EVENTS_META, sumWrites.meta());
       writeLoad.putAll(ChConstants.TBL_METRIC_EVENTS_META, exponentialHistoWrites.meta());
       var exemplarRows = exemplarWriteWork(req);
+      log.info(
+          "Writing {} exemplar rows to table {}", exemplarRows.rows.size(), exemplarRows.mainTable);
       writeLoad.putAll(ChConstants.TBL_EXEMPLAR, exemplarRows.rows());
     }
 

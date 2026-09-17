@@ -11,8 +11,9 @@ import org.okapi.web.dtos.dashboards.UpdateDashboardRequest;
 import org.okapi.web.dtos.dashboards.versions.ListDashboardVersionsResponse;
 import org.okapi.web.dtos.dashboards.versions.PublishDashboardVersionRequest;
 import org.okapi.web.dtos.dashboards.versions.PublishDashboardVersionResponse;
-import org.okapi.web.headers.RequestHeaders;
-import org.okapi.web.service.context.DashboardAccessContext;
+import org.okapi.web.service.context.DashboardRequestContext;
+import org.okapi.web.service.context.DashboardVersionRequestContext;
+import org.okapi.web.service.context.OrgRequestContext;
 import org.okapi.web.service.dashboards.DashboardService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
@@ -23,68 +24,63 @@ import org.springframework.web.bind.annotation.*;
 public class DashboardController {
   @Autowired DashboardService dashboardService;
 
-  @PostMapping("/dashboards")
+  @PostMapping("/orgs/{orgId}/dashboards")
   public GetDashboardResponse createDashboard(
-      @RequestHeader(RequestHeaders.TEMP_TOKEN) String tempToken,
-      @RequestBody @Validated CreateDashboardRequest req)
-      throws Exception {
-    return dashboardService.create(new DashboardAccessContext(tempToken, null), req);
+      @PathVariable String orgId, @RequestBody @Validated CreateDashboardRequest req) {
+    return dashboardService.create(new OrgRequestContext(orgId), req);
   }
 
-  @GetMapping("/dashboards")
-  public List<GetDashboardResponse> listDashboards(
-      @RequestHeader(RequestHeaders.TEMP_TOKEN) String tempToken) throws Exception {
-    return dashboardService.listDashboards(tempToken);
+  @GetMapping("/orgs/{orgId}/dashboards")
+  public List<GetDashboardResponse> listDashboards(@PathVariable String orgId) throws Exception {
+    return dashboardService.listDashboards(new OrgRequestContext(orgId));
   }
 
-  @GetMapping("/dashboards/{dashboardId}/versions")
+  @GetMapping("/orgs/{orgId}/dashboards/{dashboardId}/versions")
   public ListDashboardVersionsResponse listVersions(
-      @RequestHeader(RequestHeaders.TEMP_TOKEN) String tempToken,
-      @PathVariable("dashboardId") String dashboardId)
+      @PathVariable String orgId, @PathVariable("dashboardId") String dashboardId)
       throws Exception {
-    return dashboardService.listVersions(tempToken, dashboardId);
+    return dashboardService.listVersions(new DashboardRequestContext(orgId, dashboardId));
   }
 
-  @PostMapping("/dashboards/{dashboardId}/publish")
+  @PostMapping("/orgs/{orgId}/dashboards/{dashboardId}/publish")
   public PublishDashboardVersionResponse publishDashboard(
-      @RequestHeader(RequestHeaders.TEMP_TOKEN) String tempToken,
+      @PathVariable String orgId,
       @PathVariable("dashboardId") String dashboardId,
       @RequestBody @Validated PublishDashboardVersionRequest request)
       throws Exception {
-    return dashboardService.publishVersion(tempToken, dashboardId, request.getVersionId());
+    return dashboardService.publishVersion(
+        new DashboardVersionRequestContext(orgId, dashboardId, request.getVersionId()));
   }
 
-  @GetMapping("/dashboards/{dashboardId}/versions/{versionId}")
+  @GetMapping("/orgs/{orgId}/dashboards/{dashboardId}/versions/{versionId}")
   public GetDashboardResponse getDashboardVersion(
-      @RequestHeader(RequestHeaders.TEMP_TOKEN) String tempToken,
+      @PathVariable String orgId,
       @PathVariable("dashboardId") String dashboardId,
       @PathVariable("versionId") String versionId)
       throws Exception {
-    return dashboardService.readVersion(tempToken, dashboardId, versionId);
+    return dashboardService.readVersion(
+        new DashboardVersionRequestContext(orgId, dashboardId, versionId));
   }
 
-  @GetMapping("/dashboards/{dashboardId}/versions/active")
+  @GetMapping("/orgs/{orgId}/dashboards/{dashboardId}/versions/active")
   public GetDashboardResponse getDashboardActiveVersion(
-      @RequestHeader(RequestHeaders.TEMP_TOKEN) String tempToken,
-      @PathVariable("dashboardId") String dashboardId)
-      throws Exception {
-    return dashboardService.read(new DashboardAccessContext(tempToken, dashboardId));
+      @PathVariable String orgId, @PathVariable("dashboardId") String dashboardId) {
+    return dashboardService.read(new DashboardRequestContext(orgId, dashboardId));
   }
 
-  @PostMapping("/dashboards/{dashboardId}/delete")
+  @PostMapping("/orgs/{orgId}/dashboards/{dashboardId}/delete")
   public void deleteDashboard(
-      @RequestHeader(RequestHeaders.TEMP_TOKEN) String tempToken,
-      @PathVariable("dashboardId") String dashboardId)
+      @PathVariable String orgId, @PathVariable("dashboardId") String dashboardId)
       throws Exception {
-    dashboardService.delete(new DashboardAccessContext(tempToken, dashboardId));
+    dashboardService.delete(new DashboardRequestContext(orgId, dashboardId));
   }
 
-  @PostMapping("/dashboards/{dashboardId}/update")
+  @PostMapping("/orgs/{orgId}/dashboards/{dashboardId}/update")
   public GetDashboardResponse updateDashboard(
-      @RequestHeader(RequestHeaders.TEMP_TOKEN) String tempToken,
+      @PathVariable String orgId,
       @PathVariable("dashboardId") String dashboardId,
       @RequestBody @Validated UpdateDashboardRequest req)
       throws Exception {
-    return dashboardService.update(new DashboardAccessContext(tempToken, dashboardId), req);
+    return dashboardService.update(new DashboardRequestContext(orgId, dashboardId), req);
   }
 }

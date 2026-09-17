@@ -15,15 +15,13 @@ import org.okapi.promql.eval.ExpressionResult;
 import org.okapi.promql.eval.VectorData;
 import org.okapi.promql.eval.exceptions.EvaluationException;
 import org.okapi.promql.eval.ts.StatisticsMerger;
-import org.okapi.promql.eval.visitor.DurationUtil;
 import org.okapi.promql.parser.PromQLLexer;
 import org.okapi.promql.parser.PromQLParser;
 import org.okapi.promql.runtime.SeriesDiscoveryFactory;
 import org.okapi.promql.runtime.TsClientFactory;
-import org.okapi.promql.time.PromQlDateParser;
 import org.okapi.rest.promql.GetPromQlResponse;
-import org.okapi.rest.promql.PromQlData;
 import org.okapi.rest.promql.PromQlResponseMapper;
+import org.okapi.rest.promql.PromQlStringListResponse;
 
 @RequiredArgsConstructor
 public class PromQlQueryProcessor {
@@ -34,91 +32,69 @@ public class PromQlQueryProcessor {
   final SeriesDiscoveryFactory seriesDiscoveryFactory;
   UrlUnEscaper urlUnEscaper = new UrlUnEscaper();
 
-  public ExpressionResult queryRange(
-      String tenantId, String promql, String start, String end, String step)
+  public ExpressionResult queryRange(String promql, String start, String end, String step)
       throws EvaluationException, BadRequestException {
-    var st = PromQlDateParser.parseAsUnix(start);
-    if (st.isEmpty()) {
-      throw new BadRequestException(String.format("Date: %s is not a valid start-date", start));
-    }
-    var en = PromQlDateParser.parseAsUnix(end);
-    if (en.isEmpty()) {
-      throw new BadRequestException(String.format("Date: %s is not a valid start-date", end));
-    }
-    Long stepMs;
-    try {
-      stepMs = DurationUtil.parseToMillis(step);
-    } catch (IllegalArgumentException e) {
-      throw new BadRequestException(String.format("Date: %s is not a valid step", step));
-    }
-    return queryRange(tenantId, promql, st.get(), en.get(), stepMs);
+    return queryRange(
+        promql,
+        PromQlApiTimeParams.requiredTime(start, "start-date"),
+        PromQlApiTimeParams.requiredTime(end, "end-date"),
+        PromQlApiTimeParams.requiredStepMillis(step));
   }
 
-  public ExpressionResult queryRange(
-      String tenantId, String promql, long startMs, long endMs, long stepMs)
+  public ExpressionResult queryRange(String promql, long startMs, long endMs, long stepMs)
       throws EvaluationException, BadRequestException {
     var lexer = new PromQLLexer(CharStreams.fromString(promql));
     var tokens = new CommonTokenStream(lexer);
-    var client = metricsClientFactory.getClient(tenantId);
+    var client = metricsClientFactory.getClient();
     if (client.isEmpty()) {
       throw new BadRequestException("Cluster is unavailable as we may be under maintenance.");
     }
-    var discovery = seriesDiscoveryFactory.get(tenantId);
+    var discovery = seriesDiscoveryFactory.get();
     var parser = new PromQLParser(tokens);
     var evaluator = new ExpressionEvaluator(client.get(), discovery, exec, merger);
     return evaluator.evaluate(promql, startMs, endMs, stepMs, parser);
   }
 
-  public ExpressionResult queryPointInTime(String tenantId, String promql, long instant)
+  public ExpressionResult queryPointInTime(String promql, long instant)
       throws EvaluationException, BadRequestException {
     var lexer = new PromQLLexer(CharStreams.fromString(promql));
     var tokens = new CommonTokenStream(lexer);
-    var client = metricsClientFactory.getClient(tenantId);
+    var client = metricsClientFactory.getClient();
     if (client.isEmpty()) {
       throw new BadRequestException("Cluster is unavailable as we may be resharding.");
     }
-    var discovery = seriesDiscoveryFactory.get(tenantId);
+    var discovery = seriesDiscoveryFactory.get();
     var parser = new PromQLParser(tokens);
     var evaluator = new ExpressionEvaluator(client.get(), discovery, exec, merger);
     return evaluator.evaluateAt(promql, instant, parser);
   }
 
-  public GetPromQlResponse<PromQlData<?>> queryRangeApi(
-      String tenantId, String promQl, String start, String end, String step)
+  public GetPromQlResponse queryRangeApi(String promQl, String start, String end, String step)
       throws BadRequestException, EvaluationException {
-    var result = queryRange(tenantId, promQl, start, end, step);
+    var result = queryRange(promQl, start, end, step);
     return PromQlResponseMapper.toResult(result, PromQlResponseMapper.RETURN_TYPE.MATRIX);
   }
 
-  public GetPromQlResponse<PromQlData<?>> queryInstantApi(
-      String tenantId, String promQl, String time) throws BadRequestException, EvaluationException {
-    Long now;
-    if (time == null) {
-      now = System.currentTimeMillis();
-    } else {
-      var instant = PromQlDateParser.parseAsUnix(time);
-      if (instant.isEmpty()) {
-        throw new BadRequestException(String.format("Got illegal date %s.", time));
-      }
-      now = instant.get();
-    }
-    var result = queryPointInTime(tenantId, promQl, now);
+  public GetPromQlResponse queryInstantApi(String promQl, String time)
+      throws BadRequestException, EvaluationException {
+    var now = PromQlApiTimeParams.optionalTime(time, System.currentTimeMillis());
+    var result = queryPointInTime(promQl, now);
     return PromQlResponseMapper.toResult(result, PromQlResponseMapper.RETURN_TYPE.VECTOR_OR_SCALAR);
   }
 
-  public Set<VectorData.SeriesId> getMatches(
-      String tenantId, List<String> conditions, long start, long end) throws BadRequestException {
+  public Set<VectorData.SeriesId> getMatches(List<String> conditions, long start, long end)
+      throws BadRequestException {
     var allMatches = new HashSet<VectorData.SeriesId>();
     if (conditions == null || conditions.isEmpty()) {
-      var discovery = seriesDiscoveryFactory.get(tenantId);
+      var discovery = seriesDiscoveryFactory.get();
       allMatches.addAll(discovery.expand(null, Collections.emptyList(), start, end));
       return Collections.unmodifiableSet(allMatches);
     }
     for (var match : conditions) {
       var lexer = new PromQLLexer(CharStreams.fromString(match));
       var tokens = new CommonTokenStream(lexer);
-      var discovery = seriesDiscoveryFactory.get(tenantId);
-      var client = metricsClientFactory.getClient(tenantId);
+      var discovery = seriesDiscoveryFactory.get();
+      var client = metricsClientFactory.getClient();
       if (client.isEmpty()) {
         throw new BadRequestException("Cluster is unavailable as we may be resharding.");
       }
@@ -130,26 +106,11 @@ public class PromQlQueryProcessor {
     return Collections.unmodifiableSet(allMatches);
   }
 
-  public GetPromQlResponse<List<String>> queryLabelNamesApi(
-      String tenantId, List<String> matches, String start, String end) throws BadRequestException {
+  public PromQlStringListResponse queryLabelNamesApi(List<String> matches, String start, String end)
+      throws BadRequestException {
     var conditions = matches != null ? matches : Collections.<String>emptyList();
-    long st = 0L;
-    long en = System.currentTimeMillis();
-    if (start != null) {
-      var parsed = PromQlDateParser.parseAsUnix(start);
-      if (parsed.isEmpty()) {
-        throw new BadRequestException(String.format("Got illegal date %s.", start));
-      }
-      st = parsed.get();
-    }
-    if (end != null) {
-      var parsed = PromQlDateParser.parseAsUnix(end);
-      if (parsed.isEmpty()) {
-        throw new BadRequestException(String.format("Got illegal date %s.", end));
-      }
-      en = parsed.get();
-    }
-    var matchingSeriesIds = getMatches(tenantId, conditions, st, en);
+    var range = PromQlApiTimeParams.optionalRange(start, end);
+    var matchingSeriesIds = getMatches(conditions, range.getStartMs(), range.getEndMs());
     var labelNames = new HashSet<String>();
     for (var id : matchingSeriesIds) {
       labelNames.add(PromQlResponseMapper.NAME);
@@ -162,28 +123,12 @@ public class PromQlQueryProcessor {
     return PromQlResponseMapper.mapStringList(list);
   }
 
-  public GetPromQlResponse<List<String>> queryLabelsApi(
-      String tenantId, String rawLabel, List<String> matches, String start, String end)
-      throws BadRequestException {
-    long st = 0L;
-    long en = System.currentTimeMillis();
-    if (start != null) {
-      var parsed = PromQlDateParser.parseAsUnix(start);
-      if (parsed.isEmpty()) {
-        throw new BadRequestException(String.format("Got illegal date %s.", start));
-      }
-      st = parsed.get();
-    }
-    if (end != null) {
-      var parsed = PromQlDateParser.parseAsUnix(end);
-      if (parsed.isEmpty()) {
-        throw new BadRequestException(String.format("Got illegal date %s.", end));
-      }
-      en = parsed.get();
-    }
+  public PromQlStringListResponse queryLabelsApi(
+      String rawLabel, List<String> matches, String start, String end) throws BadRequestException {
+    var range = PromQlApiTimeParams.optionalRange(start, end);
     var label = urlUnEscaper.unescape(rawLabel);
     var conditions = matches != null ? matches : Collections.<String>emptyList();
-    var matchingSeriesIds = getMatches(tenantId, conditions, st, en);
+    var matchingSeriesIds = getMatches(conditions, range.getStartMs(), range.getEndMs());
     var labelValues = new HashSet<String>();
     if ("__name__".equals(label)) {
       for (var id : matchingSeriesIds) {

@@ -1,11 +1,15 @@
+/*
+ * Copyright The OkapiCore Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
 package org.okapi.oscar.agents;
-
-import lombok.extern.slf4j.Slf4j;
-import org.okapi.oscar.tools.*;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
+import org.okapi.oscar.tools.*;
 
 @Slf4j
 public class CannedToolCallSequence {
@@ -14,7 +18,7 @@ public class CannedToolCallSequence {
     void run(Context context);
   }
 
-  private final String name;
+  @Getter private final String name;
   private final List<Step> steps;
   private final long maxGapMillis;
 
@@ -22,10 +26,6 @@ public class CannedToolCallSequence {
     this.name = name;
     this.steps = steps;
     this.maxGapMillis = maxGapMillis;
-  }
-
-  public String getName() {
-    return name;
   }
 
   public void runBlocking(Context context) {
@@ -49,6 +49,7 @@ public class CannedToolCallSequence {
     private final String userMessage;
     private final MetricsTools metricsTools;
     private final TracingTools tracingTools;
+    private final LogsSearchTool logsSearchTool;
     private final DateTimeTools dateTimeTools;
     private final GreetingTools greetingTools;
     private final FilterContributionTool filterContributionTool;
@@ -62,6 +63,7 @@ public class CannedToolCallSequence {
         String userMessage,
         MetricsTools metricsTools,
         TracingTools tracingTools,
+        LogsSearchTool logsSearchTool,
         DateTimeTools dateTimeTools,
         GreetingTools greetingTools,
         FilterContributionTool filterContributionTool,
@@ -71,6 +73,7 @@ public class CannedToolCallSequence {
       this.userMessage = userMessage;
       this.metricsTools = metricsTools;
       this.tracingTools = tracingTools;
+      this.logsSearchTool = logsSearchTool;
       this.dateTimeTools = dateTimeTools;
       this.greetingTools = greetingTools;
       this.filterContributionTool = filterContributionTool;
@@ -96,6 +99,10 @@ public class CannedToolCallSequence {
 
     public TracingTools getTracingTools() {
       return tracingTools;
+    }
+
+    public LogsSearchTool getLogSearchTool() {
+      return logsSearchTool;
     }
 
     public DateTimeTools getDateTimeTools() {

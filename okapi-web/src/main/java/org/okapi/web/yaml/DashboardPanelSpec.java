@@ -9,6 +9,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.okapi.grammar.GRAMMAR;
 
 @AllArgsConstructor
 @NoArgsConstructor
@@ -18,5 +19,6 @@ public class DashboardPanelSpec {
   String id;
   String title;
   String note;
+  GRAMMAR grammar;
   List<PanelQuerySpec> queries;
 }

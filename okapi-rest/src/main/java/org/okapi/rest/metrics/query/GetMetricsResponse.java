@@ -6,12 +6,12 @@ package org.okapi.rest.metrics.query;
 
 import com.fasterxml.jackson.annotation.JsonClassDescription;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
+import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.ToString;
-
-import java.util.Map;
+import org.okapi.rest.promql.PromQlResultData;
 
 @AllArgsConstructor
 @Builder
@@ -33,4 +33,7 @@ public class GetMetricsResponse {
 
   @JsonPropertyDescription("Sum/counter data. Populated only when metricType is SUM.")
   GetSumsResponse sumsResponse;
+
+  @JsonPropertyDescription("PromQl response. Set only when the sent query was a promQL query.")
+  PromQlResultData promqlResponse;
 }

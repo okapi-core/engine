@@ -1,5 +1,18 @@
+/*
+ * Copyright The OkapiCore Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
 package org.okapi.oscar.service;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
+import java.util.Arrays;
+import java.util.List;
+import java.util.UUID;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -11,16 +24,6 @@ import org.okapi.rest.chat.ChatMessageResponse;
 import org.okapi.rest.chat.GetHistoryRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-
-import java.time.Duration;
-import java.time.temporal.ChronoUnit;
-import java.util.Arrays;
-import java.util.List;
-import java.util.UUID;
-import java.util.stream.Collectors;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest
 public class OscarAiHistoryApiTests {
@@ -84,22 +87,19 @@ public class OscarAiHistoryApiTests {
     assertEquals(3, history.getResponses().size());
     var msgs = history.getResponses().stream().map(ChatMessageResponse::getContents).toList();
     Assertions.assertEquals(List.of("hello", "hello there", "bye"), msgs);
-    var ids = history.getResponses().stream().map(ChatMessageResponse::getId).collect(Collectors.toSet());
+    var ids =
+        history.getResponses().stream().map(ChatMessageResponse::getId).collect(Collectors.toSet());
     assertEquals(3, ids.size());
   }
 
   @Test
   void getHistoryAfterT1() {
-    var history =
-        oscarAi.getHistory(
-            testSession,
-            GetHistoryRequest.builder()
-                .from(t1)
-                .build());
+    var history = oscarAi.getHistory(testSession, GetHistoryRequest.builder().from(t1).build());
     assertEquals(2, history.getResponses().size());
     var msgs = history.getResponses().stream().map(ChatMessageResponse::getContents).toList();
     Assertions.assertEquals(List.of("hello there", "bye"), msgs);
-    var ids = history.getResponses().stream().map(ChatMessageResponse::getId).collect(Collectors.toSet());
+    var ids =
+        history.getResponses().stream().map(ChatMessageResponse::getId).collect(Collectors.toSet());
     assertEquals(2, ids.size());
   }
 
@@ -115,7 +115,8 @@ public class OscarAiHistoryApiTests {
     assertEquals(2, history.getResponses().size());
     var msgs = history.getResponses().stream().map(ChatMessageResponse::getContents).toList();
     Assertions.assertEquals(List.of("hello", "hello there"), msgs);
-    var ids = history.getResponses().stream().map(ChatMessageResponse::getId).collect(Collectors.toSet());
+    var ids =
+        history.getResponses().stream().map(ChatMessageResponse::getId).collect(Collectors.toSet());
     assertEquals(2, ids.size());
   }
 
@@ -158,12 +159,7 @@ public class OscarAiHistoryApiTests {
   @Test
   void getHistoryMapsMetadataCorrectly() {
     var history =
-        oscarAi.getHistory(
-            testSession,
-            GetHistoryRequest.builder()
-                .from(t0)
-                .to(t0)
-                .build());
+        oscarAi.getHistory(testSession, GetHistoryRequest.builder().from(t0).to(t0).build());
     assertEquals(1, history.getResponses().size());
     var response = history.getResponses().get(0);
     assertEquals("hello", response.getContents());

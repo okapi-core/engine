@@ -9,9 +9,8 @@ springOverrides:
       host: clickhouse
       port: 8123
       secure: false
-  aws:
-    ddb:
-      endpoint: http://localstack:4566
+    aws:
+      region: eu-west-2
 ```
 
 Install:
@@ -30,9 +29,7 @@ Steps:
    - Note the ClickHouse service DNS name (example):
      `clickhouse.okapi.svc.cluster.local`
 
-2) Deploy DynamoDB (or LocalStack) if self-hosting AWS dependencies.
-   - Example LocalStack service DNS:
-     `localstack.okapi.svc.cluster.local:4566`
+2) Ensure AWS credentials are available to the okapi workloads.
 
 3) Deploy okapi-ingester as a replicated service (ClusterIP). We need to point to ClickHouse via `springOverrides`.
 
@@ -55,8 +52,7 @@ helm install okapi-web helm/okapi-web \
   --namespace okapi \
   --set replicaCount=2 \
   --set service.type=LoadBalancer \
-  --set springOverrides.clusterEndpoint=http://okapi-ingester.okapi.svc.cluster.local:9009 \
-  --set springOverrides.okapi.aws.endpoint=http://localstack.okapi.svc.cluster.local:4566
+  --set springOverrides.clusterEndpoint=http://okapi-ingester.okapi.svc.cluster.local:9009
 ```
 
 ```sh

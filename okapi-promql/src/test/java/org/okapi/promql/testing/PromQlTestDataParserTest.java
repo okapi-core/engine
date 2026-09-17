@@ -8,9 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-import java.util.List;
 import java.util.Map;
-
 import org.junit.jupiter.api.Test;
 import org.okapi.promql.testing.PromQlTestAst.*;
 

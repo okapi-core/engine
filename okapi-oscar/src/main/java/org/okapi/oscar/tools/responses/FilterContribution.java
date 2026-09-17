@@ -1,11 +1,14 @@
+/*
+ * Copyright The OkapiCore Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
 package org.okapi.oscar.tools.responses;
 
 import com.fasterxml.jackson.annotation.JsonClassDescription;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
+import java.util.Map;
 import lombok.Builder;
 import lombok.Value;
-
-import java.util.Map;
 
 @Value
 @Builder

@@ -4,11 +4,12 @@
  */
 package org.okapi.metrics.ch;
 
-import static org.okapi.metrics.service.MetricsValidator.validate;
+import static org.okapi.metrics.ch.MetricsValidator.validate;
 
 import com.google.gson.Gson;
 import io.opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceRequest;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.okapi.exceptions.BadRequestException;
@@ -19,7 +20,6 @@ import org.okapi.metrics.otel.MetricsPostProcessor;
 import org.okapi.metrics.otel.OtelConverter;
 import org.okapi.metrics.otel.RewritePostProcessor;
 import org.okapi.rest.metrics.ExportMetricsRequest;
-import org.okapi.wal.frame.WalEntry;
 import org.okapi.wal.io.IllegalWalEntryException;
 
 @Slf4j
@@ -40,10 +40,9 @@ public class ChMetricsIngester {
     this.directIngestionEnabled = directIngestionEnabled;
   }
 
-  protected WalEntry toWalEntry(ExportMetricsRequest request) throws IOException {
-    var lsnSupplier = this.walResources.getSupplier();
+  protected byte[] toWalPayload(ExportMetricsRequest request) {
     var payload = gson.toJson(request);
-    return new WalEntry(lsnSupplier.next(), payload.getBytes());
+    return payload.getBytes(StandardCharsets.UTF_8);
   }
 
   public void ingestOtelProtobuf(ExportMetricsServiceRequest exportMetricsServiceRequest)
@@ -53,18 +52,8 @@ public class ChMetricsIngester {
         otelConverter.toOkapiRequests(exportMetricsServiceRequest);
     converted = buildPostProcessor(null).process(converted);
     validate(converted);
-    var walEntries =
-        converted.stream()
-            .map(
-                (r) -> {
-                  try {
-                    return toWalEntry(r);
-                  } catch (IOException e) {
-                    throw new RuntimeException(e);
-                  }
-                })
-            .toList();
-    walResources.getWriter().appendBatch(walEntries);
+    var walPayloads = converted.stream().map(this::toWalPayload).toList();
+    walResources.appendPayloads(walPayloads);
   }
 
   public void ingestOtelProtobuf(
@@ -75,18 +64,8 @@ public class ChMetricsIngester {
         otelConverter.toOkapiRequests(exportMetricsServiceRequest);
     converted = buildPostProcessor(conversionConfig).process(converted);
     validate(converted);
-    var walEntries =
-        converted.stream()
-            .map(
-                (r) -> {
-                  try {
-                    return toWalEntry(r);
-                  } catch (IOException e) {
-                    throw new RuntimeException(e);
-                  }
-                })
-            .toList();
-    walResources.getWriter().appendBatch(walEntries);
+    var walPayloads = converted.stream().map(this::toWalPayload).toList();
+    walResources.appendPayloads(walPayloads);
   }
 
   private MetricsPostProcessor buildPostProcessor(ConversionConfig conversionConfig) {

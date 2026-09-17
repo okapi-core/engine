@@ -14,5 +14,6 @@ import lombok.NoArgsConstructor;
 @Getter
 @Builder
 public class PanelQuerySpec {
+  String label;
   String query;
 }

@@ -5,6 +5,10 @@
 package org.okapi.promql.eval;
 
 public sealed interface ExpressionResult
-    permits ScalarResult, StringResult, InstantVectorResult, RangeVectorResult, HistogramVectorResult {
+    permits ScalarResult,
+        StringResult,
+        InstantVectorResult,
+        RangeVectorResult,
+        HistogramVectorResult {
   ValueType type();
 }

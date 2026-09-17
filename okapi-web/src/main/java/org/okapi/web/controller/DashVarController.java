@@ -5,10 +5,9 @@
 package org.okapi.web.controller;
 
 import org.okapi.web.dtos.dashboards.vars.CreateDashboardVarRequest;
-import org.okapi.web.dtos.dashboards.vars.DeleteDashboardVarRequest;
 import org.okapi.web.dtos.dashboards.vars.GetVarResponse;
 import org.okapi.web.dtos.dashboards.vars.ListVarsResponse;
-import org.okapi.web.headers.RequestHeaders;
+import org.okapi.web.service.context.DashboardRequestContext;
 import org.okapi.web.service.dashboards.DashboardVarsService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
@@ -20,27 +19,25 @@ public class DashVarController {
 
   @Autowired DashboardVarsService dashboardVarsService;
 
-  @PostMapping("/dashboard-vars")
+  @PostMapping("/orgs/{orgId}/dashboards/{dashboardId}/vars")
   public GetVarResponse createVar(
-      @RequestHeader(RequestHeaders.TEMP_TOKEN) String tempToken,
+      @PathVariable String orgId,
+      @PathVariable String dashboardId,
       @RequestBody @Validated CreateDashboardVarRequest req)
       throws Exception {
-    return dashboardVarsService.createVar(tempToken, req);
+    return dashboardVarsService.createVar(new DashboardRequestContext(orgId, dashboardId), req);
   }
 
-  @GetMapping("/dashboard-vars/{dashboardId}")
-  public ListVarsResponse listVars(
-      @RequestHeader(RequestHeaders.TEMP_TOKEN) String tempToken,
-      @PathVariable("dashboardId") String id)
+  @GetMapping("/orgs/{orgId}/dashboards/{dashboardId}/vars")
+  public ListVarsResponse listVars(@PathVariable String orgId, @PathVariable String dashboardId)
       throws Exception {
-    return dashboardVarsService.listVar(tempToken, id);
+    return dashboardVarsService.listVars(new DashboardRequestContext(orgId, dashboardId));
   }
 
-  @PostMapping("/dashboard-vars/delete")
+  @PostMapping("/orgs/{orgId}/dashboards/{dashboardId}/vars/{name}/delete")
   public void deleteVar(
-      @RequestHeader(RequestHeaders.TEMP_TOKEN) String tempToken,
-      @RequestBody @Validated DeleteDashboardVarRequest req)
+      @PathVariable String orgId, @PathVariable String dashboardId, @PathVariable String name)
       throws Exception {
-    dashboardVarsService.deleteVar(tempToken, req);
+    dashboardVarsService.deleteVar(new DashboardRequestContext(orgId, dashboardId), name);
   }
 }

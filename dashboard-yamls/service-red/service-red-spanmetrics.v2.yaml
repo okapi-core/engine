@@ -17,21 +17,25 @@ dashboard:
       panels:
         - id: request-rate
           title: Request Rate
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"spanmetrics.calls","tags":{"service.name":"$__{service_name}","span.kind":"$__{span_kind}"},"start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"spanmetrics.calls","tags":{"service.name":"$__{service_name}","span.kind":"$__{span_kind}"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: error-rate
           title: Error Rate
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"spanmetrics.calls","tags":{"service.name":"$__{service_name}","span.kind":"$__{span_kind}","status.code":"STATUS_CODE_ERROR"},"start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"spanmetrics.calls","tags":{"service.name":"$__{service_name}","span.kind":"$__{span_kind}","status.code":"STATUS_CODE_ERROR"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: duration-avg
           title: Duration Avg
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"spanmetrics.duration","tags":{"service.name":"$__{service_name}","span.kind":"$__{span_kind}"},"start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"spanmetrics.duration","tags":{"service.name":"$__{service_name}","span.kind":"$__{span_kind}"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: duration-max
           title: Duration Max
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"spanmetrics.duration","tags":{"service.name":"$__{service_name}","span.kind":"$__{span_kind}"},"start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"MAX"}}
+                {"metric":"spanmetrics.duration","tags":{"service.name":"$__{service_name}","span.kind":"$__{span_kind}"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"MAX"}}

@@ -14,17 +14,14 @@ import org.okapi.rest.search.GetTagValueHintsRequest;
 import org.okapi.web.dtos.dashboards.vars.DASH_VAR_TYPE;
 import org.okapi.web.dtos.dashboards.vars.GetVarHintsRequest;
 import org.okapi.web.dtos.dashboards.vars.VarHintsResponse;
-import org.okapi.web.service.access.OrgMemberChecker;
 import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
 public class VariableHintsService {
-  final OrgMemberChecker memberChecker;
   final IngesterClient ingesterClient;
 
-  public VarHintsResponse getVarHints(String tempToken, GetVarHintsRequest request) {
-    memberChecker.checkUserIsOrgMember(tempToken);
+  public VarHintsResponse getVarHints(GetVarHintsRequest request) {
     var queryInterval = buildConstraint(request);
     if (request.getVarType() == DASH_VAR_TYPE.METRIC) {
       var hintsRequest = GetMetricNameHints.builder().interval(queryInterval).build();

@@ -151,6 +151,28 @@ public final class RelationGraphDaoPg implements RelationGraphDao {
         .toList();
   }
 
+  public List<RelationGraphNode> getAllIncomingRelations(
+      EntityId entity, EntityType sourceType, RelationType relationType) {
+    return jdbc.query(
+        """
+        SELECT source_type, source_id
+        FROM entity_relations
+        WHERE target_type = ? AND target_id = ? AND source_type = ? AND relation_type = ?
+        ORDER BY source_id
+        """,
+        (rs, row) ->
+            RelationGraphNode.builder()
+                .entityId(entity.toString())
+                .relatedEntity(EntityId.of(sourceType, rs.getString("source_id")).toString())
+                .relatedEntityType(sourceType)
+                .relationships(new java.util.ArrayList<>(List.of(relationType)))
+                .build(),
+        entity.type().name(),
+        entity.id(),
+        sourceType.name(),
+        relationType.name());
+  }
+
   public void deleteEntity(EntityId entity) {
     jdbc.update(
         """

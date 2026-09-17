@@ -1,12 +1,16 @@
+/*
+ * Copyright The OkapiCore Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
 package org.okapi.oscar.integ;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.okapi.oscar.integ.corpus.SingleStepFlowCorpus;
 import org.okapi.oscar.integ.judge.Judgment;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 @Disabled
 class SingleStepIntegrationTest extends OscarIntegTestBase {

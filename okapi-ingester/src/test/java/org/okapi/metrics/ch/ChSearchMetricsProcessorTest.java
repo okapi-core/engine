@@ -1,3 +1,7 @@
+/*
+ * Copyright The OkapiCore Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
 package org.okapi.metrics.ch;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -28,6 +32,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.okapi.ch.CreateChTablesSpec;
 import org.okapi.exceptions.BadRequestException;
+import org.okapi.otelshorthand.OtelShortHands;
 import org.okapi.rest.metrics.query.METRIC_TYPE;
 import org.okapi.rest.search.AnyMetricOrValueFilter;
 import org.okapi.rest.search.LabelValueFilter;
@@ -35,7 +40,6 @@ import org.okapi.rest.search.LabelValuePatternFilter;
 import org.okapi.rest.search.MetricPath;
 import org.okapi.rest.search.SearchMetricsRequest;
 import org.okapi.testmodules.guice.TestChMetricsModule;
-import org.okapi.traces.testutil.OtelShortHands;
 
 public class ChSearchMetricsProcessorTest {
 
@@ -142,9 +146,7 @@ public class ChSearchMetricsProcessorTest {
   void searchByMetricPatternAndLabelValue() {
     var resp =
         search(
-            req()
-                .metricNamePattern("cpu\\..*")
-                .valueFilters(List.of(labelFilter("env", "prod"))));
+            req().metricNamePattern("cpu\\..*").valueFilters(List.of(labelFilter("env", "prod"))));
     assertEquals(3, resp.size());
     assertTrue(resp.contains(path("cpu.usage", METRIC_TYPE.GAUGE, TAGS_PROD_WEB_01)));
     assertTrue(resp.contains(path("cpu.usage", METRIC_TYPE.GAUGE, TAGS_PROD_WEB_02)));
@@ -186,13 +188,11 @@ public class ChSearchMetricsProcessorTest {
 
     var histoResp = search(req().metricName("latency.histo"));
     assertTrue(
-        histoResp.contains(
-            path("latency.histo", METRIC_TYPE.HISTO, "DELTA", TAGS_PROD_WEB_01)));
+        histoResp.contains(path("latency.histo", METRIC_TYPE.HISTO, "DELTA", TAGS_PROD_WEB_01)));
 
     var sumResp = search(req().metricName("requests.sum"));
     assertTrue(
-        sumResp.contains(
-            path("requests.sum", METRIC_TYPE.SUM, "CUMULATIVE", TAGS_PROD_WEB_01)));
+        sumResp.contains(path("requests.sum", METRIC_TYPE.SUM, "CUMULATIVE", TAGS_PROD_WEB_01)));
   }
 
   // --- anyMetricOrValueFilter ---
@@ -252,8 +252,7 @@ public class ChSearchMetricsProcessorTest {
   @Test
   void searchByAnyFilter_bothBlank_throwsBadRequest() {
     assertThrows(
-        BadRequestException.class,
-        () -> search(req().anyMetricOrValueFilter(anyFilter().build())));
+        BadRequestException.class, () -> search(req().anyMetricOrValueFilter(anyFilter().build())));
   }
 
   // --- helpers ---
@@ -328,10 +327,7 @@ public class ChSearchMetricsProcessorTest {
             .addAllAttributes(OtelShortHands.keyValues(tags))
             .build();
     var histo =
-        Histogram.newBuilder()
-            .setAggregationTemporality(temporality)
-            .addDataPoints(point)
-            .build();
+        Histogram.newBuilder().setAggregationTemporality(temporality).addDataPoints(point).build();
     var metric = Metric.newBuilder().setName(metricName).setHistogram(histo).build();
     var resourceMetrics =
         ResourceMetrics.newBuilder()

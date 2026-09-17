@@ -4,6 +4,7 @@
  */
 package org.okapi.web.dtos.dashboards;
 
+import com.google.gson.annotations.SerializedName;
 import jakarta.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.List;
@@ -28,5 +29,6 @@ public class GetDashboardResponse {
   PersonalName createdBy;
   PersonalName lastEditedBy;
 
+  @SerializedName(value = "favorite", alternate = "isFavorite")
   boolean isFavorite;
 }

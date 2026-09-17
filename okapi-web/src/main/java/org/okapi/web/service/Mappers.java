@@ -6,18 +6,15 @@ package org.okapi.web.service;
 
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import org.okapi.agent.dto.JOB_STATUS;
-import org.okapi.agent.dto.QuerySpec;
 import org.okapi.data.model.*;
+import org.okapi.grammar.GRAMMAR;
 import org.okapi.web.dtos.auth.GetUserProfileResponse;
 import org.okapi.web.dtos.dashboards.*;
 import org.okapi.web.dtos.dashboards.vars.DASH_VAR_TYPE;
 import org.okapi.web.dtos.dashboards.vars.GetVarResponse;
-import org.okapi.web.dtos.sources.GetFederatedSourceResponse;
-import org.okapi.web.dtos.token.GetTokenResponse;
+import org.okapi.web.dtos.org.GetOrgSummaryResponse;
 
 public class Mappers {
 
@@ -28,13 +25,11 @@ public class Mappers {
       List<UserEntityRelation> userRelations) {
     var hasFaved =
         userRelations.stream()
-            .anyMatch(
-                rel -> rel.getEdgeId().getRelationType() == UserRelationType.DASHBOARD_FAVE);
+            .anyMatch(rel -> rel.getEdgeId().getRelationType() == UserRelationType.DASHBOARD_FAVE);
     var lastViewed =
         userRelations.stream()
             .filter(
-                rel ->
-                    rel.getEdgeId().getRelationType() == UserRelationType.DASHBOARD_LAST_VIEWED)
+                rel -> rel.getEdgeId().getRelationType() == UserRelationType.DASHBOARD_LAST_VIEWED)
             .map(s -> Instant.ofEpochMilli(s.getEdgeAttributes().getTimestamp()))
             .findFirst();
     var partial =
@@ -72,60 +67,54 @@ public class Mappers {
     return resourceOrder.asList();
   }
 
-  public static List<String> getTags(String serialized) {
-    if (serialized == null || serialized.isEmpty()) {
-      return List.of();
+  public static GetUserProfileResponse mapUserProfileDtoToResponse(
+      User dto, OrgSummary orgSummary) {
+    var builder =
+        GetUserProfileResponse.builder()
+            .id(dto.getUserId())
+            .firstName(dto.getFirstName())
+            .lastName(dto.getLastName())
+            .email(dto.getEmail());
+    if (orgSummary != null) {
+      builder.orgSummary(
+          GetOrgSummaryResponse.builder()
+              .orgId(orgSummary.getOrgId())
+              .orgName(orgSummary.getOrgName())
+              .totalMembers(orgSummary.getTotalMembers())
+              .build());
     }
-    return Arrays.asList(serialized.split(","));
-  }
-
-  public static GetUserProfileResponse mapUserProfileDtoToResponse(User dto) {
-    return GetUserProfileResponse.builder()
-        .id(dto.getUserId())
-        .firstName(dto.getFirstName())
-        .lastName(dto.getLastName())
-        .email(dto.getEmail())
-        .build();
-  }
-
-  public static final GetFederatedSourceResponse mapFederatedSourceDtoToResponse(
-      FederatedSource dto) {
-    return GetFederatedSourceResponse.builder()
-        .sourceName(dto.getSourceName())
-        .sourceType(dto.getSourceType())
-        .createdAt(dto.getCreated())
-        .registrationToken(dto.getRegistrationToken())
-        .build();
+    return builder.build();
   }
 
   public static GetDashboardPanelResponse mapDashboardPanelToResponse(DashboardPanel panel) {
+    var queryConfig = panel.getQueryConfig();
     return GetDashboardPanelResponse.builder()
         .panelId(panel.getPanelId())
         .title(panel.getTitle())
         .description(panel.getNote())
-        .queryConfig(toWebCfg(panel.getQueryConfig()))
+        .queries(toWebCfg(queryConfig))
+        .grammar(queryConfig == null ? null : queryConfig.getGrammar())
         .build();
   }
 
-  public static MultiQueryPanelConfig mapPanelQueryConfig(List<PanelQueryConfigWDto> cfgs) {
-    if (cfgs == null) return new MultiQueryPanelConfig(Collections.emptyList());
-    var panelConfigs = new ArrayList<PanelQueryConfig>();
-    for (var cfg : cfgs) {
-      panelConfigs.add(PanelQueryConfig.builder().query(cfg.getQuery()).build());
+  public static PanelQueryConfig mapPanelQueryConfig(GRAMMAR grammar, List<QueryConfig> cfgs) {
+    var panelConfigs = new ArrayList<LabelledQuery>();
+    if (cfgs != null) {
+      for (var cfg : cfgs) {
+        panelConfigs.add(LabelledQuery.builder().query(cfg.getQuery()).build());
+      }
     }
-    return new MultiQueryPanelConfig(panelConfigs);
+    return new PanelQueryConfig(grammar, panelConfigs);
   }
 
-  public static MultiQueryPanelWDto toWebCfg(MultiQueryPanelConfig cfg) {
-    if (cfg == null) return null;
-    return MultiQueryPanelWDto.builder()
-        .queries(cfg.getQueryConfigs().stream().map(Mappers::toWebCfg).toList())
-        .build();
+  public static List<QueryConfig> toWebCfg(PanelQueryConfig cfg) {
+    if (cfg == null || cfg.getQueryConfigs() == null) return null;
+    return cfg.getQueryConfigs().stream().map(Mappers::toWebCfg).toList();
   }
 
-  public static PanelQueryConfigWDto toWebCfg(PanelQueryConfig cfg) {
+  public static QueryConfig toWebCfg(LabelledQuery cfg) {
     if (cfg == null) return null;
-    return PanelQueryConfigWDto.builder().query(cfg.getQuery()).build();
+    return QueryConfig.builder().query(cfg.getQuery()).build();
   }
 
   public static GetDashboardRowResponse toRowResponse(
@@ -137,45 +126,6 @@ public class Mappers {
         .title(row.getTitle())
         .description(row.getNote())
         .panels(panelResponses)
-        .build();
-  }
-
-  public static List<org.okapi.agent.dto.PendingJob> mapPendingJobDtosToResponses(
-      List<org.okapi.data.model.PendingJob> dtos) {
-    return dtos.stream().map(Mappers::mapPendingJobDtoToResponse).toList();
-  }
-
-  public static org.okapi.agent.dto.PendingJob mapPendingJobDtoToResponse(
-      org.okapi.data.model.PendingJob dto) {
-    if (dto == null) return null;
-    QuerySpec spec =
-        dto.getQuery() != null
-            ? QuerySpec.builder().serializedQuery(dto.getQuery().getQuery()).build()
-            : null;
-    JOB_STATUS status = null;
-    if (dto.getJobStatus() != null) {
-      status =
-          switch (dto.getJobStatus()) {
-            case CANCELLED -> JOB_STATUS.CANCELED;
-            case PENDING -> JOB_STATUS.PENDING;
-            case IN_PROGRESS -> JOB_STATUS.IN_PROGRESS;
-            case COMPLETED -> JOB_STATUS.COMPLETED;
-            case FAILED -> JOB_STATUS.FAILED;
-          };
-    }
-    return org.okapi.agent.dto.PendingJob.builder()
-        .jobId(dto.getJobId())
-        .sourceId(dto.getSourceId())
-        .spec(spec)
-        .jobStatus(status)
-        .build();
-  }
-
-  public static GetTokenResponse mapTokenMetaToResponse(TokenMetadata tokenMeta) {
-    return GetTokenResponse.builder()
-        .tokenId(tokenMeta.getTokenId())
-        .tokenStatus(tokenMeta.getTokenStatus().name())
-        .createdAt(tokenMeta.getCreatedAt())
         .build();
   }
 

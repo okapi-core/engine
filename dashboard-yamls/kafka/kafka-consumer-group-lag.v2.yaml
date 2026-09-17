@@ -20,16 +20,19 @@ dashboard:
       panels:
         - id: consumer-group-lag
           title: Consumer Group Lag
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"kafka.consumer_group.lag","tags":{"consumer_group":"$__{consumer_group}","topic":"$__{topic}","partition":"$__{partition}"},"start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"kafka.consumer_group.lag","tags":{"consumer_group":"$__{consumer_group}","topic":"$__{topic}","partition":"$__{partition}"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: consumer-group-lag-max
           title: Consumer Group Lag (Max)
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"kafka.consumer_group.lag","tags":{"consumer_group":"$__{consumer_group}","topic":"$__{topic}","partition":"$__{partition}"},"start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"MAX"}}
+                {"metric":"kafka.consumer_group.lag","tags":{"consumer_group":"$__{consumer_group}","topic":"$__{topic}","partition":"$__{partition}"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"MAX"}}
         - id: consumer-group-members
           title: Consumer Group Members
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"kafka.consumer_group.members","tags":{"consumer_group":"$__{consumer_group}"},"start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"kafka.consumer_group.members","tags":{"consumer_group":"$__{consumer_group}"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}

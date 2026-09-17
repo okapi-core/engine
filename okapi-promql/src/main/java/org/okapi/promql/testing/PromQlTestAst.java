@@ -70,7 +70,11 @@ public final class PromQlTestAst {
   public record DurationLiteral(String text) implements Node {}
 
   public sealed interface Expectation extends Node
-      permits ExpectAnnotation, ExpectRangeVector, ExpectString, ExpectFailMessage, ExpectFailRegexp {}
+      permits ExpectAnnotation,
+          ExpectRangeVector,
+          ExpectString,
+          ExpectFailMessage,
+          ExpectFailRegexp {}
 
   public record ExpectAnnotation(ExpectType type, MatchType matchType, String pattern)
       implements Expectation {}
@@ -135,7 +139,8 @@ public final class PromQlTestAst {
 
   public record RepeatPoint(PointExpr value, int count) implements PointExpr {}
 
-  public record StepSequencePoint(PointExpr start, PointExpr step, int count) implements PointExpr {}
+  public record StepSequencePoint(PointExpr start, PointExpr step, int count)
+      implements PointExpr {}
 
   public record HistogramLiteral(Map<String, HistogramValue> fields) implements Node {}
 

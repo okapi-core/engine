@@ -39,8 +39,7 @@ public final class DurationUtil {
     int i = 0;
     while (i < s.length()) {
       int start = i;
-      while (i < s.length()
-          && (Character.isDigit(s.charAt(i)) || s.charAt(i) == '.')) {
+      while (i < s.length() && (Character.isDigit(s.charAt(i)) || s.charAt(i) == '.')) {
         i++;
       }
       if (start == i) {

@@ -20,7 +20,6 @@ import org.okapi.data.pg.repository.*;
 import org.postgresql.ds.PGSimpleDataSource;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.hibernate.autoconfigure.HibernatePropertiesCustomizer;
@@ -45,7 +44,6 @@ public class PostgresDataAutoConfiguration {
   }
 
   @Bean
-  @ConditionalOnMissingBean(name = "okapiJdbcTemplate")
   JdbcTemplate okapiJdbcTemplate(@Qualifier("okapiDataSource") DataSource okapiDataSource) {
     return new JdbcTemplate(okapiDataSource);
   }
@@ -56,64 +54,43 @@ public class PostgresDataAutoConfiguration {
   }
 
   @Bean
-  @ConditionalOnMissingBean
   UsersDao usersDao(UserRepository repository) {
     return new UsersDaoPg(repository);
   }
 
   @Bean
-  @ConditionalOnMissingBean
   OrgDao orgDao(OrganizationRepository repository) {
     return new OrgDaoPg(repository);
   }
 
   @Bean
-  @ConditionalOnMissingBean
   RelationGraphDao relationGraphDao(@Qualifier("okapiJdbcTemplate") JdbcTemplate jdbc) {
     return new RelationGraphDaoPg(jdbc);
   }
 
   @Bean
-  @ConditionalOnMissingBean
   DashboardDao dashboardDao(DashboardRepository repository) {
     return new DashboardDaoPg(repository, gson());
   }
 
   @Bean
-  @ConditionalOnMissingBean
   FederatedSourceRepo federatedSourceRepo(FederatedSourceRepository repository) {
     return new FederatedSourceRepoPg(repository);
   }
 
   @Bean
-  @ConditionalOnMissingBean
   DashboardRowDao dashboardRowDao(DashboardRowRepository repository) {
     return new DashboardRowDaoPg(repository, gson());
   }
 
   @Bean
-  @ConditionalOnMissingBean
   DashboardPanelDao dashboardPanelDao(DashboardPanelRepository repository) {
     return new DashboardPanelDaoPg(repository, gson());
   }
 
   @Bean
-  @ConditionalOnMissingBean
   UserEntityRelationsDao userEntityRelationsDao(UserEntityRelationRepository repository) {
     return new UserEntityRelationsDaoPg(repository);
-  }
-
-  @Bean
-  @ConditionalOnBean(ResultUploader.class)
-  @ConditionalOnMissingBean
-  PendingJobsDao pendingJobsDao(PendingJobRepository repository, ResultUploader uploader) {
-    return new PendingJobsDaoPg(repository, uploader, gson());
-  }
-
-  @Bean
-  @ConditionalOnMissingBean
-  TokenMetaDao tokenMetaDao(TokenMetadataRepository repository) {
-    return new TokenMetaDaoPg(repository);
   }
 
   @Bean
@@ -129,7 +106,6 @@ public class PostgresDataAutoConfiguration {
   }
 
   @Bean
-  @ConditionalOnMissingBean
   InfraEntityNodeDao infraEntityNodeDao(@Qualifier("okapiJdbcTemplate") JdbcTemplate jdbc) {
     return new InfraEntityNodeDaoPg(jdbc, gson());
   }

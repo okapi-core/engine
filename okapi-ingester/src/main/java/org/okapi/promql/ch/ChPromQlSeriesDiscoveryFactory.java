@@ -19,7 +19,7 @@ public class ChPromQlSeriesDiscoveryFactory implements SeriesDiscoveryFactory {
   }
 
   @Override
-  public SeriesDiscovery get(String tenantId) {
+  public SeriesDiscovery get() {
     return new ChPromQlSeriesDiscovery(client, templateEngine);
   }
 }

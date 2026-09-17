@@ -1,9 +1,4 @@
 receivers:
-  jmx:
-    jar_path: /path/opentelemetry-jmx-scraper.jar
-    endpoint: service:jmx:rmi:///jndi/rmi://kafka:9999/jmxrmi
-    target_system: kafka
-    collection_interval: 10s
   postgresql:
     endpoint: localhost:5432
     username: postgres
@@ -28,6 +23,6 @@ exporters:
 service:
   pipelines:
     metrics:
-      receivers: [jmx, postgresql, clickhouse]
+      receivers: [postgresql, clickhouse]
       processors: [batch]
       exporters: [otlphttp]

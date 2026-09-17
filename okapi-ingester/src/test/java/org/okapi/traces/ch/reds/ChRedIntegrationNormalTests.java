@@ -4,13 +4,20 @@
  */
 package org.okapi.traces.ch.reds;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 import com.clickhouse.client.api.Client;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import io.opentelemetry.proto.trace.v1.Status;
-import org.junit.jupiter.api.BeforeEach;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.TestInstance.Lifecycle;
 import org.okapi.ch.CreateChTablesSpec;
 import org.okapi.chtest.ChTestOnlyUtils;
 import org.okapi.metrics.ch.ChConstants;
@@ -20,18 +27,12 @@ import org.okapi.rest.traces.red.*;
 import org.okapi.testmodules.guice.TestChTracesModule;
 import org.okapi.timeutils.TimeUtils;
 import org.okapi.traces.OtelTestFactory;
-import org.okapi.traces.ch.ChTracesIngester;
 import org.okapi.traces.ch.ChTracesWalConsumerDriver;
+import org.okapi.traces.core.FakeTracesEventEmitter;
+import org.okapi.traces.core.TracesEvent;
 
-import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
-
-import static org.junit.jupiter.api.Assertions.*;
-
+@TestInstance(Lifecycle.PER_CLASS)
 public class ChRedIntegrationNormalTests {
-
-  @TempDir Path tempDir;
 
   private Injector injector;
   private Client client;
@@ -39,8 +40,9 @@ public class ChRedIntegrationNormalTests {
   private long baseMs;
   private OtelTestFactory otelTestFactory;
 
-  @BeforeEach
+  @BeforeAll
   void setup() throws Exception {
+    Path tempDir = Files.createTempDirectory("okapi-red-normal-");
     injector = Guice.createInjector(new TestChTracesModule(tempDir.resolve("wal"), 16));
     client = injector.getInstance(Client.class);
     CreateChTablesSpec.migrate(client);
@@ -110,7 +112,7 @@ public class ChRedIntegrationNormalTests {
   }
 
   private void ingestCorpus() throws Exception {
-    var ingester = injector.getInstance(ChTracesIngester.class);
+    var emitter = injector.getInstance(FakeTracesEventEmitter.class);
     var driver = injector.getInstance(ChTracesWalConsumerDriver.class);
 
     var svcASpans = new ArrayList<io.opentelemetry.proto.trace.v1.Span>();
@@ -155,7 +157,7 @@ public class ChRedIntegrationNormalTests {
             List.of(
                 otelTestFactory.resourceSpans("svc-A", svcASpans),
                 otelTestFactory.resourceSpans("svc-Other", otherSpans)));
-    ingester.ingest(request);
+    emitter.add(new TracesEvent(request.toByteArray()));
     driver.onTick();
   }
 
@@ -185,7 +187,8 @@ public class ChRedIntegrationNormalTests {
         List.of(baseMs, baseMs + 60_000L, baseMs + 3_600_000L),
         List.of(4L, 3L, 3L),
         List.of(0L, 1L, 1L),
-        List.of(100.0, 100.0, 400.0));
+        List.of(100.0, 100.0, 400.0),
+        RES_TYPE.MINUTELY);
   }
 
   private RedMetrics serviceRedHourly() {
@@ -193,7 +196,8 @@ public class ChRedIntegrationNormalTests {
         List.of(baseMs, baseMs + 3_600_000L),
         List.of(7L, 3L),
         List.of(1L, 1L),
-        List.of(100.0, 400.0));
+        List.of(100.0, 400.0),
+        RES_TYPE.HOURLY);
   }
 
   private RedMetrics opLoginSecondly() {
@@ -209,7 +213,8 @@ public class ChRedIntegrationNormalTests {
         List.of(baseMs, baseMs + 60_000L, baseMs + 3_600_000L),
         List.of(2L, 2L, 1L),
         List.of(0L, 1L, 0L),
-        List.of(100.0, 100.0, 400.0));
+        List.of(100.0, 100.0, 400.0),
+        RES_TYPE.MINUTELY);
   }
 
   private RedMetrics opLoginHourly() {
@@ -217,7 +222,8 @@ public class ChRedIntegrationNormalTests {
         List.of(baseMs, baseMs + 3_600_000L),
         List.of(4L, 1L),
         List.of(1L, 0L),
-        List.of(100.0, 400.0));
+        List.of(100.0, 400.0),
+        RES_TYPE.HOURLY);
   }
 
   private RedMetrics opSearchSecondly() {
@@ -233,7 +239,8 @@ public class ChRedIntegrationNormalTests {
         List.of(baseMs, baseMs + 60_000L, baseMs + 3_600_000L),
         List.of(2L, 1L, 2L),
         List.of(0L, 0L, 1L),
-        List.of(100.0, 100.0, 400.0));
+        List.of(100.0, 100.0, 400.0),
+        RES_TYPE.MINUTELY);
   }
 
   private RedMetrics opSearchHourly() {
@@ -241,6 +248,7 @@ public class ChRedIntegrationNormalTests {
         List.of(baseMs, baseMs + 3_600_000L),
         List.of(3L, 2L),
         List.of(0L, 1L),
-        List.of(100.0, 400.0));
+        List.of(100.0, 400.0),
+        RES_TYPE.HOURLY);
   }
 }

@@ -6,16 +6,14 @@ package org.okapi.rest.traces;
 
 import com.fasterxml.jackson.annotation.JsonClassDescription;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
-import lombok.*;
-
 import java.util.Map;
+import lombok.*;
 
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
 @Getter
-@JsonClassDescription(
-    "A single span, representing one unit of work within a distributed trace.")
+@JsonClassDescription("A single span, representing one unit of work within a distributed trace.")
 @ToString
 public class SpanRowV2 {
   @JsonPropertyDescription("Span start timestamp in nanoseconds since Unix epoch.")

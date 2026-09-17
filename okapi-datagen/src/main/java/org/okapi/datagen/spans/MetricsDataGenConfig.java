@@ -4,17 +4,18 @@
  */
 package org.okapi.datagen.spans;
 
-import lombok.Builder;
-import lombok.Value;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import lombok.Builder;
+import lombok.Value;
 
 @Value
 @Builder
 public class MetricsDataGenConfig {
+  public static final double DEFAULT_EXEMPLAR_PROBABILITY = 0.1;
+
   long seed;
   long timeWindowMs;
   double gaugeSamplingRate;
@@ -50,6 +51,9 @@ public class MetricsDataGenConfig {
     @Builder.Default Map<String, String> tags = Map.of();
     @Builder.Default List<Double> histogramBounds = List.of();
     @Builder.Default Double histogramCountMean = null;
+
+    /** Probability that each generated data point carries an exemplar. */
+    @Builder.Default Double exemplarProbability = DEFAULT_EXEMPLAR_PROBABILITY;
   }
 
   @Value
@@ -314,6 +318,7 @@ public class MetricsDataGenConfig {
             .type(MetricType.HISTO)
             .unit("ms")
             .tags(tags)
+            .exemplarProbability(0.10)
             .histogramCountMean(callsMean)
             .distribution(
                 DistributionSpec.builder()

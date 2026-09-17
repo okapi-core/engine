@@ -10,12 +10,15 @@ import jakarta.validation.constraints.NotNull;
 import java.nio.file.Path;
 import lombok.*;
 import org.okapi.spring.configs.ConfigSections;
+import org.okapi.spring.configs.Profiles;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 import org.springframework.validation.annotation.Validated;
 
 @ConfigurationProperties(ConfigSections.CH_CONFIG)
 @Component
+@Profile(Profiles.PROFILE_CH)
 @Validated
 @Data
 @NoArgsConstructor

@@ -1,10 +1,13 @@
+/*
+ * Copyright The OkapiCore Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
 package org.okapi.rest.search;
 
 import com.fasterxml.jackson.annotation.JsonClassDescription;
+import java.util.List;
 import lombok.*;
 import org.springframework.ai.tool.annotation.ToolParam;
-
-import java.util.List;
 
 @AllArgsConstructor
 @NoArgsConstructor
@@ -18,14 +21,16 @@ Note only metric paths which match all criteria will be returned. Setting confli
 """)
 @ToString
 public class SearchMetricsRequest {
-  @ToolParam(description =
+  @ToolParam(
+      description =
 """
 Start time for time window. This should be linux epoch time in milliseconds.
 We'll only return metric paths if a metric was emitted with timestamp >= tsStartMillis. This parameter is required.
 """)
   long tsStartMillis;
 
-  @ToolParam(description =
+  @ToolParam(
+      description =
 """
 End time for time window. This should be linux epoch time in milliseconds.
 We'll only return metric paths if a metric was emitted with timestamp <= tsEndMillis. This parameter is required.
@@ -33,31 +38,41 @@ We'll only return metric paths if a metric was emitted with timestamp <= tsEndMi
   long tsEndMillis;
 
   @ToolParam(
-description = """
+      description =
+"""
 Metric pattern to match. This should be a valid RE2 regular expression.
-""", required = false)
+""",
+      required = false)
   String metricNamePattern;
 
   @ToolParam(
-description= """
+      description =
+"""
 Metric name. This will be matched exactly against the metric name. Matching is case sensitive.
-""", required = false)
+""",
+      required = false)
   String metricName;
 
-  @ToolParam(description =
+  @ToolParam(
+      description =
 """
 List label-value filters to match. Filters will are matched as an AND of each filter.
-""", required = false)
+""",
+      required = false)
   List<LabelValueFilter> valueFilters;
 
-  @ToolParam(description =
-      "List label-value pattern filters to match. Filters will are matched as an AND of each filter.", required = false)
+  @ToolParam(
+      description =
+          "List label-value pattern filters to match. Filters will are matched as an AND of each filter.",
+      required = false)
   List<LabelValuePatternFilter> patternFilters;
 
-  @ToolParam(description =
+  @ToolParam(
+      description =
 """
 Optional cross-field filter. If set, the metric name or any tag value must match the
 filter's value (exact) or pattern (RE2). Applied before all other filters are applied. This parameter is optional.
-""", required = false)
+""",
+      required = false)
   AnyMetricOrValueFilter anyMetricOrValueFilter;
 }

@@ -18,7 +18,10 @@ final class DurationParser {
     boolean allNumeric = true;
     for (int i = 0; i < s.length(); i++) {
       char c = s.charAt(i);
-      if (!Character.isDigit(c) && c != '.') { allNumeric = false; break; }
+      if (!Character.isDigit(c) && c != '.') {
+        allNumeric = false;
+        break;
+      }
     }
     if (allNumeric) {
       return new BigDecimal(s)
@@ -35,7 +38,11 @@ final class DurationParser {
       if (start == i) throw new IllegalArgumentException("invalid duration: " + duration);
       double value = Double.parseDouble(s.substring(start, i));
       if (i >= s.length()) throw new IllegalArgumentException("invalid duration: " + duration);
-      if (s.startsWith("ms", i)) { total += Math.round(value); i += 2; continue; }
+      if (s.startsWith("ms", i)) {
+        total += Math.round(value);
+        i += 2;
+        continue;
+      }
       char unit = s.charAt(i++);
       total += Math.round(value * unitMultiplier(unit));
     }

@@ -1,0 +1,10 @@
+parse generic map style filters
+query
+  labels['service.name'] = 'checkout' and fields['http.status_code'] >= 500
+end
+
+parse map style field in count by
+query
+  level >= warn and fields['http.route'] = '/checkout'
+  | count by (service, level, fields['http.status_code'])
+end

@@ -11,17 +11,15 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.okapi.grammar.GRAMMAR;
 
 @AllArgsConstructor
 @NoArgsConstructor
 @Getter
 @Builder
 public class UpdateDashboardPanelRequest {
-  @NotNull String orgId;
-  @NotNull String dashboardId;
-  @NotNull String versionId;
-  @NotNull String rowId;
   String title;
   String note;
-  @Valid List<PanelQueryConfigWDto> queryConfig;
+  @NotNull GRAMMAR grammar;
+  @Valid List<QueryConfig> queryConfig;
 }

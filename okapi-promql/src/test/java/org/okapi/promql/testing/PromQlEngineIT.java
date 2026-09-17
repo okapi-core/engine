@@ -4,7 +4,7 @@
  */
 package org.okapi.promql.testing;
 
-import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.net.URI;
@@ -14,8 +14,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.ArrayList;
 import java.util.List;
-
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.Test;
 
 class PromQlEngineIT {
 
@@ -33,9 +32,7 @@ class PromQlEngineIT {
   @Test
   void testRun_SingleSuite() throws Exception {
     URL url =
-        PromQlEngineIT.class
-            .getClassLoader()
-            .getResource("promqltest/testdata/aggregators.test");
+        PromQlEngineIT.class.getClassLoader().getResource("promqltest/testdata/aggregators.test");
     assertTrue(url != null, "test script not found");
     testScript(Files.readString(Paths.get(url.toURI()), StandardCharsets.UTF_8));
   }
@@ -67,7 +64,7 @@ class PromQlEngineIT {
     try (var stream = Files.walk(root)) {
       stream
           .filter(p -> p.toString().endsWith(".test"))
-              // limit related features are currently experimental so we exclude them from our testing.
+          // limit related features are currently experimental so we exclude them from our testing.
           .filter(p -> !p.getFileName().toString().equals("limit.test"))
           .forEach(files::add);
     }

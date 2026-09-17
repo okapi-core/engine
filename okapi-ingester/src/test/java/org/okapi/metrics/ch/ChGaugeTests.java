@@ -4,9 +4,14 @@
  */
 package org.okapi.metrics.ch;
 
+import static org.junit.jupiter.api.Assertions.*;
+
 import com.clickhouse.client.api.Client;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -18,12 +23,6 @@ import org.okapi.rest.metrics.query.GaugeSeries;
 import org.okapi.rest.metrics.query.GetMetricsRequest;
 import org.okapi.rest.metrics.query.METRIC_TYPE;
 import org.okapi.testmodules.guice.TestChMetricsModule;
-
-import java.nio.file.Path;
-import java.util.List;
-import java.util.Map;
-
-import static org.junit.jupiter.api.Assertions.*;
 
 public class ChGaugeTests {
 
@@ -238,8 +237,7 @@ public class ChGaugeTests {
         otelFactory.buildGaugeRequest(
             "svc-7", "metric_units", List.of(1_000L), List.of(1.0), "ms"));
     ingester.ingestOtelProtobuf(
-        otelFactory.buildGaugeRequest(
-            "svc-8", "metric_units", List.of(1_000L), List.of(2.0), "s"));
+        otelFactory.buildGaugeRequest("svc-8", "metric_units", List.of(1_000L), List.of(2.0), "s"));
     driver.onTick();
 
     var req =

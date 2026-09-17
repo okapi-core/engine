@@ -7,8 +7,8 @@ package org.okapi.web.controller;
 import org.okapi.web.dtos.dashboards.CreateDashboardRowRequest;
 import org.okapi.web.dtos.dashboards.GetDashboardRowResponse;
 import org.okapi.web.dtos.dashboards.UpdateDashboardRowRequest;
-import org.okapi.web.headers.RequestHeaders;
-import org.okapi.web.service.ProtectedResourceContext;
+import org.okapi.web.service.context.DashboardRowRequestContext;
+import org.okapi.web.service.context.DashboardVersionRequestContext;
 import org.okapi.web.service.dashboards.rows.DashboardRowService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
@@ -19,38 +19,46 @@ import org.springframework.web.bind.annotation.*;
 public class DashboardRowController {
   @Autowired DashboardRowService rowService;
 
-  @PostMapping("/panel-rows")
+  @PostMapping("/orgs/{orgId}/dashboards/{dashboardId}/versions/{versionId}/rows")
   public GetDashboardRowResponse createRow(
-      @RequestHeader(RequestHeaders.TEMP_TOKEN) String tempToken,
+      @PathVariable String orgId,
+      @PathVariable String dashboardId,
+      @PathVariable String versionId,
       @RequestBody @Validated CreateDashboardRowRequest req)
       throws Exception {
-    return rowService.create(ProtectedResourceContext.of(tempToken), req);
+    return rowService.create(
+        new DashboardVersionRequestContext(orgId, dashboardId, versionId), req);
   }
 
-  @GetMapping("/panel-rows/{rowId}/versions/{versionId}")
+  @GetMapping("/orgs/{orgId}/dashboards/{dashboardId}/versions/{versionId}/rows/{rowId}")
   public GetDashboardRowResponse getRow(
-      @RequestHeader(RequestHeaders.TEMP_TOKEN) String tempToken,
-      @PathVariable("rowId") String rowId,
-      @PathVariable("versionId") String versionId)
+      @PathVariable String orgId,
+      @PathVariable String dashboardId,
+      @PathVariable String versionId,
+      @PathVariable String rowId)
       throws Exception {
-    return rowService.read(ProtectedResourceContext.of(tempToken, rowId, versionId));
+    return rowService.read(new DashboardRowRequestContext(orgId, dashboardId, versionId, rowId));
   }
 
-  @PostMapping("/panel-rows/{rowId}/versions/{versionId}/delete")
+  @PostMapping("/orgs/{orgId}/dashboards/{dashboardId}/versions/{versionId}/rows/{rowId}/delete")
   public void deleteRow(
-      @RequestHeader(RequestHeaders.TEMP_TOKEN) String tempToken,
-      @PathVariable("rowId") String rowId,
-      @PathVariable("versionId") String versionId)
+      @PathVariable String orgId,
+      @PathVariable String dashboardId,
+      @PathVariable String versionId,
+      @PathVariable String rowId)
       throws Exception {
-    rowService.delete(ProtectedResourceContext.of(tempToken, rowId, versionId));
+    rowService.delete(new DashboardRowRequestContext(orgId, dashboardId, versionId, rowId));
   }
 
-  @PostMapping("/panel-rows/{rowId}/update")
+  @PostMapping("/orgs/{orgId}/dashboards/{dashboardId}/versions/{versionId}/rows/{rowId}/update")
   public GetDashboardRowResponse updateRow(
-      @RequestHeader(RequestHeaders.TEMP_TOKEN) String tempToken,
-      @PathVariable("rowId") String rowId,
+      @PathVariable String orgId,
+      @PathVariable String dashboardId,
+      @PathVariable String versionId,
+      @PathVariable String rowId,
       @RequestBody @Validated UpdateDashboardRowRequest req)
       throws Exception {
-    return rowService.update(ProtectedResourceContext.of(tempToken, rowId), req);
+    return rowService.update(
+        new DashboardRowRequestContext(orgId, dashboardId, versionId, rowId), req);
   }
 }

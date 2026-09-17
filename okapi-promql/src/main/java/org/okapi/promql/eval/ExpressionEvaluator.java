@@ -4,6 +4,10 @@
  */
 package org.okapi.promql.eval;
 
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
 import org.okapi.promql.eval.exceptions.EvaluationException;
 import org.okapi.promql.eval.labelmatch.LabelMatchVisitor;
 import org.okapi.promql.eval.labelmatch.MetricMatchCondition;
@@ -15,11 +19,6 @@ import org.okapi.promql.eval.ts.StatisticsMerger;
 import org.okapi.promql.eval.ts.TsClient;
 import org.okapi.promql.eval.visitor.ExpressionVisitor;
 import org.okapi.promql.parser.PromQLParser;
-
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.concurrent.ExecutorService;
 
 public final class ExpressionEvaluator {
   private static final long DEFAULT_INSTANT_STEP_MS = 1_000L;
@@ -47,8 +46,15 @@ public final class ExpressionEvaluator {
     var logical = parse(parser);
     var ctx =
         new EvalContext(
-            startMs, endMs, stepMs, nowMs, chooseResolution(stepMs),
-            client, discovery, exec, statisticsMerger);
+            startMs,
+            endMs,
+            stepMs,
+            nowMs,
+            chooseResolution(stepMs),
+            client,
+            discovery,
+            exec,
+            statisticsMerger);
     return finalizeResult(new NodeEvaluator().eval(logical, ctx));
   }
 
@@ -58,8 +64,15 @@ public final class ExpressionEvaluator {
     var logical = parse(parser);
     var ctx =
         new EvalContext(
-            tsMs, tsMs, DEFAULT_INSTANT_STEP_MS, nowMs, chooseResolution(DEFAULT_INSTANT_STEP_MS),
-            client, discovery, exec, statisticsMerger);
+            tsMs,
+            tsMs,
+            DEFAULT_INSTANT_STEP_MS,
+            nowMs,
+            chooseResolution(DEFAULT_INSTANT_STEP_MS),
+            client,
+            discovery,
+            exec,
+            statisticsMerger);
     return finalizeResult(new NodeEvaluator().eval(logical, ctx));
   }
 
@@ -68,7 +81,8 @@ public final class ExpressionEvaluator {
     rejectSyntaxErrors(parser);
     var labelMatcher = new LabelMatchVisitor();
     var conditions = (MetricMatchCondition) labelMatcher.visit(tree);
-    return discovery.expand(conditions.getMetricNameOrNull(), conditions.getLabelMatchers(), start, end);
+    return discovery.expand(
+        conditions.getMetricNameOrNull(), conditions.getLabelMatchers(), start, end);
   }
 
   private LogicalExpr parse(PromQLParser parser) {
@@ -102,7 +116,8 @@ public final class ExpressionEvaluator {
       for (var window : rv.data()) {
         var id = SeriesIds.materialize(window.id());
         if (!seen.add(id)) {
-          throw new EvaluationException("range vector contains duplicate labelsets after metric-name removal");
+          throw new EvaluationException(
+              "range vector contains duplicate labelsets after metric-name removal");
         }
         out.add(new VectorData.SeriesWindow(id, window.scan()));
       }

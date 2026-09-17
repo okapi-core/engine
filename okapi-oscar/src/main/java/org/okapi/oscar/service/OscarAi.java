@@ -1,5 +1,14 @@
+/*
+ * Copyright The OkapiCore Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
 package org.okapi.oscar.service;
 
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.okapi.exceptions.BadRequestException;
@@ -9,12 +18,11 @@ import org.okapi.oscar.chat.ChatMessageRepository;
 import org.okapi.oscar.inference.InferenceJob;
 import org.okapi.oscar.inference.OscarInferenceJobPool;
 import org.okapi.oscar.session.*;
+import org.okapi.oscar.spring.cfg.ChatListCfg;
 import org.okapi.rest.chat.*;
 import org.okapi.rest.session.*;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
-
-import java.util.List;
-import java.util.UUID;
 
 @Slf4j
 @Service
@@ -27,6 +35,7 @@ public class OscarAi {
   private final SessionMetaRepository sessionMetaRepository;
   private final StreamMetaRepository streamMetaRepository;
   private final StreamStateChecker checker;
+  private final ChatListCfg chatListCfg;
 
   public ChatResponse postMessage(String sessionId, PostMessageRequest request) {
     var session =
@@ -108,6 +117,76 @@ public class OscarAi {
         .build();
   }
 
+  public ListChatsResponse listChats(ListChatsRequest request) {
+    long from = request.getFrom() != null ? request.getFrom() : 0L;
+    long to = request.getTo() != null ? request.getTo() : System.currentTimeMillis();
+    if (from > to) {
+      throw new BadRequestException("Invalid time range: from is after to");
+    }
+
+    int limit = resolveChatListLimit(request.getLimit());
+    if (request.getBefore() != null) {
+      if (request.getBefore() <= from) {
+        return ListChatsResponse.builder().chats(List.of()).nextBefore(null).build();
+      }
+      to = Math.min(to, request.getBefore() - 1);
+    }
+    var sessions =
+        sessionMetaRepository.findByOwnerIdAndStartTimeBetweenOrderByStartTimeDesc(
+            request.getUserId(), from, to, PageRequest.of(0, limit + 1));
+    boolean hasMore = sessions.size() > limit;
+    var page = hasMore ? sessions.subList(0, limit) : sessions;
+    if (page.isEmpty()) {
+      return ListChatsResponse.builder().chats(List.of()).nextBefore(null).build();
+    }
+
+    var sessionIds = page.stream().map(SessionMetaEntity::getSessionId).toList();
+    var countsBySession =
+        chatMessageRepository.countBySessionIdInGroupByRole(sessionIds).stream()
+            .collect(
+                Collectors.groupingBy(
+                    ChatMessageRepository.MessageRoleCount::getSessionId,
+                    Collectors.toMap(
+                        ChatMessageRepository.MessageRoleCount::getRole, Function.identity())));
+
+    var chats =
+        page.stream()
+            .map(session -> mapChatSummary(session, countsBySession.get(session.getSessionId())))
+            .toList();
+    Long nextBefore = hasMore ? page.get(page.size() - 1).getStartTime() : null;
+    return ListChatsResponse.builder().chats(chats).nextBefore(nextBefore).build();
+  }
+
+  private int resolveChatListLimit(Integer requestedLimit) {
+    int limit = requestedLimit != null ? requestedLimit : chatListCfg.getDefaultLimit();
+    if (limit <= 0) {
+      throw new BadRequestException("Invalid limit: must be positive");
+    }
+    return Math.min(limit, chatListCfg.getMaxLimit());
+  }
+
+  private ChatSummaryResponse mapChatSummary(
+      SessionMetaEntity session,
+      Map<CHAT_ROLE, ChatMessageRepository.MessageRoleCount> countsByRole) {
+    long userMessages = countRole(countsByRole, CHAT_ROLE.USER);
+    long agentMessages = countRole(countsByRole, CHAT_ROLE.ASSISTANT);
+    return ChatSummaryResponse.builder()
+        .sessionId(session.getSessionId())
+        .title(session.getSessionTitle())
+        .createdAt(session.getStartTime())
+        .messagesByUser(userMessages)
+        .messagesByAgent(agentMessages)
+        .build();
+  }
+
+  private long countRole(
+      Map<CHAT_ROLE, ChatMessageRepository.MessageRoleCount> countsByRole, CHAT_ROLE role) {
+    if (countsByRole == null || !countsByRole.containsKey(role)) {
+      return 0L;
+    }
+    return countsByRole.get(role).getCount();
+  }
+
   public ListSessionsResponse listSessions(ListSessionsRequest request) {
     if (request.getFrom() > request.getTo()) {
       throw new BadRequestException("Invalid time range: from is after to");
@@ -122,7 +201,7 @@ public class OscarAi {
                     GetSessionResponse.builder()
                         .timestamp(session.getStartTime())
                         .title(session.getSessionTitle())
-                            .state(session.getOngoingStream().getState())
+                        .state(session.getOngoingStream().getState())
                         .build())
             .toList();
     return ListSessionsResponse.builder().sessions(responses).build();

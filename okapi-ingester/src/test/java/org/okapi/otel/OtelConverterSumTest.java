@@ -6,6 +6,7 @@ package org.okapi.otel;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import com.google.protobuf.ByteString;
 import io.opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceRequest;
 import io.opentelemetry.proto.common.v1.AnyValue;
 import io.opentelemetry.proto.common.v1.KeyValue;
@@ -34,6 +35,13 @@ public class OtelConverterSumTest {
             .setStartTimeUnixNano(1_000_000L)
             .setTimeUnixNano(2_000_000L)
             .setAsInt(3)
+            .addExemplars(
+                Exemplar.newBuilder()
+                    .setTimeUnixNano(1_500_000L)
+                    .setAsDouble(3.0)
+                    .setTraceId(ByteString.copyFrom(new byte[16]))
+                    .setSpanId(ByteString.copyFrom(new byte[8]))
+                    .build())
             .build();
     NumberDataPoint p2 =
         NumberDataPoint.newBuilder()
@@ -79,5 +87,7 @@ public class OtelConverterSumTest {
     assertEquals(2L, sp2.getStart());
     assertEquals(3L, sp2.getEnd());
     assertEquals(4.2d, sp2.getSum());
+    assertEquals(1, r.getSum().getExemplars().size());
+    assertEquals(1_500_000L, r.getSum().getExemplars().get(0).getTsNanos());
   }
 }

@@ -15,8 +15,10 @@ import lombok.*;
 @ToString
 public class DurationFilter {
   @JsonPropertyDescription("Minimum span duration in milliseconds (inclusive).")
-  @NotNull long durMinMillis;
+  @NotNull
+  long durMinMillis;
 
   @JsonPropertyDescription("Maximum span duration in milliseconds (inclusive).")
-  @NotNull long durMaxMillis;
+  @NotNull
+  long durMaxMillis;
 }

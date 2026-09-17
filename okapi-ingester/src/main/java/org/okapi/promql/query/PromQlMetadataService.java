@@ -17,8 +17,8 @@ import org.okapi.ch.ChTemplateFiles;
 import org.okapi.metrics.ch.ChConstants;
 import org.okapi.metrics.ch.template.ChMetricTemplateEngine;
 import org.okapi.promql.ch.ChMetricMetadataQueryTemplate;
-import org.okapi.rest.promql.GetPromQlResponse;
 import org.okapi.rest.promql.PromQlMetadataItem;
+import org.okapi.rest.promql.PromQlMetadataResponse;
 
 public class PromQlMetadataService {
 
@@ -32,8 +32,7 @@ public class PromQlMetadataService {
     this.templateEngine = templateEngine;
   }
 
-  public GetPromQlResponse<Map<String, List<PromQlMetadataItem>>> getMetadata(
-      String metric, Integer limit) {
+  public PromQlMetadataResponse getMetadata(String metric, Integer limit) {
     long endMs = System.currentTimeMillis();
     long startMs = endMs - LOOKBACK_MS;
     String metricFilter = (metric == null || metric.isBlank()) ? null : metric;
@@ -65,7 +64,7 @@ public class PromQlMetadataService {
       }
     }
 
-    var resp = new GetPromQlResponse<Map<String, List<PromQlMetadataItem>>>();
+    var resp = new PromQlMetadataResponse();
     resp.setStatus("success");
     resp.setData(data);
     return resp;

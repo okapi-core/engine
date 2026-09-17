@@ -20,6 +20,6 @@ public class Histo {
 
   public Histo(List<HistoPoint> histoPoints) {
     this.histoPoints = histoPoints;
-    this.exemplars= Collections.emptyList();
+    this.exemplars = Collections.emptyList();
   }
 }

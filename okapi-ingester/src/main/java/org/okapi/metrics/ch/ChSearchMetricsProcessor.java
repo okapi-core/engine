@@ -1,6 +1,13 @@
+/*
+ * Copyright The OkapiCore Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
 package org.okapi.metrics.ch;
 
 import com.clickhouse.client.api.Client;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.okapi.ch.ChTemplateFiles;
@@ -11,15 +18,14 @@ import org.okapi.rest.metrics.query.METRIC_TYPE;
 import org.okapi.rest.search.MetricPath;
 import org.okapi.rest.search.SearchMetricsRequest;
 import org.okapi.rest.search.SearchMetricsV2Response;
+import org.okapi.spring.configs.Profiles;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
-
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
 
 @Slf4j
 @AllArgsConstructor
 @Component
+@Profile(Profiles.PROFILE_CH)
 public class ChSearchMetricsProcessor {
   private final Client client;
   private final ChMetricTemplateEngine templateEngine;

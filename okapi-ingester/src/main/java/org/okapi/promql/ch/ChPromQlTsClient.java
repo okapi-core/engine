@@ -9,7 +9,6 @@ import com.clickhouse.client.api.query.GenericRecord;
 import gg.jte.TemplateOutput;
 import gg.jte.output.StringOutput;
 import java.util.*;
-import org.okapi.ch.ChTemplateFiles;
 import org.okapi.ch.ChSqlEscaper;
 import org.okapi.metrics.ch.ChConstants;
 import org.okapi.metrics.ch.template.ChGetHistoQueryTemplate;
@@ -27,12 +26,10 @@ import org.okapi.promql.eval.ts.TsClient;
 public class ChPromQlTsClient implements TsClient {
   private static final String GET_GAUGE_RAW_SAMPLES_EXACT_MATCH =
       "get_gauge_raw_samples_exact_match.jte";
-  private static final String GET_HISTO_SAMPLES_EXACT_MATCH =
-      "get_histo_samples_exact_match.jte";
+  private static final String GET_HISTO_SAMPLES_EXACT_MATCH = "get_histo_samples_exact_match.jte";
   private static final String GET_EXPONENTIAL_HISTO_SAMPLES_EXACT_MATCH =
       "get_exponential_histo_samples_exact_match.jte";
-  private static final String GET_SUM_SAMPLES_EXACT_MATCH =
-      "get_sum_samples_exact_match.jte";
+  private static final String GET_SUM_SAMPLES_EXACT_MATCH = "get_sum_samples_exact_match.jte";
   private static final String GET_METRIC_EVENT_TYPE_EXACT_MATCH =
       "get_metric_event_type_exact_match.jte";
   private static final Set<String> INTERNAL_LABELS = Set.of("__name__", "__type__", "__unit__");
@@ -163,8 +160,7 @@ public class ChPromQlTsClient implements TsClient {
   private Scan getHistogramSeries(
       String metric, Map<String, String> tags, String unit, long startMs, long endMs) {
     var delta = scanHistoSamples(metric, tags, unit, startMs, endMs, "DELTA");
-    var exponentialDelta =
-        scanExponentialHistoSamples(metric, tags, unit, startMs, endMs, "DELTA");
+    var exponentialDelta = scanExponentialHistoSamples(metric, tags, unit, startMs, endMs, "DELTA");
     ensureSingleHistogramRepresentation(delta, exponentialDelta);
     if (!delta.isEmpty()) return new HistogramSeries(metric, delta);
     if (!exponentialDelta.isEmpty()) return new HistogramSeries(metric, exponentialDelta);
@@ -345,9 +341,13 @@ public class ChPromQlTsClient implements TsClient {
   }
 
   static Optional<MetricEventType> uniqueMetricEventType(List<String> eventTypes) {
-    var types = eventTypes.stream().map(MetricEventType::valueOf).collect(java.util.stream.Collectors.toSet());
+    var types =
+        eventTypes.stream()
+            .map(MetricEventType::valueOf)
+            .collect(java.util.stream.Collectors.toSet());
     if (types.size() > 1) {
-      throw new IllegalStateException("series identity contains conflicting metric types: " + types);
+      throw new IllegalStateException(
+          "series identity contains conflicting metric types: " + types);
     }
     return types.stream().findFirst();
   }

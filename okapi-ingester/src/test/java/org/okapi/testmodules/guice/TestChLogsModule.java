@@ -10,7 +10,14 @@ import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
 import com.google.inject.Singleton;
 import java.util.Collection;
+import org.okapi.engine.ch.ChLogQlParser;
+import org.okapi.engine.ch.ChLogQlTranslator;
+import org.okapi.engine.ch.ChLogsEngine;
+import org.okapi.engine.ch.ChLogsTranslationBridge;
+import org.okapi.engine.ch.ChQueryGenerator;
+import org.okapi.logs.ch.ChLogsIngester;
 import org.okapi.logs.ch.ChLogsQueryService;
+import org.okapi.logs.ch.ChLogsSummaryService;
 import org.okapi.logs.ch.ChLogsTemplateEngine;
 import org.okapi.logs.ch.ChLogsWalConsumer;
 import org.okapi.logs.ch.ChLogsWalConsumerDriver;
@@ -80,9 +87,58 @@ public class TestChLogsModule extends AbstractModule {
 
   @Provides
   @Singleton
-  ChLogsQueryService provideChLogsQueryService(
-      Client client, ChLogsTemplateEngine templateEngine) {
+  ChLogsQueryService provideChLogsQueryService(Client client, ChLogsTemplateEngine templateEngine) {
     return new ChLogsQueryService(client, templateEngine);
+  }
+
+  @Provides
+  @Singleton
+  ChLogsSummaryService provideChLogsSummaryService(Client client) {
+    return new ChLogsSummaryService(client);
+  }
+
+  @Provides
+  @Singleton
+  ChLogsIngester provideChLogsIngester() {
+    return new ChLogsIngester(null, false);
+  }
+
+  @Provides
+  @Singleton
+  ChLogsTranslationBridge provideChLogsTranslationBridge() {
+    return new ChLogsTranslationBridge();
+  }
+
+  @Provides
+  @Singleton
+  ChLogQlTranslator provideChLogQlTranslator(ChLogsTranslationBridge bridge) {
+    return new ChLogQlTranslator(bridge);
+  }
+
+  @Provides
+  @Singleton
+  ChLogQlParser provideChLogQlParser() {
+    return new ChLogQlParser();
+  }
+
+  @Provides
+  @Singleton
+  ChQueryGenerator provideChQueryGenerator() {
+    return new ChQueryGenerator();
+  }
+
+  @Provides
+  @Singleton
+  ChLogsEngine provideChLogsEngine(
+      ChLogsQueryService queryService,
+      ChLogsSummaryService summaryService,
+      ChLogsIngester ingester,
+      ChLogQlTranslator translator,
+      ChLogQlParser parser,
+      ChQueryGenerator generator,
+      Client client) {
+    return new ChLogsEngine(
+        queryService, summaryService, ingester, translator, parser, generator, client);
   }
 
   private Client getChClient() {
@@ -90,8 +146,7 @@ public class TestChLogsModule extends AbstractModule {
         .addEndpoint(
             Protocol.HTTP,
             System.getenv().getOrDefault("OKAPI_TEST_CLICKHOUSE_HOST", "127.0.0.1"),
-            Integer.parseInt(
-                System.getenv().getOrDefault("OKAPI_TEST_CLICKHOUSE_PORT", "8123")),
+            Integer.parseInt(System.getenv().getOrDefault("OKAPI_TEST_CLICKHOUSE_PORT", "8123")),
             false)
         .setUsername("default")
         .setPassword("okapi_testing_password")

@@ -5,8 +5,8 @@
 package org.okapi.traces.ch;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.okapi.traces.testutil.OtelShortHands.keyValue;
-import static org.okapi.traces.testutil.OtelShortHands.utf8Bytes;
+import static org.okapi.otelshorthand.OtelShortHands.keyValue;
+import static org.okapi.otelshorthand.OtelShortHands.utf8Bytes;
 
 import com.clickhouse.client.api.Client;
 import com.google.inject.Guice;
@@ -17,31 +17,35 @@ import io.opentelemetry.proto.resource.v1.Resource;
 import io.opentelemetry.proto.trace.v1.ResourceSpans;
 import io.opentelemetry.proto.trace.v1.ScopeSpans;
 import io.opentelemetry.proto.trace.v1.Span;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.stream.Stream;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.TestInstance.Lifecycle;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.okapi.ch.CreateChTablesSpec;
 import org.okapi.metrics.pojos.AGG_TYPE;
 import org.okapi.metrics.pojos.RES_TYPE;
+import org.okapi.otelshorthand.OtelShortHands;
 import org.okapi.rest.traces.*;
 import org.okapi.testmodules.guice.TestChTracesModule;
-import org.okapi.traces.testutil.OtelShortHands;
+import org.okapi.traces.core.FakeTracesEventEmitter;
+import org.okapi.traces.core.TracesEvent;
 
+@TestInstance(Lifecycle.PER_CLASS)
 public class ChSpanStatsQueryServiceTests {
-
-  @TempDir Path tempDir;
 
   private Injector injector;
   private Client client;
 
-  @BeforeEach
+  @BeforeAll
   void setup() throws Exception {
+    Path tempDir = Files.createTempDirectory("okapi-traces-stats-");
     injector = Guice.createInjector(new TestChTracesModule(tempDir.resolve("wal"), 16));
     client = injector.getInstance(Client.class);
     CreateChTablesSpec.migrate(client);
@@ -50,7 +54,7 @@ public class ChSpanStatsQueryServiceTests {
   }
 
   private void ingestCorpus() throws Exception {
-    var ingester = injector.getInstance(ChTracesIngester.class);
+    var emitter = injector.getInstance(FakeTracesEventEmitter.class);
     var driver = injector.getInstance(ChTracesWalConsumerDriver.class);
 
     var traceIdA = utf8Bytes("trace-stats-0001");
@@ -71,7 +75,7 @@ public class ChSpanStatsQueryServiceTests {
             .addResourceSpans(buildDefaultAttributeSpan(traceIdD, spanIdD, 4_000_000_000L))
             .build();
 
-    ingester.ingest(request);
+    emitter.add(new TracesEvent(request.toByteArray()));
     driver.onTick();
   }
 

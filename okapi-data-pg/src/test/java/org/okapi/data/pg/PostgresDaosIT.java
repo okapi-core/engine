@@ -7,16 +7,13 @@ package org.okapi.data.pg;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.okapi.data.dao.*;
-import org.okapi.data.exceptions.IllegalJobStateTransition;
 import org.okapi.data.exceptions.UserAlreadyExistsException;
 import org.okapi.data.model.*;
+import org.okapi.grammar.GRAMMAR;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
@@ -26,6 +23,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 
 @SpringBootTest(classes = PostgresDaosIT.TestApplication.class)
 class PostgresDaosIT {
+
   @Autowired private JdbcTemplate jdbc;
   @Autowired private UsersDao users;
   @Autowired private OrgDao organizations;
@@ -36,7 +34,6 @@ class PostgresDaosIT {
   @Autowired private DashboardVarDao variables;
   @Autowired private RelationGraphDao graph;
   @Autowired private UserEntityRelationsDao userRelations;
-  @Autowired private PendingJobsDao jobs;
   @Autowired private InfraEntityNodeDao infra;
 
   @BeforeEach
@@ -47,15 +44,14 @@ class PostgresDaosIT {
         "DELETE FROM pending_jobs",
         "DELETE FROM entity_relations",
         "DELETE FROM user_entity_relations",
-        "DELETE FROM token_metadata",
         "DELETE FROM federated_sources",
         "DELETE FROM dashboard_variables",
         "DELETE FROM dashboard_panels",
         "DELETE FROM dashboard_rows",
         "DELETE FROM dashboard_versions",
         "DELETE FROM dashboards",
-        "DELETE FROM organizations",
-        "DELETE FROM users");
+        "DELETE FROM users",
+        "DELETE FROM organizations");
   }
 
   @Test
@@ -78,15 +74,16 @@ class PostgresDaosIT {
 
   @Test
   void persistsUsersAndOrganizationsWithUniqueEmails() throws Exception {
-    var user = users.createIfNotExists("Ada", "Lovelace", "ada@example.com", "secret");
+    var adaUserId = UUID.randomUUID().toString();
     organizations.save(
         Organization.builder()
             .orgId("org-1")
             .orgName("Analytical Engines")
-            .orgCreator(user.getUserId())
+            .orgCreator(adaUserId)
             .created(Instant.parse("2026-01-02T03:04:05Z"))
             .build());
-
+    // create user
+    var user = users.createIfNotExists("Ada", "Lovelace", "ada@example.com", "secret", "org-1");
     assertEquals(user, users.getWithEmail("ADA@example.com").orElseThrow());
     assertTrue(user.getHashedPassword().startsWith("$2"));
     assertEquals("Analytical Engines", organizations.findById("org-1").orElseThrow().getOrgName());
@@ -94,7 +91,51 @@ class PostgresDaosIT {
     assertEquals(1, jdbc.queryForObject("SELECT count(*) FROM organizations", Integer.class));
     assertThrows(
         UserAlreadyExistsException.class,
-        () -> users.createIfNotExists("Other", "User", "ada@example.com", "secret"));
+        () -> users.createIfNotExists("Other", "User", "ada@example.com", "secret", "org-1"));
+
+    users.createIfNotExists("Dorothy", "Cooper", "dorothy@acme.org", "secret", "org-1");
+    var allUsers = users.getAll("org-1");
+    assertEquals(2, allUsers.size());
+    var dorothy =
+        allUsers.stream().filter(u -> u.getEmail().equals("dorothy@acme.org")).findAny().get();
+    assertEquals("Dorothy", dorothy.getFirstName());
+    assertEquals("Cooper", dorothy.getLastName());
+    assertEquals("dorothy@acme.org", dorothy.getEmail());
+    assertEquals("org-1", dorothy.getOrgId());
+    // check ada's details
+    var ada = allUsers.stream().filter(u -> u.getEmail().equals("ada@example.com")).findAny().get();
+    assertEquals("Ada", ada.getFirstName());
+    assertEquals("Lovelace", ada.getLastName());
+    assertEquals("ada@example.com", ada.getEmail());
+    assertEquals("org-1", ada.getOrgId());
+  }
+
+  @Test
+  void createsOrganizationOnlyWhenMissing() {
+    var createdAt = Instant.parse("2026-01-02T03:04:05Z");
+    assertTrue(
+        organizations.createIfNotExists(
+            Organization.builder()
+                .orgId("org-1")
+                .orgName("Analytical Engines")
+                .orgCreator("okapi_root")
+                .created(createdAt)
+                .build()));
+
+    assertFalse(
+        organizations.createIfNotExists(
+            Organization.builder()
+                .orgId("org-1")
+                .orgName("Renamed")
+                .orgCreator("other")
+                .created(Instant.parse("2027-01-02T03:04:05Z"))
+                .build()));
+
+    var org = organizations.findById("org-1").orElseThrow();
+    assertEquals("Analytical Engines", org.getOrgName());
+    assertEquals("okapi_root", org.getOrgCreator());
+    assertEquals(createdAt, org.getCreated());
+    assertEquals(1, jdbc.queryForObject("SELECT count(*) FROM organizations", Integer.class));
   }
 
   @Test
@@ -133,13 +174,9 @@ class PostgresDaosIT {
             .panelId("panel")
             .title("Latency")
             .queryConfig(
-                new MultiQueryPanelConfig(
-                    List.of(
-                        PanelQueryConfig.builder()
-                            .localId("q")
-                            .query("up")
-                            .expectedResultType(ExpectedResultType.TIME_VECTOR)
-                            .build())))
+                new PanelQueryConfig(
+                    GRAMMAR.OKAPI_JSON,
+                    List.of(LabelledQuery.builder().localId("q").query("up").build())))
             .build());
     variables.save(
         "org",
@@ -155,15 +192,6 @@ class PostgresDaosIT {
     assertEquals("v1", versions.list("org", "dash").getFirst().getVersionId());
     assertEquals(
         ResourceOrder.from("panel"), rows.getAll("org", "dash", "v1").getFirst().getPanelOrder());
-    assertEquals(
-        ExpectedResultType.TIME_VECTOR,
-        panels
-            .get("org", "dash", "row", "v1", "panel")
-            .orElseThrow()
-            .getQueryConfig()
-            .getQueryConfigs()
-            .getFirst()
-            .getExpectedResultType());
     assertEquals("service.name", variables.list("org", "dash", "v1").getFirst().getTag());
     assertEquals(1, jdbc.queryForObject("SELECT count(*) FROM dashboard_panels", Integer.class));
   }
@@ -185,6 +213,12 @@ class PostgresDaosIT {
                 List.of(
                     OutgoingEdge.of(EntityType.ORG, RelationType.ORG_MEMBER),
                     OutgoingEdge.of(EntityType.DASHBOARD, RelationType.DASHBOARD_READ)))));
+    assertEquals(
+        user.toString(),
+        graph
+            .getAllIncomingRelations(org, EntityType.USER, RelationType.ORG_MEMBER)
+            .getFirst()
+            .getRelatedEntity());
     graph.deleteEntity(org);
     assertFalse(graph.hasRelationBetween(user, org, RelationType.ORG_MEMBER));
   }
@@ -198,27 +232,6 @@ class PostgresDaosIT {
 
     var relation = userRelations.getRelation("user", edge).orElseThrow();
     assertNull(relation.getEdgeAttributes());
-  }
-
-  @Test
-  void enforcesPendingJobTransitionsAndQueriesBySource() throws Exception {
-    var job =
-        PendingJob.builder()
-            .orgId("org")
-            .jobId("job")
-            .jobStatus(JobStatus.PENDING)
-            .sourceId("source")
-            .query(new DataSourceQuery("up", "source"))
-            .build();
-    jobs.createPendingJob(job);
-
-    assertEquals(1, jobs.getJobsBySourceAndStatus("org", "source", JobStatus.PENDING, 10).size());
-    jobs.updateJobStatus("org", "job", JobStatus.IN_PROGRESS);
-    var completed = jobs.updateJobResult("org", "job", "{\"resultType\":\"NONE\"}");
-    assertEquals(JobStatus.COMPLETED, completed.getJobStatus());
-    assertThrows(
-        IllegalJobStateTransition.class,
-        () -> jobs.updateJobStatus("org", "job", JobStatus.PENDING));
   }
 
   @Test

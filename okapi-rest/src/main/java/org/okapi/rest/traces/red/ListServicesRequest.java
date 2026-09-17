@@ -1,3 +1,7 @@
+/*
+ * Copyright The OkapiCore Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
 package org.okapi.rest.traces.red;
 
 import jakarta.validation.constraints.NotNull;
@@ -12,5 +16,6 @@ import org.okapi.rest.traces.TimestampFilter;
 @Getter
 @Builder
 public class ListServicesRequest {
-  @NotNull(message = "time window must be provided") TimestampFilter timestampFilter;
+  @NotNull(message = "time window must be provided")
+  TimestampFilter timestampFilter;
 }

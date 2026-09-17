@@ -1,5 +1,15 @@
+/*
+ * Copyright The OkapiCore Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
 package org.okapi.oscar.agents;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
 import org.okapi.metrics.common.MetricsPathParser;
 import org.okapi.metrics.pojos.AGG_TYPE;
@@ -19,13 +29,6 @@ import org.okapi.rest.traces.SpanQueryV2Response;
 import org.okapi.rest.traces.TimestampFilter;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.concurrent.TimeUnit;
-import java.util.regex.Pattern;
 
 @Slf4j
 @Component
@@ -95,6 +98,7 @@ public class DummyOscarResearchAgent implements SreResearchAgent {
             userMessage,
             toolContext.getMetricsTools(),
             toolContext.getTracingTools(),
+            toolContext.getLogsSearchTool(),
             dateTimeTools,
             greetingTools,
             filterContributionTool,
@@ -265,7 +269,9 @@ public class DummyOscarResearchAgent implements SreResearchAgent {
       builder.gaugeQueryConfig(new GaugeQueryConfig(RES_TYPE.MINUTELY, AGG_TYPE.AVG));
     } else if (path.getMetricType() == METRIC_TYPE.HISTO) {
       builder.histoQueryConfig(
-          HistoQueryConfig.builder().temporality(mapHistoTemporality(path.getTemporality())).build());
+          HistoQueryConfig.builder()
+              .temporality(mapHistoTemporality(path.getTemporality()))
+              .build());
     } else if (path.getMetricType() == METRIC_TYPE.SUM) {
       builder.sumsQueryConfig(
           GetSumsQueryConfig.builder()
@@ -371,9 +377,7 @@ public class DummyOscarResearchAgent implements SreResearchAgent {
   }
 
   private record SequenceMatcher(
-      Pattern pattern,
-      CannedToolCallSequence sequence,
-      SequenceInitializer initializer) {}
+      Pattern pattern, CannedToolCallSequence sequence, SequenceInitializer initializer) {}
 
   private interface SequenceInitializer {
     void accept(java.util.regex.Matcher matcher, CannedToolCallSequence.Context context);

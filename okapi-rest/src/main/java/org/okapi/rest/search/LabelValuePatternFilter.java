@@ -1,3 +1,7 @@
+/*
+ * Copyright The OkapiCore Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
 package org.okapi.rest.search;
 
 import lombok.AllArgsConstructor;
@@ -10,6 +14,6 @@ import lombok.NoArgsConstructor;
 @Getter
 @Builder
 public class LabelValuePatternFilter {
-    String label;
-    String pattern;
+  String label;
+  String pattern;
 }

@@ -101,6 +101,13 @@ public class DashboardYamlLinter {
           var panelId =
               isBlank(panel.getId()) ? ("panel-" + (i + 1) + "-" + (j + 1)) : panel.getId();
           resolvedPanels.add(ResolvedPanelId.builder().id(panelId).build());
+          if (panel.getGrammar() == null) {
+            errors.add(
+                issue(
+                    "GRAMMAR_MISSING",
+                    "Panel grammar must be specified",
+                    "$.dashboard.rows[" + i + "].panels[" + j + "].grammar"));
+          }
           if (panel.getQueries() == null || panel.getQueries().isEmpty()) {
             errors.add(
                 issue(
@@ -151,16 +158,57 @@ public class DashboardYamlLinter {
         errors.add(issue("QUERY_JSON_INVALID", "Query JSON is invalid", path));
         return;
       }
-      if (!json.has("metric") || !json.has("tags")) {
-        errors.add(issue("QUERY_JSON_INVALID", "Query JSON missing required fields", path));
+      if (!hasNonBlankString(json, "metric")
+          || !json.has("tags")
+          || !json.get("tags").isJsonObject()
+          || !hasNonBlankString(json, "metricType")) {
+        errors.add(
+            issue("QUERY_JSON_INVALID", "Query JSON requires metric, tags, and metricType", path));
         return;
       }
-      if (!(json.get("tags").isJsonObject())) {
-        errors.add(issue("QUERY_JSON_INVALID", "Query JSON tags must be an object", path));
+      var metricType = json.get("metricType").getAsString();
+      var configField =
+          switch (metricType) {
+            case "GAUGE" -> "gaugeQueryConfig";
+            case "HISTO" -> "histoQueryConfig";
+            case "SUM" -> "sumsQueryConfig";
+            default -> null;
+          };
+      var configValue = configField == null ? null : json.getAsJsonObject(configField);
+      var configProperty =
+          switch (metricType) {
+            case "GAUGE" -> "resolution";
+            case "HISTO", "SUM" -> "temporality";
+            default -> null;
+          };
+      if (configField == null
+          || configValue == null
+          || configValue.isEmpty()
+          || !hasNonBlankString(configValue, configProperty)
+          || ("GAUGE".equals(metricType) && !hasNonBlankString(configValue, "aggregation"))) {
+        errors.add(
+            issue(
+                "QUERY_JSON_INVALID",
+                "Query JSON has an unsupported metricType or missing type configuration",
+                path));
       }
     } catch (Exception e) {
       errors.add(issue("QUERY_JSON_INVALID", "Query JSON is invalid", path));
     }
+  }
+
+  private boolean hasNonBlankString(com.google.gson.JsonObject json, String field) {
+    if (field == null) return false;
+    return json.has(field)
+        && json.get(field).isJsonPrimitive()
+        && json.get(field).getAsJsonPrimitive().isString()
+        && !isBlank(json.get(field).getAsString());
+  }
+
+  private boolean hasNumber(com.google.gson.JsonObject json, String field) {
+    return json.has(field)
+        && json.get(field).isJsonPrimitive()
+        && json.get(field).getAsJsonPrimitive().isNumber();
   }
 
   private static boolean isBlank(String val) {

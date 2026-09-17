@@ -20,8 +20,4 @@ public final class SelectorExpr implements LogicalExpr {
     this.atTsMs = atTsMs;
     this.offset = offset;
   }
-
-  public SelectorExpr(String metricOrNull, List<LabelMatcher> matchers, Long atTsMs, Long offsetMs) {
-    this(metricOrNull, matchers, atTsMs, offsetMs == null ? null : DurationExpr.fixedMs(offsetMs));
-  }
 }

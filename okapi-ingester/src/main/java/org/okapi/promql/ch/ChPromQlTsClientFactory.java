@@ -20,7 +20,7 @@ public class ChPromQlTsClientFactory implements TsClientFactory {
   }
 
   @Override
-  public Optional<TsClient> getClient(String tenantId) {
+  public Optional<TsClient> getClient() {
     return Optional.of(new ChPromQlTsClient(client, templateEngine));
   }
 }

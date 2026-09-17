@@ -1,19 +1,51 @@
+/*
+ * Copyright The OkapiCore Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
 package org.okapi.oscar.tools;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.okapi.metrics.pojos.AGG_TYPE;
 import org.okapi.metrics.pojos.RES_TYPE;
+import org.okapi.rest.logs.ChLogFilter;
+import org.okapi.rest.logs.ChLogRow;
+import org.okapi.rest.logs.ChLogsQueryRequest;
+import org.okapi.rest.logs.ChLogsQueryResponse;
 import org.okapi.rest.metrics.query.*;
 import org.okapi.rest.search.MetricPath;
 import org.okapi.rest.search.SearchMetricsV2Response;
 import org.okapi.rest.traces.*;
 
-import java.util.List;
-import java.util.Map;
-
-import static org.assertj.core.api.Assertions.assertThat;
-
 public class ToolCallSummariesTest {
+
+  @Test
+  void summarizeLogSearchRequestIncludesWindowFiltersAndLimit() {
+    var request =
+        ChLogsQueryRequest.builder()
+            .tsStartNanos(1L)
+            .tsEndNanos(2L)
+            .limit(10)
+            .filters(List.of(ChLogFilter.builder().build()))
+            .build();
+
+    assertThat(ToolCallSummaries.summarizeLogSearchRequest(request))
+        .isEqualTo("Searching logs: timeNs=[1,2] filters=1 limit=10");
+  }
+
+  @Test
+  void summarizeLogSearchResponseReportsCount() {
+    var response =
+        ChLogsQueryResponse.builder()
+            .items(List.of(ChLogRow.builder().body("failed").build()))
+            .build();
+
+    assertThat(ToolCallSummaries.summarizeLogSearchResponse(response))
+        .isEqualTo("Search logs results: logs=1");
+  }
 
   @Test
   void summarizeSpanQueryRequestIncludesKeyFilters() {

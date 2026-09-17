@@ -23,4 +23,14 @@ public class ProxyResponseTranslator {
       throw new DownstreamFailedException();
     }
   }
+
+  public String translateRawResponse(Response response) throws IOException {
+    if (response.isSuccessful()) {
+      return response.body().string();
+    } else if (response.code() == 400) {
+      throw new BadRequestException(response.body().string());
+    } else {
+      throw new DownstreamFailedException();
+    }
+  }
 }

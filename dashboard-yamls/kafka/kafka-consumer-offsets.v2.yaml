@@ -20,11 +20,13 @@ dashboard:
       panels:
         - id: consumer-group-offset
           title: Consumer Group Offset
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"kafka.consumer_group.offset","tags":{"consumer_group":"$__{consumer_group}","topic":"$__{topic}","partition":"$__{partition}"},"start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"kafka.consumer_group.offset","tags":{"consumer_group":"$__{consumer_group}","topic":"$__{topic}","partition":"$__{partition}"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: consumer-group-offset-max
           title: Consumer Group Offset (Max)
+          grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"kafka.consumer_group.offset","tags":{"consumer_group":"$__{consumer_group}","topic":"$__{topic}","partition":"$__{partition}"},"start":0,"end":0,"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"MAX"}}
+                {"metric":"kafka.consumer_group.offset","tags":{"consumer_group":"$__{consumer_group}","topic":"$__{topic}","partition":"$__{partition}"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"MAX"}}

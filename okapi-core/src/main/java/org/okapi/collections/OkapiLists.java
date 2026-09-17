@@ -30,14 +30,6 @@ public class OkapiLists {
     return arr;
   }
 
-  public static long[] toLongArray(List<Long> list) {
-    var arr = new long[list.size()];
-    for (int i = 0; i < list.size(); i++) {
-      arr[i] = list.get(i);
-    }
-    return arr;
-  }
-
   public static List<Integer> range(int st, int en) {
     return new ArrayList<>() {
       {

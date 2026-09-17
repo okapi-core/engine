@@ -7,6 +7,8 @@ package org.okapi.metrics.ch;
 import com.clickhouse.client.api.Client;
 import gg.jte.TemplateOutput;
 import gg.jte.output.StringOutput;
+import java.util.ArrayList;
+import java.util.Objects;
 import org.okapi.ch.ChTemplateFiles;
 import org.okapi.exceptions.BadRequestException;
 import org.okapi.metrics.ch.template.ChMetricTemplateEngine;
@@ -17,9 +19,6 @@ import org.okapi.rest.metrics.query.GetMetricsResponse;
 import org.okapi.rest.search.*;
 import org.okapi.usermessages.UserFacingMessages;
 import org.okapi.validation.OkapiChecks;
-
-import java.util.ArrayList;
-import java.util.Objects;
 
 /** Routes metric queries to specific processors for gauges, histograms, and sums. */
 public class ChMetricsQueryProcessor {

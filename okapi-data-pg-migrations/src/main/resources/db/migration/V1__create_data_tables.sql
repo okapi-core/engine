@@ -1,21 +1,22 @@
 DROP TABLE IF EXISTS data_records;
 
-CREATE TABLE users (
-    user_id TEXT PRIMARY KEY,
-    email TEXT NOT NULL,
-    status TEXT NOT NULL,
-    first_name TEXT,
-    last_name TEXT,
-    hashed_password TEXT NOT NULL
-);
-CREATE UNIQUE INDEX users_email_lower_uq ON users (lower(email));
-
 CREATE TABLE organizations (
     org_id TEXT PRIMARY KEY,
     org_name TEXT NOT NULL,
     org_creator TEXT,
     created_at TIMESTAMPTZ
 );
+
+CREATE TABLE users (
+    user_id TEXT PRIMARY KEY,
+    email TEXT NOT NULL,
+    status TEXT NOT NULL,
+    first_name TEXT,
+    last_name TEXT,
+    hashed_password TEXT NOT NULL,
+    org_id TEXT NOT NULL REFERENCES organizations (org_id)
+);
+CREATE UNIQUE INDEX users_email_lower_uq ON users (lower(email));
 
 CREATE TABLE dashboards (
     org_id TEXT NOT NULL,
@@ -89,24 +90,14 @@ CREATE TABLE federated_sources (
     PRIMARY KEY (org_id, source_name)
 );
 
-CREATE TABLE token_metadata (
-    org_id TEXT NOT NULL,
-    token_id TEXT NOT NULL,
-    creator_id TEXT,
-    created_at BIGINT,
-    status TEXT NOT NULL,
-    PRIMARY KEY (org_id, token_id)
-);
-CREATE INDEX token_metadata_org_status_idx ON token_metadata (org_id, status);
-
 CREATE TABLE user_entity_relations (
     user_id TEXT NOT NULL,
     entity_type TEXT NOT NULL,
     entity_id TEXT NOT NULL,
     relation_type TEXT NOT NULL,
-    edge_timestamp BIGINT NOT NULL,
+    edge_timestamp BIGINT,
     edge_string_value TEXT,
-    edge_boolean_value BOOLEAN NOT NULL,
+    edge_boolean_value BOOLEAN,
     PRIMARY KEY (user_id, entity_type, entity_id, relation_type)
 );
 

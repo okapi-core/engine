@@ -6,6 +6,7 @@ package org.okapi.rest.metrics.payloads;
 
 import java.util.List;
 import lombok.*;
+import org.okapi.rest.metrics.Exemplar;
 
 @AllArgsConstructor
 @Value
@@ -15,4 +16,5 @@ import lombok.*;
 public class Sum {
   SUM_TEMPORALITY temporality;
   List<SumPoint> sumPoints;
+  List<Exemplar> exemplars;
 }

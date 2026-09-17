@@ -1,3 +1,7 @@
+/*
+ * Copyright The OkapiCore Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
 package org.okapi.rest.chat;
 
 import jakarta.validation.constraints.NotNull;
@@ -15,7 +19,7 @@ public class GetHistoryRequest {
   @NotNull Long from;
   Long to;
 
-  public static GetHistoryRequest fromStart(){
+  public static GetHistoryRequest fromStart() {
     return START_OF_TIME;
   }
 }

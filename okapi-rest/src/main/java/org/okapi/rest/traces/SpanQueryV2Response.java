@@ -6,9 +6,8 @@ package org.okapi.rest.traces;
 
 import com.fasterxml.jackson.annotation.JsonClassDescription;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
-import lombok.*;
-
 import java.util.List;
+import lombok.*;
 
 @Builder
 @AllArgsConstructor

@@ -18,7 +18,8 @@ public class KafkaLogsEventEmitter implements LogsEventEmitter, AutoCloseable {
   private final Duration pollTimeout;
   private final Map<TopicPartition, OffsetAndMetadata> pendingCommit = new HashMap<>();
 
-  public KafkaLogsEventEmitter(Consumer<byte[], byte[]> consumer, String topic, Duration pollTimeout) {
+  public KafkaLogsEventEmitter(
+      Consumer<byte[], byte[]> consumer, String topic, Duration pollTimeout) {
     this.consumer = consumer;
     this.pollTimeout = pollTimeout;
     consumer.subscribe(List.of(topic));

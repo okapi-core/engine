@@ -10,7 +10,6 @@ import java.io.IOException;
 import java.util.List;
 import org.okapi.exceptions.BadRequestException;
 import org.okapi.metrics.ch.ChWalResources;
-import org.okapi.wal.frame.WalEntry;
 import org.okapi.wal.io.IllegalWalEntryException;
 
 public class ChLogsIngester {
@@ -29,13 +28,8 @@ public class ChLogsIngester {
   public ExportLogsServiceResponse ingest(ExportLogsServiceRequest serviceRequest)
       throws IOException, IllegalWalEntryException {
     checkDirectIngestionEnabled();
-    walResources.getWriter().appendBatch(List.of(toWalEntry(serviceRequest)));
+    walResources.appendPayloads(List.of(serviceRequest.toByteArray()));
     return ExportLogsServiceResponse.newBuilder().build();
-  }
-
-  private WalEntry toWalEntry(ExportLogsServiceRequest request) throws IOException {
-    var lsnSupplier = walResources.getSupplier();
-    return new WalEntry(lsnSupplier.next(), request.toByteArray());
   }
 
   private void checkDirectIngestionEnabled() {

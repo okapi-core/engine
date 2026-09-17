@@ -4,6 +4,8 @@
  */
 package org.okapi.promql.eval.ops;
 
+import java.util.ArrayList;
+import java.util.List;
 import org.okapi.metrics.pojos.results.GaugeScan;
 import org.okapi.metrics.pojos.results.Scan;
 import org.okapi.metrics.pojos.results.SumScan;
@@ -16,16 +18,14 @@ import org.okapi.promql.eval.Staleness;
 import org.okapi.promql.eval.VectorData.*;
 import org.okapi.promql.eval.nodes.ExtendedVectorMode;
 
-import java.util.ArrayList;
-import java.util.List;
-
 /** Pure functions over RangeVectorResult for counter/gauge transforms. */
 public final class RangeFunctions {
   private RangeFunctions() {}
 
   // anchorMs >= 0 pins the window anchor (for @ modifier); -1 uses the step time.
 
-  public static InstantVectorResult rate(RangeVectorResult rv, RangeEvalContext rangeCtx, long anchorMs) {
+  public static InstantVectorResult rate(
+      RangeVectorResult rv, RangeEvalContext rangeCtx, long anchorMs) {
     long rangeMs = rangeCtx.rangeMs();
     EvalContext ctx = rangeCtx.query();
     List<SeriesSample> out = new ArrayList<>();
@@ -46,9 +46,10 @@ public final class RangeFunctions {
       if (!(w.scan() instanceof SumScan) && floatScan == null) continue;
       for (long t = ctx.startMs; t <= ctx.endMs; t += ctx.stepMs) {
         long anchor = anchorMs >= 0 ? anchorMs : t;
-        float inc = w.scan() instanceof SumScan ss
-            ? sumInWindow(ss, anchor - rangeMs, anchor)
-            : counterIncrease(floatScan, rangeCtx, anchor);
+        float inc =
+            w.scan() instanceof SumScan ss
+                ? sumInWindow(ss, anchor - rangeMs, anchor)
+                : counterIncrease(floatScan, rangeCtx, anchor);
         float v = (rangeMs > 0) ? inc / (rangeMs / 1000f) : Float.NaN;
         out.add(new SeriesSample(SeriesIds.derived(w.id()), new Sample(t, v)));
       }
@@ -56,7 +57,8 @@ public final class RangeFunctions {
     return new InstantVectorResult(out);
   }
 
-  public static InstantVectorResult irate(RangeVectorResult rv, long rangeMs, EvalContext ctx, long anchorMs) {
+  public static InstantVectorResult irate(
+      RangeVectorResult rv, long rangeMs, EvalContext ctx, long anchorMs) {
     List<SeriesSample> out = new ArrayList<>();
     for (SeriesWindow w : rv.data()) {
       if (w.scan() instanceof HistogramSeries histogramSeries) {
@@ -64,25 +66,25 @@ public final class RangeFunctions {
           long anchor = anchorMs >= 0 ? anchorMs : t;
           var histogram = histogramIrateInWindow(histogramSeries, anchor - rangeMs, anchor);
           if (histogram != null)
-            out.add(
-                new SeriesSample(
-                    SeriesIds.derived(w.id()), new Sample(t, t, histogram)));
+            out.add(new SeriesSample(SeriesIds.derived(w.id()), new Sample(t, t, histogram)));
         }
         continue;
       }
       if (!(w.scan() instanceof SumScan) && !(w.scan() instanceof GaugeScan)) continue;
       for (long t = ctx.startMs; t <= ctx.endMs; t += ctx.stepMs) {
         long anchor = anchorMs >= 0 ? anchorMs : t;
-        float v = w.scan() instanceof SumScan ss
-            ? irateInWindow(ss, anchor - rangeMs, anchor)
-            : sampledCounterIrate((GaugeScan) w.scan(), anchor - rangeMs, anchor);
+        float v =
+            w.scan() instanceof SumScan ss
+                ? irateInWindow(ss, anchor - rangeMs, anchor)
+                : sampledCounterIrate((GaugeScan) w.scan(), anchor - rangeMs, anchor);
         out.add(new SeriesSample(SeriesIds.derived(w.id()), new Sample(t, v)));
       }
     }
     return new InstantVectorResult(out);
   }
 
-  public static InstantVectorResult increase(RangeVectorResult rv, RangeEvalContext rangeCtx, long anchorMs) {
+  public static InstantVectorResult increase(
+      RangeVectorResult rv, RangeEvalContext rangeCtx, long anchorMs) {
     long rangeMs = rangeCtx.rangeMs();
     EvalContext ctx = rangeCtx.query();
     List<SeriesSample> out = new ArrayList<>();
@@ -92,9 +94,7 @@ public final class RangeFunctions {
           long anchor = anchorMs >= 0 ? anchorMs : t;
           var histogram = histogramIncreaseInWindow(histogramSeries, anchor - rangeMs, anchor);
           if (histogram != null)
-            out.add(
-                new SeriesSample(
-                    SeriesIds.derived(w.id()), new Sample(t, t, histogram)));
+            out.add(new SeriesSample(SeriesIds.derived(w.id()), new Sample(t, t, histogram)));
         }
         continue;
       }
@@ -102,16 +102,18 @@ public final class RangeFunctions {
       if (!(w.scan() instanceof SumScan) && floatScan == null) continue;
       for (long t = ctx.startMs; t <= ctx.endMs; t += ctx.stepMs) {
         long anchor = anchorMs >= 0 ? anchorMs : t;
-        float v = w.scan() instanceof SumScan ss
-            ? sumInWindow(ss, anchor - rangeMs, anchor)
-            : counterIncrease(floatScan, rangeCtx, anchor);
+        float v =
+            w.scan() instanceof SumScan ss
+                ? sumInWindow(ss, anchor - rangeMs, anchor)
+                : counterIncrease(floatScan, rangeCtx, anchor);
         out.add(new SeriesSample(SeriesIds.derived(w.id()), new Sample(t, v)));
       }
     }
     return new InstantVectorResult(out);
   }
 
-  public static InstantVectorResult delta(RangeVectorResult rv, RangeEvalContext rangeCtx, long anchorMs) {
+  public static InstantVectorResult delta(
+      RangeVectorResult rv, RangeEvalContext rangeCtx, long anchorMs) {
     long rangeMs = rangeCtx.rangeMs();
     EvalContext ctx = rangeCtx.query();
     List<SeriesSample> out = new ArrayList<>();
@@ -120,33 +122,43 @@ public final class RangeFunctions {
       if (gs == null) continue;
       for (long t = ctx.startMs; t <= ctx.endMs; t += ctx.stepMs) {
         long anchor = anchorMs >= 0 ? anchorMs : t;
-        out.add(new SeriesSample(SeriesIds.derived(w.id()), new Sample(t, delta(gs, rangeCtx, anchor))));
+        out.add(
+            new SeriesSample(
+                SeriesIds.derived(w.id()), new Sample(t, delta(gs, rangeCtx, anchor))));
       }
     }
     return new InstantVectorResult(out);
   }
 
-  public static InstantVectorResult idelta(RangeVectorResult rv, long rangeMs, EvalContext ctx, long anchorMs) {
+  public static InstantVectorResult idelta(
+      RangeVectorResult rv, long rangeMs, EvalContext ctx, long anchorMs) {
     List<SeriesSample> out = new ArrayList<>();
     for (SeriesWindow w : rv.data()) {
       GaugeScan gs = floatScan(w.scan());
       if (gs == null) continue;
       for (long t = ctx.startMs; t <= ctx.endMs; t += ctx.stepMs) {
         long anchor = anchorMs >= 0 ? anchorMs : t;
-        out.add(new SeriesSample(SeriesIds.derived(w.id()), new Sample(t, ideltaInWindow(gs, anchor - rangeMs, anchor))));
+        out.add(
+            new SeriesSample(
+                SeriesIds.derived(w.id()),
+                new Sample(t, ideltaInWindow(gs, anchor - rangeMs, anchor))));
       }
     }
     return new InstantVectorResult(out);
   }
 
-  public static InstantVectorResult deriv(RangeVectorResult rv, long rangeMs, EvalContext ctx, long anchorMs) {
+  public static InstantVectorResult deriv(
+      RangeVectorResult rv, long rangeMs, EvalContext ctx, long anchorMs) {
     List<SeriesSample> out = new ArrayList<>();
     for (SeriesWindow w : rv.data()) {
       GaugeScan gs = floatScan(w.scan());
       if (gs == null) continue;
       for (long t = ctx.startMs; t <= ctx.endMs; t += ctx.stepMs) {
         long anchor = anchorMs >= 0 ? anchorMs : t;
-        out.add(new SeriesSample(SeriesIds.derived(w.id()), new Sample(t, derivInWindow(gs, anchor - rangeMs, anchor))));
+        out.add(
+            new SeriesSample(
+                SeriesIds.derived(w.id()),
+                new Sample(t, derivInWindow(gs, anchor - rangeMs, anchor))));
       }
     }
     return new InstantVectorResult(out);
@@ -168,7 +180,11 @@ public final class RangeFunctions {
           long tsi = ts.get(i);
           if (tsi <= anchor - rangeMs || tsi > anchor) continue;
           double x = tsi / 1000.0, y = vals.get(i);
-          n++; sumX += x; sumY += y; sumXX += x * x; sumXY += x * y;
+          n++;
+          sumX += x;
+          sumY += y;
+          sumXX += x * x;
+          sumXY += x * y;
         }
         double v;
         if (n < 2) {
@@ -199,8 +215,7 @@ public final class RangeFunctions {
       scan = Staleness.withoutStaleSamples(scan);
       for (long t = ctx.startMs; t <= ctx.endMs; t += ctx.stepMs) {
         long anchor = anchorMs >= 0 ? anchorMs : t;
-        Float value =
-            smoothInWindow(scan, anchor - rangeMs, anchor, smoothingFactor, trendFactor);
+        Float value = smoothInWindow(scan, anchor - rangeMs, anchor, smoothingFactor, trendFactor);
         if (value != null)
           out.add(new SeriesSample(SeriesIds.derived(window.id()), new Sample(t, value)));
       }
@@ -306,12 +321,14 @@ public final class RangeFunctions {
       return 0f;
     }
 
-    Point left = rangeCtx.mode() == ExtendedVectorMode.SMOOTHED
-        ? pickOrInterpolateLeft(ts, vals, first, start, counter)
-        : pickAnchoredLeft(ts, vals, first, start);
-    Point right = rangeCtx.mode() == ExtendedVectorMode.SMOOTHED
-        ? pickOrInterpolateRight(ts, vals, last, anchor, counter)
-        : pickAnchoredRight(ts, vals, last, anchor);
+    Point left =
+        rangeCtx.mode() == ExtendedVectorMode.SMOOTHED
+            ? pickOrInterpolateLeft(ts, vals, first, start, counter)
+            : pickAnchoredLeft(ts, vals, first, start);
+    Point right =
+        rangeCtx.mode() == ExtendedVectorMode.SMOOTHED
+            ? pickOrInterpolateRight(ts, vals, last, anchor, counter)
+            : pickAnchoredRight(ts, vals, last, anchor);
 
     float result = right.value() - left.value();
     if (!counter) return result;
@@ -331,13 +348,15 @@ public final class RangeFunctions {
   private static Point pickOrInterpolateLeft(
       List<Long> ts, List<Float> vals, int first, long start, boolean counter) {
     if (first == ts.size() - 1 || ts.get(first) >= start) return point(ts, vals, first);
-    return new Point(start, interpolate(point(ts, vals, first + 1), point(ts, vals, first), start, counter));
+    return new Point(
+        start, interpolate(point(ts, vals, first + 1), point(ts, vals, first), start, counter));
   }
 
   private static Point pickOrInterpolateRight(
       List<Long> ts, List<Float> vals, int last, long end, boolean counter) {
     if (last == 0 || ts.get(last) <= end) return point(ts, vals, last);
-    return new Point(end, interpolate(point(ts, vals, last), point(ts, vals, last - 1), end, counter));
+    return new Point(
+        end, interpolate(point(ts, vals, last), point(ts, vals, last - 1), end, counter));
   }
 
   private static Point pickAnchoredLeft(List<Long> ts, List<Float> vals, int first, long start) {
@@ -353,8 +372,11 @@ public final class RangeFunctions {
   private static float interpolate(Point later, Point earlier, long target, boolean counter) {
     float earlierValue = earlier.value();
     if (counter && later.value() < earlierValue) earlierValue = 0f;
-    return (float) (earlierValue
-        + (later.value() - earlierValue) * (target - earlier.ts()) / (double) (later.ts() - earlier.ts()));
+    return (float)
+        (earlierValue
+            + (later.value() - earlierValue)
+                * (target - earlier.ts())
+                / (double) (later.ts() - earlier.ts()));
   }
 
   private static int firstAfter(List<Long> timestamps, long target) {
@@ -434,7 +456,8 @@ public final class RangeFunctions {
           HistogramSeries.isReset(previous, histogram)
               ? histogram
               : HistogramSeries.subtract(histogram, previous);
-      if (increase != null && !HistogramSeries.compatibleRepresentation(increase, delta)) return null;
+      if (increase != null && !HistogramSeries.compatibleRepresentation(increase, delta))
+        return null;
       increase = increase == null ? delta : HistogramSeries.add(increase, delta);
       previous = histogram;
       sampleCount++;

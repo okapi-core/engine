@@ -38,4 +38,7 @@ public class UserEntity {
 
   @Column(name = "hashed_password")
   private String hashedPassword;
+
+  @Column(name = "org_id")
+  private String orgId;
 }

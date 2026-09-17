@@ -1,5 +1,16 @@
+/*
+ * Copyright The OkapiCore Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
 package org.okapi.oscar.tools;
 
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Objects;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import lombok.extern.slf4j.Slf4j;
 import org.okapi.ingester.client.IngesterClient;
 import org.okapi.oscar.spring.ConfigKeys;
@@ -11,13 +22,6 @@ import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-
-import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.function.Function;
-import java.util.function.Supplier;
 
 @Slf4j
 @Component
@@ -34,7 +38,7 @@ public class FilterContributionTool {
 
     this.client = client;
     this.executorService =
-        ParallelExecutor.of(threadCount, throttle, Duration.ofMillis(durationMillis));
+        new ParallelExecutor(threadCount, throttle, Duration.ofMillis(durationMillis));
   }
 
   @Tool(
@@ -65,62 +69,40 @@ Use this tool when a span query returns zero matches; retry without any filter t
 
     if (request.getTraceId() != null) {
       builderMethods.add(contribBuilder::traceIdRemovedCount);
-      queries.add(
-          () ->
-              client.getResultsSummary(
-                  builderFrom(request).traceId(null).build()));
+      queries.add(() -> client.getResultsSummary(builderFrom(request).traceId(null).build()));
     }
     if (request.getSpanId() != null) {
       builderMethods.add(contribBuilder::spanIdRemovedCount);
-      queries.add(
-          () ->
-              client.getResultsSummary(
-                  builderFrom(request).spanId(null).build()));
+      queries.add(() -> client.getResultsSummary(builderFrom(request).spanId(null).build()));
     }
     if (request.getKind() != null) {
       builderMethods.add(contribBuilder::kindRemovedCount);
-      queries.add(
-          () ->
-              client.getResultsSummary(
-                  builderFrom(request).kind(null).build()));
+      queries.add(() -> client.getResultsSummary(builderFrom(request).kind(null).build()));
     }
     if (request.getDbFilters() != null) {
       builderMethods.add(contribBuilder::dbFiltersRemovedCount);
-      queries.add(
-          () ->
-              client.getResultsSummary(
-                  builderFrom(request).dbFilters(null).build()));
+      queries.add(() -> client.getResultsSummary(builderFrom(request).dbFilters(null).build()));
     }
     if (request.getDurationFilter() != null) {
       builderMethods.add(contribBuilder::durationFilterRemovedCount);
       queries.add(
-          () ->
-              client.getResultsSummary(
-                  builderFrom(request).durationFilter(null).build()));
+          () -> client.getResultsSummary(builderFrom(request).durationFilter(null).build()));
     }
     if (request.getHttpFilters() != null) {
       builderMethods.add(contribBuilder::httpFiltersRemovedCount);
-      queries.add(
-          () ->
-              client.getResultsSummary(
-                  builderFrom(request).httpFilters(null).build()));
+      queries.add(() -> client.getResultsSummary(builderFrom(request).httpFilters(null).build()));
     }
     if (request.getServiceFilter() != null) {
       builderMethods.add(contribBuilder::serviceFilterRemovedCount);
-      queries.add(
-          () ->
-              client.getResultsSummary(
-                  builderFrom(request).serviceFilter(null).build()));
+      queries.add(() -> client.getResultsSummary(builderFrom(request).serviceFilter(null).build()));
     }
     if (request.getTimestampFilter() != null) {
       builderMethods.add(contribBuilder::timestampFilterRemovedCount);
       queries.add(
-          () ->
-              client.getResultsSummary(
-                  builderFrom(request).timestampFilter(null).build()));
+          () -> client.getResultsSummary(builderFrom(request).timestampFilter(null).build()));
     }
 
-    var stringAttributeCounts = new java.util.LinkedHashMap<String, Long>();
+    var stringAttributeCounts = new LinkedHashMap<String, Long>();
     if (request.getStringAttributesFilter() != null) {
       var filters = request.getStringAttributesFilter();
       for (int i = 0; i < filters.size(); i++) {
@@ -130,11 +112,8 @@ Use this tool when a span query returns zero matches; retry without any filter t
         }
         var trimmed = removeFilterAtIndex(filters, i);
         var updated =
-            builderFrom(request)
-                .stringAttributesFilter(trimmed.isEmpty() ? null : trimmed)
-                .build();
-        var summary =
-            client.getResultsSummary(updated);
+            builderFrom(request).stringAttributesFilter(trimmed.isEmpty() ? null : trimmed).build();
+        var summary = client.getResultsSummary(updated);
         stringAttributeCounts.put(filter.getKey(), summary.getCount());
       }
       if (!stringAttributeCounts.isEmpty()) {
@@ -152,11 +131,8 @@ Use this tool when a span query returns zero matches; retry without any filter t
         }
         var trimmed = removeFilterAtIndex(filters, i);
         var updated =
-            builderFrom(request)
-                .numberAttributesFilter(trimmed.isEmpty() ? null : trimmed)
-                .build();
-        var summary =
-            client.getResultsSummary(updated);
+            builderFrom(request).numberAttributesFilter(trimmed.isEmpty() ? null : trimmed).build();
+        var summary = client.getResultsSummary(updated);
         numberAttributeCounts.put(filter.getKey(), summary.getCount());
       }
       if (!numberAttributeCounts.isEmpty()) {

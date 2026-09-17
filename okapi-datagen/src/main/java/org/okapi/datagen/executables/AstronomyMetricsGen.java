@@ -27,18 +27,20 @@ public class AstronomyMetricsGen implements Callable<Integer> {
 
   @CommandLine.Option(
       names = {"-f", "--file"},
-      description =
-          "Config file. Should map: org.okapi.datagen.spans.MetricsDataGenConfig 1-to-1")
+      required = true,
+      description = "Config file. Should map: org.okapi.datagen.spans.MetricsDataGenConfig 1-to-1")
   private File file;
 
   @CommandLine.Option(
       names = {"-h", "--host"},
+      required = true,
       description =
           "Okapi ingester host. Must start with http:// or https:// depending on the deployment.")
   private String host;
 
   @CommandLine.Option(
       names = {"-p", "--port"},
+      required = true,
       description = "Okapi ingester port.")
   private int port;
 
@@ -56,6 +58,10 @@ public class AstronomyMetricsGen implements Callable<Integer> {
   public Integer call() throws Exception {
     var generator = new MetricsDataGenerator(getConfig());
     var requests = generator.generate();
+    log.info(
+        "Generated {} exemplars across {} OTLP metric requests.",
+        generator.countExemplars(requests),
+        requests.size());
     var okHttp = new OkHttpClient();
     var url = host + ":" + port + "/v1/metrics";
     var partialRequest = new Request.Builder().url(url);

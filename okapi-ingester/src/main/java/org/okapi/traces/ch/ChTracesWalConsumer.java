@@ -4,10 +4,10 @@
  */
 package org.okapi.traces.ch;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import com.google.gson.Gson;
+import com.google.protobuf.InvalidProtocolBufferException;
 import io.opentelemetry.proto.collector.trace.v1.ExportTraceServiceRequest;
 import io.opentelemetry.proto.trace.v1.ResourceSpans;
 import io.opentelemetry.proto.trace.v1.ScopeSpans;
@@ -16,49 +16,74 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
-import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.okapi.metrics.ch.ChConstants;
-import org.okapi.metrics.ch.ChWalResources;
 import org.okapi.metrics.ch.ChWriter;
-import org.okapi.wal.frame.WalEntry;
-import org.okapi.wal.io.WalReader;
-import org.okapi.wal.manager.WalManager;
+import org.okapi.telemetry.OkapiInternalMetrics;
+import org.okapi.traces.core.TracesEventEmitter;
 
-@RequiredArgsConstructor
+@Slf4j
 public class ChTracesWalConsumer {
-  private final WalReader walReader;
-  private final WalManager walManager;
+  private final TracesEventEmitter eventEmitter;
   private final int batchSize;
   private final ChWriter chWriter;
   private final OtelTracesToChRowsConverter converter;
   private final Gson gson = new Gson();
   private final TraceFilterStrategy traceFilterStrategy;
   private final SpanFilterStrategy spanFilterStrategy;
+  private final OkapiInternalMetrics metrics;
 
   public ChTracesWalConsumer(
-      ChWalResources walResources,
+      TracesEventEmitter eventEmitter,
       int batchSize,
       ChWriter chWriter,
       OtelTracesToChRowsConverter converter,
       TraceFilterStrategy traceFilterStrategy,
       SpanFilterStrategy spanFilterStrategy) {
-    this.walReader = walResources.getReader();
-    this.walManager = walResources.getManager();
+    this(
+        eventEmitter,
+        batchSize,
+        chWriter,
+        converter,
+        traceFilterStrategy,
+        spanFilterStrategy,
+        null);
+  }
+
+  public ChTracesWalConsumer(
+      TracesEventEmitter eventEmitter,
+      int batchSize,
+      ChWriter chWriter,
+      OtelTracesToChRowsConverter converter,
+      TraceFilterStrategy traceFilterStrategy,
+      SpanFilterStrategy spanFilterStrategy,
+      OkapiInternalMetrics metrics) {
+    this.eventEmitter = eventEmitter;
     this.batchSize = batchSize;
     this.chWriter = chWriter;
     this.converter = converter;
-    this.traceFilterStrategy = Preconditions.checkNotNull(traceFilterStrategy);
-    this.spanFilterStrategy = Preconditions.checkNotNull(spanFilterStrategy);
+    this.traceFilterStrategy = traceFilterStrategy;
+    this.spanFilterStrategy = spanFilterStrategy;
+    this.metrics = metrics;
   }
 
   public void consumeRecords() throws IOException, InterruptedException, ExecutionException {
-    var batch = walReader.readBatchAndAdvance(batchSize);
+    var batch = eventEmitter.next(batchSize);
+    if (metrics != null) {
+      metrics.recordConsumerBatch("traces", batch.size());
+    }
     List<ChSpansTableRow> rows = new ArrayList<>();
     List<ChSpansIngestedAttribsRow> attribRows = new ArrayList<>();
     List<ChServiceRedEvents> redEvents = new ArrayList<>();
 
-    for (var entry : batch) {
-      var req = ExportTraceServiceRequest.parseFrom(entry.getPayload());
+    for (var event : batch) {
+      ExportTraceServiceRequest req;
+      try {
+        req = ExportTraceServiceRequest.parseFrom(event.payload());
+      } catch (InvalidProtocolBufferException e) {
+        log.warn("Skipping malformed traces event", e);
+        continue;
+      }
       if (!traceFilterStrategy.shouldPrune(req)) {
         var pruned = pruneSpans(req);
         if (hasSpans(pruned)) {
@@ -77,8 +102,9 @@ public class ChTracesWalConsumer {
         ChConstants.TBL_SERVICE_RED_EVENTS, redEvents.stream().map(gson::toJson).toList());
     chWriter.writeSyncWithBestEffort(writeLoad);
 
-    var maxLsn = WalEntry.getMaxLsn(batch);
-    walManager.commitLsn(maxLsn);
+    if (!batch.isEmpty()) {
+      eventEmitter.commit();
+    }
   }
 
   protected ExportTraceServiceRequest pruneSpans(ExportTraceServiceRequest request) {

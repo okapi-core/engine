@@ -7,7 +7,7 @@
         <version>0.0.1-SNAPSHOT</version>
     </parent>
     <artifactId>okapi-datagen</artifactId>
-    <name>Archetype - okapi-datagen</name>
+    <name>okapi-datagen</name>
     <url>http://maven.apache.org</url>
 
     <dependencies>
@@ -17,9 +17,8 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>org.okapi</groupId>
-            <artifactId>okapi-otel-protos</artifactId>
-            <version>0.0.1-SNAPSHOT</version>
+            <groupId>io.opentelemetry.proto</groupId>
+            <artifactId>opentelemetry-proto</artifactId>
         </dependency>
 
         <dependency>

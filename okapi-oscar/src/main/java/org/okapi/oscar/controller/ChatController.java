@@ -1,3 +1,7 @@
+/*
+ * Copyright The OkapiCore Authors
+ * SPDX-License-Identifier: Apache-2.0
+ */
 package org.okapi.oscar.controller;
 
 import org.okapi.oscar.service.OscarAi;
@@ -29,5 +33,10 @@ public class ChatController {
   @GetMapping("/{sessionId}/updates")
   public ChatMessageUpdatesResponse getUpdates(@PathVariable("sessionId") String sessionId) {
     return oscarAi.getUpdates(sessionId);
+  }
+
+  @PostMapping("/list")
+  public ListChatsResponse listChats(@RequestBody @Validated ListChatsRequest request) {
+    return oscarAi.listChats(request);
   }
 }

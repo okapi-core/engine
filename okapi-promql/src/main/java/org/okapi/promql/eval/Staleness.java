@@ -53,7 +53,8 @@ public final class Staleness {
       values = new ArrayList<>(capacity);
     }
 
-    private void addAll(java.util.List<Long> sourceTimestamps, java.util.List<Float> sourceValues, int end) {
+    private void addAll(
+        java.util.List<Long> sourceTimestamps, java.util.List<Float> sourceValues, int end) {
       for (int i = 0; i < end; i++) add(sourceTimestamps.get(i), sourceValues.get(i));
     }
 

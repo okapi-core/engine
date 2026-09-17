@@ -4,9 +4,6 @@ set -euo pipefail
 NAMESPACE=${NAMESPACE:-okapi}
 kubectl create namespace "$NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
 
-kubectl apply -f deployment-scripts/values-yaml/test/ddb-migrate-job.yaml
-kubectl wait --for=condition=complete job/okapi-ddb-migrate -n "$NAMESPACE" --timeout=300s
-
 kubectl apply -f deployment-scripts/values-yaml/test/ch-migrate-job.yaml
 kubectl wait --for=condition=complete job/okapi-ch-migrate -n "$NAMESPACE" --timeout=300s
 

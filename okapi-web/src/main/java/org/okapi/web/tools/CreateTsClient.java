@@ -77,7 +77,6 @@ public class CreateTsClient {
     String methodName; // Java method name -> TS function name
     String returnType; // generic return type name
     List<Param> params = new ArrayList<>();
-    boolean needsTempToken; // has a tempToken header param
   }
 
   static class Param {
@@ -86,7 +85,6 @@ public class CreateTsClient {
     boolean isPathVar;
     String pathVarName; // name inside {...} if provided
     boolean isRequestBody;
-    boolean isTempToken;
   }
 
   // ===== Reflection helpers =====
@@ -134,7 +132,6 @@ public class CreateTsClient {
     ep.methodName = method.getName();
     ep.returnType = method.getGenericReturnType().getTypeName();
     ep.params = parseParams(method.getParameters());
-    ep.needsTempToken = ep.params.stream().anyMatch(p -> p.isTempToken);
     return ep;
   }
 
@@ -165,15 +162,6 @@ public class CreateTsClient {
         if (!p0.isNamePresent()) p.name = "request";
       }
 
-      RequestHeader rh = p0.getAnnotation(RequestHeader.class);
-      if (rh != null) {
-        String headerName = (rh.name() != null && !rh.name().isBlank()) ? rh.name() : rh.value();
-        if (headerName != null && headerName.equalsIgnoreCase("X-Okapi-Temp-Token")) {
-          p.isTempToken = true;
-          if (!p0.isNamePresent()) p.name = "tempToken";
-        }
-      }
-
       if (p.isPathVar && (p.pathVarName == null || p.pathVarName.isBlank())) {
         p.pathVarName = p.name;
       }
@@ -185,7 +173,7 @@ public class CreateTsClient {
 
   private static String defaultParamName(Parameter p0) {
     // Reasonable defaults when -parameters is not enabled
-    if (p0.getAnnotation(RequestHeader.class) != null) return "tempToken";
+    if (p0.getAnnotation(RequestHeader.class) != null) return "header";
     if (p0.getAnnotation(RequestBody.class) != null) return "request";
     if (p0.getAnnotation(PathVariable.class) != null) return "param";
     return "arg";
@@ -199,16 +187,14 @@ public class CreateTsClient {
     // Collect imports
     Set<String> reqTypes = new TreeSet<>();
     Set<String> resTypes = new TreeSet<>();
-    boolean useGetWT = false, useGetWOT = false, usePostWT = false, usePostWOT = false;
+    boolean useGetWOT = false, usePostWOT = false;
 
     for (Endpoint ep : endpoints) {
       mapReturnType(ep.returnType, resTypes);
       if ("GET".equals(ep.httpMethod)) {
-        if (ep.needsTempToken) useGetWT = true;
-        else useGetWOT = true;
+        useGetWOT = true;
       } else {
-        if (ep.needsTempToken) usePostWT = true;
-        else usePostWOT = true;
+        usePostWOT = true;
         ep.params.stream()
             .filter(p -> p.isRequestBody)
             .findFirst()
@@ -221,9 +207,7 @@ public class CreateTsClient {
 
     // Imports
     List<String> apiFns = new ArrayList<>();
-    if (usePostWT) apiFns.add("postWithToken");
     if (usePostWOT) apiFns.add("postWithoutToken");
-    if (useGetWT) apiFns.add("getWithToken");
     if (useGetWOT) apiFns.add("getWithoutToken");
     // Always need ApiResponse wrapper
     sb.append("import { ApiResponse } from './api-responses';\n");
@@ -261,11 +245,6 @@ public class CreateTsClient {
     List<String> argNames = new ArrayList<>();
     List<String> argTypes = new ArrayList<>();
 
-    if (ep.needsTempToken) {
-      argNames.add("tempToken");
-      argTypes.add("tempToken?: string");
-    }
-
     for (Param p : ep.params) {
       if (p.isPathVar) {
         String name = p.pathVarName != null ? p.pathVarName : p.name;
@@ -295,42 +274,22 @@ public class CreateTsClient {
     String url = toTemplateLiteral(ep.fullPath, ep.params);
 
     if ("GET".equals(ep.httpMethod)) {
-      if (ep.needsTempToken) {
-        sb.append("  return await getWithToken<")
-            .append(tsReturn)
-            .append(">({ tempToken: tempToken || '', url: `")
-            .append(url)
-            .append("` });\n");
-      } else {
-        sb.append("  return await getWithoutToken<")
-            .append(tsReturn)
-            .append(">({ url: `")
-            .append(url)
-            .append("` });\n");
-      }
+      sb.append("  return await getWithoutToken<")
+          .append(tsReturn)
+          .append(">({ url: `")
+          .append(url)
+          .append("` });\n");
     } else { // POST
       String reqType = body != null ? mapJavaToTsType(body.javaType, reqTypes, resTypes) : "any";
-      if (ep.needsTempToken) {
-        sb.append("  return await postWithToken<")
-            .append(reqType)
-            .append(", ")
-            .append(tsReturn)
-            .append(">({ tempToken: tempToken || '', url: `")
-            .append(url)
-            .append("`, request: ")
-            .append(body != null ? body.name : "undefined")
-            .append(" });\n");
-      } else {
-        sb.append("  return await postWithoutToken<")
-            .append(reqType)
-            .append(", ")
-            .append(tsReturn)
-            .append(">({ url: `")
-            .append(url)
-            .append("`, request: ")
-            .append(body != null ? body.name : "undefined")
-            .append(" });\n");
-      }
+      sb.append("  return await postWithoutToken<")
+          .append(reqType)
+          .append(", ")
+          .append(tsReturn)
+          .append(">({ url: `")
+          .append(url)
+          .append("`, request: ")
+          .append(body != null ? body.name : "undefined")
+          .append(" });\n");
     }
     sb.append("}\n");
     return sb.toString();

@@ -4,5 +4,4 @@
  */
 package org.okapi.traces.ch;
 
-public final class ChTracesConstants {
-}
+public final class ChTracesConstants {}

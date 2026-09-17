@@ -24,4 +24,17 @@ class CreateChTablesSpecTests {
     assertTrue(schema.contains("negative_counts Array(UInt64)"));
     assertTrue(schema.contains("zero_threshold Float64"));
   }
+
+  @Test
+  void logsTableUsesPartitionedStructuredAttributeStorage() {
+    var schema = CreateChTablesSpec.getLogsTableSpec();
+
+    assertTrue(schema.contains("severity_text LowCardinality(String)"));
+    assertTrue(schema.contains("trace_id String CODEC(ZSTD)"));
+    assertTrue(schema.contains("span_id String CODEC(ZSTD)"));
+    assertTrue(schema.contains("resource_attribs_str_0 Map(String, String)"));
+    assertTrue(schema.contains("resource_attribs_number_9 Map(String, Float64)"));
+    assertTrue(schema.contains("attribs_str_0 Map(String, String)"));
+    assertTrue(schema.contains("attribs_number_9 Map(String, Float64)"));
+  }
 }

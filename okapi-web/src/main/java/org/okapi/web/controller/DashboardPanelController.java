@@ -7,8 +7,8 @@ package org.okapi.web.controller;
 import org.okapi.web.dtos.dashboards.CreateDashboardPanelRequest;
 import org.okapi.web.dtos.dashboards.GetDashboardPanelResponse;
 import org.okapi.web.dtos.dashboards.UpdateDashboardPanelRequest;
-import org.okapi.web.headers.RequestHeaders;
-import org.okapi.web.service.ProtectedResourceContext;
+import org.okapi.web.service.context.DashboardPanelRequestContext;
+import org.okapi.web.service.context.DashboardRowRequestContext;
 import org.okapi.web.service.dashboards.panels.DashboardPanelService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.validation.annotation.Validated;
@@ -19,38 +19,54 @@ import org.springframework.web.bind.annotation.*;
 public class DashboardPanelController {
   @Autowired DashboardPanelService panelService;
 
-  @PostMapping("/dashboard-panels")
+  @PostMapping("/orgs/{orgId}/dashboards/{dashboardId}/versions/{versionId}/rows/{rowId}/panels")
   public GetDashboardPanelResponse createPanel(
-      @RequestHeader(RequestHeaders.TEMP_TOKEN) String tempToken,
-      @RequestBody @Validated CreateDashboardPanelRequest req)
-      throws Exception {
-    return panelService.create(ProtectedResourceContext.of(tempToken), req);
+      @PathVariable String orgId,
+      @PathVariable String dashboardId,
+      @PathVariable String versionId,
+      @PathVariable String rowId,
+      @RequestBody @Validated CreateDashboardPanelRequest req) {
+    return panelService.create(
+        new DashboardRowRequestContext(orgId, dashboardId, versionId, rowId), req);
   }
 
-  @GetMapping("/dashboard-panels/{panelId}/versions/{versionId}")
+  @GetMapping(
+      "/orgs/{orgId}/dashboards/{dashboardId}/versions/{versionId}/rows/{rowId}/panels/{panelId}")
   public GetDashboardPanelResponse getPanel(
-      @RequestHeader(RequestHeaders.TEMP_TOKEN) String tempToken,
-      @PathVariable("panelId") String panelId,
-      @PathVariable("versionId") String versionId)
+      @PathVariable String orgId,
+      @PathVariable String dashboardId,
+      @PathVariable String versionId,
+      @PathVariable String rowId,
+      @PathVariable String panelId)
       throws Exception {
-    return panelService.read(ProtectedResourceContext.of(tempToken, panelId, versionId));
+    return panelService.read(
+        new DashboardPanelRequestContext(orgId, dashboardId, versionId, rowId, panelId));
   }
 
-  @PostMapping("/dashboard-panels/{panelId}/versions/{versionId}/delete")
+  @PostMapping(
+      "/orgs/{orgId}/dashboards/{dashboardId}/versions/{versionId}/rows/{rowId}/panels/{panelId}/delete")
   public void deletePanel(
-      @RequestHeader(RequestHeaders.TEMP_TOKEN) String tempToken,
-      @PathVariable("panelId") String panelId,
-      @PathVariable("versionId") String versionId)
+      @PathVariable String orgId,
+      @PathVariable String dashboardId,
+      @PathVariable String versionId,
+      @PathVariable String rowId,
+      @PathVariable String panelId)
       throws Exception {
-    panelService.delete(ProtectedResourceContext.of(tempToken, panelId, versionId));
+    panelService.delete(
+        new DashboardPanelRequestContext(orgId, dashboardId, versionId, rowId, panelId));
   }
 
-  @PostMapping("/dashboard-panels/{panelId}/update")
+  @PostMapping(
+      "/orgs/{orgId}/dashboards/{dashboardId}/versions/{versionId}/rows/{rowId}/panels/{panelId}/update")
   public GetDashboardPanelResponse updatePanel(
-      @RequestHeader(RequestHeaders.TEMP_TOKEN) String tempToken,
-      @PathVariable("panelId") String panelId,
+      @PathVariable String orgId,
+      @PathVariable String dashboardId,
+      @PathVariable String versionId,
+      @PathVariable String rowId,
+      @PathVariable String panelId,
       @RequestBody @Validated UpdateDashboardPanelRequest req)
       throws Exception {
-    return panelService.update(ProtectedResourceContext.of(tempToken, panelId), req);
+    return panelService.update(
+        new DashboardPanelRequestContext(orgId, dashboardId, versionId, rowId, panelId), req);
   }
 }

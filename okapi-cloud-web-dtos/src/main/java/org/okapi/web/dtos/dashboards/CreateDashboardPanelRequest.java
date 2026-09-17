@@ -10,18 +10,16 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.okapi.grammar.GRAMMAR;
 
 @AllArgsConstructor
 @NoArgsConstructor
 @Getter
 @Builder
 public class CreateDashboardPanelRequest {
-  @NotNull String orgId;
-  @NotNull String dashboardId;
-  @NotNull String versionId;
-  @NotNull String rowId;
-  @NotNull String panelId;
+  String panelId;
   String title;
   String note;
-  @NotNull List<PanelQueryConfigWDto> queryConfig;
+  @NotNull List<QueryConfig> queryConfig;
+  @NotNull GRAMMAR grammar;
 }

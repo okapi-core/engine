@@ -5,10 +5,10 @@
 package org.okapi.promql.eval;
 
 import java.util.Arrays;
-import java.util.Map;
-import java.util.TreeMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.TreeMap;
 import org.okapi.metrics.pojos.results.GaugeScan;
 import org.okapi.metrics.pojos.results.Scan;
 
@@ -164,7 +164,8 @@ public final class HistogramSeries extends Scan {
   public static HistogramSample scale(HistogramSample histogram, double factor) {
     if (histogram instanceof ExplicitHistogramSample sample) {
       int[] counts = new int[sample.counts().length];
-      for (int i = 0; i < counts.length; i++) counts[i] = (int) Math.round(sample.counts()[i] * factor);
+      for (int i = 0; i < counts.length; i++)
+        counts[i] = (int) Math.round(sample.counts()[i] * factor);
       return new ExplicitHistogramSample(
           sample.startMs(),
           sample.endMs(),
@@ -175,15 +176,20 @@ public final class HistogramSeries extends Scan {
           sample.count() * factor);
     }
     if (histogram instanceof NativeHistogramSample sample) {
-      return nativeResult(sample, scale(sample.positiveBuckets(), factor),
-          scale(sample.negativeBuckets(), factor), sample.zeroCount() * factor,
-          sample.sum() * factor, sample.count() * factor);
+      return nativeResult(
+          sample,
+          scale(sample.positiveBuckets(), factor),
+          scale(sample.negativeBuckets(), factor),
+          sample.zeroCount() * factor,
+          sample.sum() * factor,
+          sample.count() * factor);
     }
     throw new IllegalArgumentException("unknown histogram representation");
   }
 
   public static boolean isReset(HistogramSample previous, HistogramSample current) {
-    if (previous instanceof ExplicitHistogramSample a && current instanceof ExplicitHistogramSample b) {
+    if (previous instanceof ExplicitHistogramSample a
+        && current instanceof ExplicitHistogramSample b) {
       return b.count() < a.count() || decreased(a.counts(), b.counts());
     }
     if (previous instanceof NativeHistogramSample a && current instanceof NativeHistogramSample b) {
@@ -228,14 +234,24 @@ public final class HistogramSeries extends Scan {
     int schema = Math.min(left.schema(), right.schema());
     BucketSpan positive =
         combine(
-            left.schema(), left.positiveOffset(), left.positiveBuckets(),
-            right.schema(), right.positiveOffset(), right.positiveBuckets(),
-            schema, subtract);
+            left.schema(),
+            left.positiveOffset(),
+            left.positiveBuckets(),
+            right.schema(),
+            right.positiveOffset(),
+            right.positiveBuckets(),
+            schema,
+            subtract);
     BucketSpan negative =
         combine(
-            left.schema(), left.negativeOffset(), left.negativeBuckets(),
-            right.schema(), right.negativeOffset(), right.negativeBuckets(),
-            schema, subtract);
+            left.schema(),
+            left.negativeOffset(),
+            left.negativeBuckets(),
+            right.schema(),
+            right.negativeOffset(),
+            right.negativeBuckets(),
+            schema,
+            subtract);
     NativeHistogramSample template = subtract ? left : right;
     return new NativeHistogramSample(
         template.startMs(),
@@ -328,9 +344,7 @@ public final class HistogramSeries extends Scan {
   }
 
   private static double[] intersect(double[] left, double[] right) {
-    return Arrays.stream(left)
-        .filter(bound -> Arrays.binarySearch(right, bound) >= 0)
-        .toArray();
+    return Arrays.stream(left).filter(bound -> Arrays.binarySearch(right, bound) >= 0).toArray();
   }
 
   private static boolean isCustomBuckets(NativeHistogramSample histogram) {

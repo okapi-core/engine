@@ -5,12 +5,11 @@
 package org.okapi.metrics.ch;
 
 import com.google.gson.annotations.SerializedName;
+import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import org.okapi.ch.AbstractChRow;
-
-import java.util.Map;
 
 @AllArgsConstructor
 @Getter

@@ -20,11 +20,14 @@ import org.okapi.rest.traces.SpanAttributeHintsResponse;
 import org.okapi.rest.traces.SpanAttributeValueHintsRequest;
 import org.okapi.rest.traces.SpanAttributeValueHintsResponse;
 import org.okapi.rest.traces.TimestampMillisFilter;
+import org.okapi.spring.configs.Profiles;
 import org.okapi.traces.ch.template.ChTraceTemplateEngine;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
 @Slf4j
 @Service
+@Profile(Profiles.PROFILE_CH)
 public class ChSpanAttributeHintsService {
   private static final int VALUE_HINTS_LIMIT = 100;
   private final Client client;

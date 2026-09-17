@@ -4,9 +4,14 @@
  */
 package org.okapi.metrics.otel;
 
+import static org.okapi.clock.OkapiTimeUtils.nanosToMillis;
+import static org.okapi.metrics.otel.OtelValueDecoders.*;
+
 import io.opentelemetry.proto.collector.metrics.v1.ExportMetricsServiceRequest;
 import io.opentelemetry.proto.common.v1.KeyValue;
 import io.opentelemetry.proto.metrics.v1.*;
+import java.util.*;
+import java.util.stream.Collectors;
 import org.okapi.bytes.OkapiBytes;
 import org.okapi.collections.OkapiLists;
 import org.okapi.rest.metrics.Exemplar;
@@ -21,12 +26,6 @@ import org.okapi.rest.metrics.payloads.SUM_TEMPORALITY;
 import org.okapi.rest.metrics.payloads.SumPoint;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-
-import java.util.*;
-import java.util.stream.Collectors;
-
-import static org.okapi.clock.OkapiTimeUtils.nanosToMillis;
-import static org.okapi.metrics.otel.OtelValueDecoders.*;
 
 /**
  * Converts OTLP ExportMetricsServiceRequest (protobuf) into Okapi ExportMetricsRequest(s).
@@ -209,6 +208,7 @@ public final class OtelConverter {
     // Group datapoints by tags
     Map<String, Map<String, String>> tagKeyToTags = new HashMap<>();
     Map<String, List<SumPoint>> ptsByKey = new HashMap<>();
+    Map<String, List<Exemplar>> exemplarsByKey = new HashMap<>();
     for (NumberDataPoint p : s.getDataPointsList()) {
       Map<String, String> tags = toTagsMap(p.getAttributesList());
       String key = canonicalKey(tags);
@@ -218,6 +218,9 @@ public final class OtelConverter {
       pt.setEnd(nanosToMillis(p.getTimeUnixNano()));
       pt.setSum(OtelValueDecoders.extractNumberAsDouble(p));
       ptsByKey.computeIfAbsent(key, OkapiLists::keyToEmptyArrayList).add(pt);
+      exemplarsByKey
+          .computeIfAbsent(key, OkapiLists::keyToEmptyArrayList)
+          .addAll(collectExemplar(metric.getName(), tags, p));
     }
 
     List<ExportMetricsRequest> out = new ArrayList<>();
@@ -227,6 +230,7 @@ public final class OtelConverter {
           org.okapi.rest.metrics.payloads.Sum.builder()
               .temporality(SUMTYPE)
               .sumPoints(points)
+              .exemplars(Collections.unmodifiableList(exemplarsByKey.get(key)))
               .build();
       out.add(
           ExportMetricsRequest.builder()
@@ -286,7 +290,11 @@ public final class OtelConverter {
 
     List<ExportMetricsRequest> out = new ArrayList<>();
     for (String key : tagKeyToTags.keySet()) {
-      Histo histo = Histo.builder().histoPoints(ptsByKey.getOrDefault(key, List.of())).build();
+      Histo histo =
+          Histo.builder()
+              .histoPoints(ptsByKey.getOrDefault(key, List.of()))
+              .exemplars(Collections.unmodifiableList(exemplarsByKey.get(key)))
+              .build();
       out.add(
           ExportMetricsRequest.builder()
               .unit(metric.getUnit())

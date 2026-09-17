@@ -4,11 +4,10 @@
  */
 package org.okapi.ds;
 
-import org.okapi.collections.OkapiLists;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import org.okapi.collections.OkapiLists;
 
 public class HistogramMerger {
   public record Distribution(float[] buckets, long[] counts) {}

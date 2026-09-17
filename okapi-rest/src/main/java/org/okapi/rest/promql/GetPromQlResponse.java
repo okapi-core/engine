@@ -9,12 +9,9 @@ import lombok.Data;
 
 /** Top-level Prometheus HTTP API response envelope. Works for both success and error responses. */
 @Data
-public class GetPromQlResponse<T> {
+public class GetPromQlResponse {
   @SerializedName("status")
   private String status; // "success" or "error"
-
-  @SerializedName("data")
-  private T data;
 
   @SerializedName("errorType")
   private String errorType;

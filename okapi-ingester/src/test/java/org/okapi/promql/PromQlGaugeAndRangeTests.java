@@ -26,7 +26,6 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.okapi.Constants;
 import org.okapi.ch.CreateChTablesSpec;
 import org.okapi.metrics.ch.ChConstants;
 import org.okapi.metrics.ch.ChMetricsIngester;
@@ -71,7 +70,7 @@ public class PromQlGaugeAndRangeTests {
         buildGaugeRequest(resource, metric, tags, List.of(1_000L, 2_000L), List.of(1.0, 2.0)));
     driver.onTick();
 
-    var result = promql.queryRange(Constants.DEFAULT_TENANT, metric, 1_000L, 2_000L, 1_000L);
+    var result = promql.queryRange(metric, 1_000L, 2_000L, 1_000L);
     assertNotNull(result);
     var matrix = ((InstantVectorResult) result).toMatrix();
     assertFalse(matrix.isEmpty());
@@ -102,7 +101,7 @@ public class PromQlGaugeAndRangeTests {
         buildGaugeRequest(resource, metric, tags, List.of(500L), List.of(9.0)));
     driver.onTick();
 
-    var result = promql.queryRange(Constants.DEFAULT_TENANT, metric, 500L, 500L, 500L);
+    var result = promql.queryRange(metric, 500L, 500L, 500L);
     assertNotNull(result);
     assertFalse(((InstantVectorResult) result).toMatrix().isEmpty());
   }
@@ -114,12 +113,7 @@ public class PromQlGaugeAndRangeTests {
     var clientFactory = injector.getInstance(TsClientFactory.class);
 
     var metric = "escaped_gauge";
-    var tags =
-        Map.of(
-            "owner'group",
-            "O'Reilly\\ops",
-            "test-session",
-            testSession);
+    var tags = Map.of("owner'group", "O'Reilly\\ops", "test-session", testSession);
 
     ingester.ingestOtelProtobuf(
         buildGaugeRequest("svc-escaped", metric, tags, List.of(1_000L), List.of(7.0)));
@@ -128,7 +122,7 @@ public class PromQlGaugeAndRangeTests {
     var scan =
         (GaugeScan)
             clientFactory
-                .getClient(Constants.DEFAULT_TENANT)
+                .getClient()
                 .orElseThrow()
                 .get(metric, tags, RESOLUTION.SECONDLY, 1_000L, 1_000L);
     assertEquals(List.of(7.0f), scan.getValues());
@@ -148,9 +142,7 @@ public class PromQlGaugeAndRangeTests {
         buildGaugeRequest(resource, metric, tags, List.of(1_000L, 2_000L), List.of(2.0, 4.0)));
     driver.onTick();
 
-    var result =
-        promql.queryRange(
-            Constants.DEFAULT_TENANT, "avg_over_time(mem_usage[2s])", 2_000L, 2_000L, 1_000L);
+    var result = promql.queryRange("avg_over_time(mem_usage[2s])", 2_000L, 2_000L, 1_000L);
     assertNotNull(result);
     var matrix = ((InstantVectorResult) result).toMatrix();
     assertFalse(matrix.isEmpty());
@@ -174,9 +166,7 @@ public class PromQlGaugeAndRangeTests {
         buildGaugeRequest(resource, metric, tags, List.of(1_000L), List.of(5.0)));
     driver.onTick();
 
-    var resp =
-        promql.queryLabelsApi(
-            Constants.DEFAULT_TENANT, "__name__", java.util.Collections.emptyList(), null, null);
+    var resp = promql.queryLabelsApi("__name__", java.util.Collections.emptyList(), null, null);
     assertNotNull(resp);
     assertFalse(resp.getData().isEmpty());
     assertEquals(metric, resp.getData().getFirst());
