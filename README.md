@@ -1,6 +1,7 @@
 # Okapi
 
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](./LICENSE)
+[![CI](https://github.com/okapi-core/engine/actions/workflows/ci.yml/badge.svg?branch=main&event=push)](https://github.com/okapi-core/engine/actions/workflows/ci.yml)
 [![Community](https://img.shields.io/badge/community-discussions-green)](https://github.com/okapi-core/okapi/discussions)
 
 Okapi is an OpenTelemetry-native observability platform for AI-assisted
