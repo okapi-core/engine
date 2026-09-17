@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# Copyright The OkapiCore Authors
 # SPDX-License-Identifier: Apache-2.0
 
 """Sort Java .properties entries by key.
