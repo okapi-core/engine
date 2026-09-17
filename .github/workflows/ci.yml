@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  MAVEN_OPTS: >-
+    -Dmaven.repo.local=${{ github.workspace }}/.m2/repository
+    -Djava.awt.headless=true
+  OPENAI_API_KEY: gitlab-ci-test-key
+  AWS_ACCESS_KEY_ID: test
+  AWS_SECRET_ACCESS_KEY: test
+  AWS_REGION: us-west-2
+  TEST_CLICKHOUSE_HOST: 127.0.0.1
+  TEST_CLICKHOUSE_PORT: "8123"
+  TEST_POSTGRES_HOST: 127.0.0.1
+  TEST_POSTGRES_PORT: "5432"
+  TEST_WEB_POSTGRES_MIGRATION_USER: okapi_web_migration_user
+  TEST_WEB_POSTGRES_MIGRATION_PASSWORD: okapi_web_migration_password
+  TEST_VAULT_ADDR: http://127.0.0.1:8200
+  OKAPI_AWS_ENDPOINT: http://127.0.0.1:4566
+  OKAPI_CLICKHOUSE_HOST: 127.0.0.1
+  OKAPI_CLICKHOUSE_PORT: "8123"
+  OSCAR_DB_URL: jdbc:postgresql://127.0.0.1:5432/okapi_oscar?currentSchema=okapi_oscar
+  VAULT_ADDR: http://127.0.0.1:8200
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Install test dependencies
+        run: sudo apt-get update && sudo apt-get install --yes socat
+
+      - name: Show tool versions
+        run: |
+          java -version
+          mvn --version
+          docker --version
+          docker compose version
+
+      - name: Run test suite
+        run: make test
+
+      - name: Capture test infrastructure logs
+        if: always()
+        run: |
+          docker compose -f compose.test-infra.yaml ps || true
+          docker compose -f compose.test-infra.yaml logs --no-color > test-infra.log 2>&1 || true
+
+      - name: Upload test results and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ github.run_id }}
+          if-no-files-found: ignore
+          path: |
+            test-infra.log
+            **/target/surefire-reports/TEST-*.xml
+
+      - name: Tear down test infrastructure
+        if: always()
+        run: make test-infra-down ch_dir=/tmp/okapi-test-data || true
