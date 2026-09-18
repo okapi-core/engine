@@ -69,9 +69,8 @@ jobs:
           docker compose -f compose.test-infra.yaml ps || true
           docker compose -f compose.test-infra.yaml logs --no-color > test-infra.log 2>&1 || true
 
-      - name: Tear down test infrastructure
-        if: always()
-        run: make test-infra-down ch_dir=/tmp/okapi-test-data || true
+      - name: Stop JAR-based application processes
+        run: make kill-stray-instances
 
       - name: Check out pinned frontend
         uses: actions/checkout@v4
@@ -94,9 +93,6 @@ jobs:
           npm ci --cache .npm --prefer-offline
           npm run build
 
-      - name: Start Docker smoke infrastructure
-        run: OPENAI_API_KEY=smoke-test-key make test-infra-up ch_dir=/tmp/okapi-test-data
-
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -116,7 +112,7 @@ jobs:
             REPO=ghcr.io/okapi-core \
             TAG=${{ steps.release.outputs.tag }}
 
-      - name: Tear down Docker smoke infrastructure
+      - name: Tear down test infrastructure
         if: always()
         run: make test-infra-down ch_dir=/tmp/okapi-test-data || true
 
