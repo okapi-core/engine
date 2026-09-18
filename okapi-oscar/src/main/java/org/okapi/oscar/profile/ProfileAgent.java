@@ -6,9 +6,11 @@ package org.okapi.oscar.profile;
 import lombok.AllArgsConstructor;
 import org.okapi.oscar.spring.cfg.OkapiOscarCfg;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 @Component
+@Profile("!dummy")
 @AllArgsConstructor
 public class ProfileAgent {
   private final ChatClient chatClient;
