@@ -80,20 +80,6 @@ jobs:
             test-infra.log
             **/target/surefire-reports/TEST-*.xml
 
-      - name: Tear down test infrastructure
-        if: always()
-        run: make test-infra-down ch_dir=/tmp/okapi-test-data || true
-
-  docker-build:
-    name: Docker build (dry run)
-    needs: test
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
-
-    steps:
-      - name: Check out Okapi
-        uses: actions/checkout@v4
-
       - name: Check out pinned frontend
         uses: actions/checkout@v4
         with:
@@ -101,13 +87,6 @@ jobs:
           ref: 55aa016f43ca1a62b74e6c0480dc3be59609687a
           path: frontend
           persist-credentials: false
-
-      - name: Set up Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "21"
-          cache: maven
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -124,6 +103,9 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+
+      - name: Stop JAR-based application processes
+        run: make kill-stray-instances
 
       - name: Build Docker images without publishing
         run: |
@@ -143,3 +125,7 @@ jobs:
           make docker-smoke \
             REPO=ghcr.io/okapi-core \
             TAG=ci-${GITHUB_SHA}
+
+      - name: Tear down test infrastructure
+        if: always()
+        run: make test-infra-down ch_dir=/tmp/okapi-test-data || true
