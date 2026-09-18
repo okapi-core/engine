@@ -137,3 +137,9 @@ jobs:
           for image in okapi-ingester okapi-web okapi-ops okapi-oscar; do
             docker image inspect "ghcr.io/okapi-core/${image}:ci-${GITHUB_SHA}" >/dev/null
           done
+
+      - name: Run Docker smoke test
+        run: |
+          make docker-smoke \
+            REPO=ghcr.io/okapi-core \
+            TAG=ci-${GITHUB_SHA}
