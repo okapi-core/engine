@@ -1,0 +1,131 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - 'v_*'
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  MAVEN_OPTS: >-
+    -Dmaven.repo.local=${{ github.workspace }}/.m2/repository
+    -Djava.awt.headless=true
+  OPENAI_API_KEY: gitlab-ci-test-key
+  AWS_ACCESS_KEY_ID: test
+  AWS_SECRET_ACCESS_KEY: test
+  AWS_REGION: us-west-2
+  TEST_CLICKHOUSE_HOST: 127.0.0.1
+  TEST_CLICKHOUSE_PORT: "8123"
+  TEST_POSTGRES_HOST: 127.0.0.1
+  TEST_POSTGRES_PORT: "5432"
+  TEST_WEB_POSTGRES_MIGRATION_USER: okapi_web_migration_user
+  TEST_WEB_POSTGRES_MIGRATION_PASSWORD: okapi_web_migration_password
+  TEST_VAULT_ADDR: http://127.0.0.1:8200
+  OKAPI_AWS_ENDPOINT: http://127.0.0.1:4566
+  OKAPI_CLICKHOUSE_HOST: 127.0.0.1
+  OKAPI_CLICKHOUSE_PORT: "8123"
+  OSCAR_DB_URL: jdbc:postgresql://127.0.0.1:5432/okapi_oscar?currentSchema=okapi_oscar
+  VAULT_ADDR: http://127.0.0.1:8200
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+
+    steps:
+      - name: Check out Okapi
+        uses: actions/checkout@v4
+
+      - name: Derive release tag
+        id: release
+        shell: bash
+        run: |
+          if [[ ! "$GITHUB_REF_NAME" =~ ^v_[0-9]+\.[0-9]+$ ]]; then
+            echo "Release branches must be named v_x.y; got $GITHUB_REF_NAME" >&2
+            exit 1
+          fi
+          echo "tag=${GITHUB_REF_NAME#v_}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Install test dependencies
+        run: sudo apt-get update && sudo apt-get install --yes socat
+
+      - name: Run Okapi test suite
+        run: make test
+
+      - name: Capture test infrastructure logs
+        if: always()
+        run: |
+          docker compose -f compose.test-infra.yaml ps || true
+          docker compose -f compose.test-infra.yaml logs --no-color > test-infra.log 2>&1 || true
+
+      - name: Tear down test infrastructure
+        if: always()
+        run: make test-infra-down ch_dir=/tmp/okapi-test-data || true
+
+      - name: Check out pinned frontend
+        uses: actions/checkout@v4
+        with:
+          repository: okapi-core/frontend
+          ref: 55aa016f43ca1a62b74e6c0480dc3be59609687a
+          path: frontend
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build pinned frontend
+        working-directory: frontend
+        run: |
+          npm ci --cache .npm --prefer-offline
+          npm run build
+
+      - name: Embed frontend in Okapi web
+        run: |
+          rm -rf okapi-web/src/main/resources/public
+          cp -R frontend/dist okapi-web/src/main/resources/public
+          test -f okapi-web/src/main/resources/public/index.html
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and publish release images
+        run: |
+          make docker-all \
+            REPO=ghcr.io/okapi-core \
+            TAG=${{ steps.release.outputs.tag }} \
+            DOCKER_BUILD='docker buildx build --platform linux/amd64,linux/arm64 --push'
+
+      - name: Upload test infrastructure logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-test-results-${{ github.run_id }}
+          if-no-files-found: ignore
+          path: |
+            test-infra.log
+            **/target/surefire-reports/TEST-*.xml
