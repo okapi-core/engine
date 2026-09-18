@@ -1,38 +1,4 @@
 services:
-  okapi-clickhouse-migrate:
-    image: ${REPO:-ghcr.io/okapi-core}/okapi-ops:${TAG:-latest}
-    container_name: okapi-smoke-clickhouse-migrate
-    command:
-      - ch-migrate
-      - --host
-      - okapi-clickhouse
-      - --port
-      - "8123"
-      - --user
-      - default
-      - --password
-      - okapi_testing_password
-    depends_on:
-      clickhouse:
-        condition: service_healthy
-    networks:
-      - okapi-test-network
-
-  okapi-postgres-migrate:
-    image: ${REPO:-ghcr.io/okapi-core}/okapi-ops:${TAG:-latest}
-    container_name: okapi-smoke-postgres-migrate
-    command:
-      - pg-migrate
-    environment:
-      OKAPI_WEB_DB_MIGRATION_URL: jdbc:postgresql://postgres:5432/okapi_oscar?currentSchema=okapi_web
-      OKAPI_WEB_DB_MIGRATION_USER: okapi_web_migration_user
-      OKAPI_WEB_DB_MIGRATION_PASSWORD: okapi_web_migration_password
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - okapi-test-network
-
   okapi-ingester:
     image: ${REPO:-ghcr.io/okapi-core}/okapi-ingester:${TAG:-latest}
     container_name: okapi-smoke-ingester
@@ -43,11 +9,6 @@ services:
       - --okapi.chTracesWal=/wal/metrics
     ports:
       - "${OKAPI_INGESTER_PORT:-9009}:9009"
-    depends_on:
-      clickhouse:
-        condition: service_healthy
-      okapi-clickhouse-migrate:
-        condition: service_completed_successfully
     networks:
       - okapi-test-network
 
@@ -59,10 +20,10 @@ services:
     environment:
       OKAPI_CLUSTER_ENDPOINT: http://okapi-ingester:9009
       OKAPI_OSCAR_ENDPOINT: http://okapi-oscar:9002
-      OKAPI_WEB_DB_URL: jdbc:postgresql://postgres:5432/okapi_oscar?currentSchema=okapi_web
+      OKAPI_WEB_DB_URL: jdbc:postgresql://okapi-postgres:5432/okapi_oscar?currentSchema=okapi_web
       OKAPI_WEB_DB_USER: okapi_web_user
       OKAPI_WEB_DB_PASSWORD: okapi_web_password
-      OKAPI_WEB_DB_MIGRATION_URL: jdbc:postgresql://postgres:5432/okapi_oscar
+      OKAPI_WEB_DB_MIGRATION_URL: jdbc:postgresql://okapi-postgres:5432/okapi_oscar
       OKAPI_WEB_DB_MIGRATION_USER: okapi_web_migration_user
       OKAPI_WEB_DB_MIGRATION_PASSWORD: okapi_web_migration_password
     ports:
@@ -70,10 +31,6 @@ services:
     depends_on:
       okapi-ingester:
         condition: service_started
-      postgres:
-        condition: service_healthy
-      okapi-postgres-migrate:
-        condition: service_completed_successfully
     networks:
       - okapi-test-network
 
@@ -85,17 +42,18 @@ services:
       - --okapi.oscar.model.core-model-provider=dummy
       - --okapi.oscar.vault.address=
       - --okapi.oscar.cluster.endpoint=http://okapi-ingester:9009
-      - --spring.datasource.url=jdbc:postgresql://postgres:5432/okapi_oscar?currentSchema=okapi_oscar
+      - --spring.datasource.url=jdbc:postgresql://okapi-postgres:5432/okapi_oscar?currentSchema=okapi_oscar
       - --spring.datasource.username=okapi_oscar_user
       - --spring.datasource.password=okapi_oscar_password
     ports:
       - "${OKAPI_OSCAR_PORT:-9002}:9002"
     depends_on:
-      postgres:
-        condition: service_healthy
-      okapi-postgres-migrate:
-        condition: service_completed_successfully
       okapi-ingester:
         condition: service_started
     networks:
       - okapi-test-network
+
+networks:
+  okapi-test-network:
+    external: true
+    name: okapi-test-infra-network

@@ -145,14 +145,17 @@ docker-publish: DOCKER_BUILD = docker buildx build --platform $(DOCKER_PLATFORMS
 docker-publish: embed-frontend docker-all
 
 docker-smoke-up:
-	REPO="$(REPO)" TAG="$(TAG)" $(DOCKER_COMPOSE) -p $(SMOKE_PROJECT) -f $(TEST_INFRA_COMPOSE) -f $(SMOKE_COMPOSE) \
-		up -d --wait clickhouse okapi-ingester okapi-web okapi-oscar
+	@$(DOCKER_COMPOSE) -p $(SMOKE_PROJECT) -f $(SMOKE_COMPOSE) config >/dev/null
+	@docker network inspect $(OKAPI_TEST_NET) >/dev/null 2>&1 || \
+		(echo "Test infrastructure is not running. Run: OPENAI_API_KEY=smoke-test-key make test-infra-up" >&2; exit 1)
+	REPO="$(REPO)" TAG="$(TAG)" $(DOCKER_COMPOSE) -p $(SMOKE_PROJECT) -f $(SMOKE_COMPOSE) \
+		up -d --wait okapi-ingester okapi-web okapi-oscar
 
 docker-smoke-test:
 	REPO="$(REPO)" TAG="$(TAG)" ./scripts/docker-smoke-test.sh
 
 docker-smoke-down:
-	$(DOCKER_COMPOSE) -p $(SMOKE_PROJECT) -f $(TEST_INFRA_COMPOSE) -f $(SMOKE_COMPOSE) \
+	$(DOCKER_COMPOSE) -p $(SMOKE_PROJECT) -f $(SMOKE_COMPOSE) \
 		down --remove-orphans
 
 docker-smoke: docker-smoke-up
