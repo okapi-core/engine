@@ -11,6 +11,8 @@ OKAPI_WEB_PUBLIC ?= okapi-web/src/main/resources/public
 GHCR_REGISTRY ?= ghcr.io
 CI_DOCKER_REPO ?= $(REPO)
 DOCKER_COMPOSE ?= docker compose
+SMOKE_COMPOSE ?= compose.docker-smoke.yaml
+SMOKE_PROJECT ?= okapi-docker-smoke
 OTEL_DEMO_COMMIT ?= 4baa77b
 OTEL_DEMO_DIR ?= $(HOME)/.harness/otel-demo
 OTEL_DEMO_REPO ?= https://github.com/open-telemetry/opentelemetry-demo.git
@@ -51,6 +53,7 @@ OKAPI_WEB_HOST ?= 127.0.0.1
 OKAPI_WEB_PORT ?= 9001
 OKAPI_INGESTER_HOST ?= 127.0.0.1
 OKAPI_INGESTER_PORT ?= 9009
+OKAPI_OSCAR_HOST ?= 127.0.0.1
 OKAPI_OSCAR_PORT ?= 9002
 
 # Helm deployment settings
@@ -75,7 +78,7 @@ OKAPI_CLUSTER_ENDPOINT ?= http://okapi-ingester.$(HELM_NS).svc.cluster.local:900
 HELM_CHART_REPO ?= oci://ghcr.io/okapi-core
 HELM_CHART_DIST ?= helm/dist
 
-.PHONY: test-infra test-infra-up test-infra-down init-test-postgres otel-harness otel-harness-down kill-stray-instances embed-frontend docker-okapi-ingester docker-okapi-web docker-okapi-ops docker-okapi-oscar docker-all docker-build-ci docker-publish docker-push-web docker-push-oscar docker-push-ingester docker-push-ops docker-push-all package-dashboard-yaml-lint lint-dashboard-yamls release spotless
+.PHONY: test-infra test-infra-up test-infra-down init-test-postgres otel-harness otel-harness-down kill-stray-instances embed-frontend docker-okapi-ingester docker-okapi-web docker-okapi-ops docker-okapi-oscar docker-all docker-build-ci docker-publish docker-smoke-up docker-smoke-test docker-smoke-down docker-smoke docker-push-web docker-push-oscar docker-push-ingester docker-push-ops docker-push-all package-dashboard-yaml-lint lint-dashboard-yamls release spotless
 
 spotless:
 	mvn spotless:apply
@@ -140,6 +143,21 @@ docker-build-ci: embed-frontend docker-all
 
 docker-publish: DOCKER_BUILD = docker buildx build --platform $(DOCKER_PLATFORMS) --push
 docker-publish: embed-frontend docker-all
+
+docker-smoke-up:
+	REPO="$(REPO)" TAG="$(TAG)" $(DOCKER_COMPOSE) -p $(SMOKE_PROJECT) -f $(TEST_INFRA_COMPOSE) -f $(SMOKE_COMPOSE) \
+		up -d --wait clickhouse okapi-ingester okapi-web okapi-oscar
+
+docker-smoke-test:
+	REPO="$(REPO)" TAG="$(TAG)" ./scripts/docker-smoke-test.sh
+
+docker-smoke-down:
+	$(DOCKER_COMPOSE) -p $(SMOKE_PROJECT) -f $(TEST_INFRA_COMPOSE) -f $(SMOKE_COMPOSE) \
+		down --remove-orphans
+
+docker-smoke: docker-smoke-up
+	@trap '$(MAKE) docker-smoke-down' EXIT; \
+		REPO="$(REPO)" TAG="$(TAG)" ./scripts/docker-smoke-test.sh
 
 docker-push-web:
 	$(DOCKER_PUSH) $(REPO)/okapi-web:$(TAG)
