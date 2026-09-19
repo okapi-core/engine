@@ -107,22 +107,22 @@ export OKAPI_NAMESPACE=okapi
 helm upgrade --install ops oci://ghcr.io/okapi-core/ops \
   --version "$OKAPI_VERSION" \
   --namespace "$OKAPI_NAMESPACE" --create-namespace \
-  -f deployment-scripts/values-yaml/ha/ops-values.yaml --wait
+  -f deployment-artifacts/values-yaml/ha/ops-values.yaml --wait
 
 helm upgrade --install ingester oci://ghcr.io/okapi-core/ingester \
   --version "$OKAPI_VERSION" \
   --namespace "$OKAPI_NAMESPACE" \
-  -f deployment-scripts/values-yaml/ha/okapi-ingester-values.yaml --wait
+  -f deployment-artifacts/values-yaml/ha/okapi-ingester-values.yaml --wait
 
 helm upgrade --install oscar oci://ghcr.io/okapi-core/oscar \
   --version "$OKAPI_VERSION" \
   --namespace "$OKAPI_NAMESPACE" \
-  -f deployment-scripts/values-yaml/ha/oscar-values.yaml --wait
+  -f deployment-artifacts/values-yaml/ha/oscar-values.yaml --wait
 
 helm upgrade --install web oci://ghcr.io/okapi-core/web \
   --version "$OKAPI_VERSION" \
   --namespace "$OKAPI_NAMESPACE" \
-  -f deployment-scripts/values-yaml/ha/okapi-web-values.yaml --wait
+  -f deployment-artifacts/values-yaml/ha/okapi-web-values.yaml --wait
 ```
 
 The sample files contain placeholders for database service names. Replace
@@ -149,7 +149,7 @@ kubectl -n okapi create secret generic okapi-secrets \
 ```
 
 Edit the four files in
-`deployment-scripts/values-yaml/ha/` with the service DNS names for the
+`deployment-artifacts/values-yaml/ha/` with the service DNS names for the
 external databases. The examples configure three replicas, HPA, and a
 PodDisruptionBudget for the stateless services. Expose `web` through an
 Ingress or LoadBalancer and keep `ingester` and `oscar` internal unless your

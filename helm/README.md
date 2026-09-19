@@ -55,7 +55,7 @@ helm upgrade --install web helm/web -f web-values.yaml --wait
 ## Production high availability
 
 For a production deployment, use the HA sample values in
-`deployment-scripts/values-yaml/ha/` and follow the deployment guide in the
+`deployment-artifacts/values-yaml/ha/` and follow the deployment guide in the
 [repository README](../README.md#production-high-availability-deployment).
 ClickHouse and PostgreSQL are external dependencies; these charts do not
 install or manage them.
