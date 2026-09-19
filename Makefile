@@ -76,6 +76,7 @@ HELM_CHART_REPO ?= oci://ghcr.io/okapi-core
 HELM_CHART_DIST ?= helm/dist
 HELM_CHART_VERSION ?=
 HELM_CHART_APP_VERSION ?= $(HELM_CHART_VERSION)
+HELM_VALIDATE_VERSION ?= 0.0.0-ci
 HELM_LOCAL_TIMEOUT ?= 15m
 HELM_LOCAL_IMAGE_REPO ?= $(REPO)
 HELM_LOCAL_IMAGE_TAG ?= 0.0.2
@@ -103,7 +104,7 @@ HELM_INGESTER_FLAGS ?=
 HELM_OSCAR_FLAGS ?=
 HELM_WEB_FLAGS ?=
 
-.PHONY: test-infra test-infra-up test-infra-down init-test-postgres otel-harness otel-harness-down kill-stray-instances embed-frontend docker-okapi-ingester docker-okapi-web docker-okapi-ops docker-okapi-oscar docker-all docker-build-ci docker-publish docker-smoke-up docker-smoke-test docker-smoke-down docker-smoke docker-push-web docker-push-oscar docker-push-ingester docker-push-ops docker-push-all package-dashboard-yaml-lint lint-dashboard-yamls helm-infra-local helm-infra-down helm-local helm-local-down helm-okapi-web helm-okapi-ingester helm-okapi-oscar helm-okapi-ops helm-package helm-push release spotless
+.PHONY: test-infra test-infra-up test-infra-down init-test-postgres otel-harness otel-harness-down kill-stray-instances embed-frontend docker-okapi-ingester docker-okapi-web docker-okapi-ops docker-okapi-oscar docker-all docker-build-ci docker-publish docker-smoke-up docker-smoke-test docker-smoke-down docker-smoke docker-push-web docker-push-oscar docker-push-ingester docker-push-ops docker-push-all package-dashboard-yaml-lint lint-dashboard-yamls helm-infra-local helm-infra-down helm-local helm-local-down helm-okapi-web helm-okapi-ingester helm-okapi-oscar helm-okapi-ops helm-package helm-push helm-validate release spotless
 
 spotless:
 	mvn spotless:apply
@@ -374,6 +375,14 @@ helm-push:
 	$(HELM) push $(HELM_CHART_DIST)/web-*.tgz $(HELM_CHART_REPO)
 	$(HELM) push $(HELM_CHART_DIST)/oscar-*.tgz $(HELM_CHART_REPO)
 	$(HELM) push $(HELM_CHART_DIST)/ops-*.tgz $(HELM_CHART_REPO)
+
+helm-validate:
+	$(HELM) lint --strict helm/ingester helm/web helm/oscar helm/ops helm/clickhouse helm/postgres
+	$(MAKE) helm-package HELM_CHART_VERSION=$(HELM_VALIDATE_VERSION) HELM_CHART_APP_VERSION=$(HELM_VALIDATE_VERSION)
+	$(HELM) template ops helm/ops --namespace okapi -f deployment-artifacts/values-yaml/ha/ops-values.yaml >/dev/null
+	$(HELM) template ingester helm/ingester --namespace okapi -f deployment-artifacts/values-yaml/ha/okapi-ingester-values.yaml >/dev/null
+	$(HELM) template oscar helm/oscar --namespace okapi -f deployment-artifacts/values-yaml/ha/oscar-values.yaml >/dev/null
+	$(HELM) template web helm/web --namespace okapi -f deployment-artifacts/values-yaml/ha/okapi-web-values.yaml >/dev/null
 
 testnetwork:
 	sh test-network.sh $(OKAPI_TEST_NET)
