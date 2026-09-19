@@ -1,0 +1,18 @@
+image:
+  repository: clickhouse/clickhouse-server
+  tag: "25.12"
+  pullPolicy: IfNotPresent
+
+auth:
+  password: okapi_testing_password
+
+service:
+  type: ClusterIP
+  httpPort: 8123
+  nativePort: 9000
+
+persistence:
+  enabled: false
+  size: 10Gi
+
+resources: {}

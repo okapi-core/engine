@@ -6,6 +6,7 @@ TAG ?= latest
 DOCKER_BUILD ?= docker build
 DOCKER_PUSH ?= docker push
 DOCKER_PLATFORMS ?= linux/amd64,linux/arm64
+DOCKER_PLATFORM ?= linux/amd64
 FRONTEND_DIST ?= frontend/dist
 OKAPI_WEB_PUBLIC ?= okapi-web/src/main/resources/public
 GHCR_REGISTRY ?= ghcr.io
@@ -61,15 +62,12 @@ HELM ?= helm
 HELM_NS ?= okapi
 HELM_FLAGS ?=
 MINIKUBE ?= minikube
-CLICKHOUSE_REPO ?= https://charts.clickhouse.com/
-CLICKHOUSE_CHART ?= clickhouse/clickhouse
+CLICKHOUSE_CHART ?= helm/clickhouse
 CLICKHOUSE_RELEASE ?= clickhouse
 OKAPI_WEB_RELEASE ?= okapi-web
 OKAPI_INGESTER_RELEASE ?= okapi-ingester
-CERT_MANAGER_REPO ?= https://charts.jetstack.io
-CERT_MANAGER_CHART ?= jetstack/cert-manager
-CERT_MANAGER_RELEASE ?= cert-manager
-CERT_MANAGER_NS ?= cert-manager
+OKAPI_OSCAR_RELEASE ?= okapi-oscar
+OKAPI_OPS_RELEASE ?= okapi-ops
 CLICKHOUSE_HOST ?= clickhouse.$(HELM_NS).svc.cluster.local
 CLICKHOUSE_PORT ?= 8123
 CLICKHOUSE_USER ?= default
@@ -77,8 +75,37 @@ CLICKHOUSE_PASSWORD ?=
 OKAPI_CLUSTER_ENDPOINT ?= http://okapi-ingester.$(HELM_NS).svc.cluster.local:9009
 HELM_CHART_REPO ?= oci://ghcr.io/okapi-core
 HELM_CHART_DIST ?= helm/dist
+HELM_CHART_VERSION ?=
+HELM_CHART_APP_VERSION ?= $(HELM_CHART_VERSION)
+HELM_VALIDATE_VERSION ?= 0.0.0-ci
+HELM_LOCAL_TIMEOUT ?= 15m
+HELM_LOCAL_IMAGE_REPO ?= $(REPO)
+HELM_LOCAL_IMAGE_TAG ?= 0.0.2
+HELM_LOCAL_CLICKHOUSE_HOST ?= clickhouse
+HELM_LOCAL_CLICKHOUSE_PORT ?= 8123
+HELM_LOCAL_CLICKHOUSE_USER ?= default
+HELM_LOCAL_CLICKHOUSE_PASSWORD ?= okapi_testing_password
+HELM_LOCAL_POSTGRES_HOST ?= postgres
+HELM_LOCAL_POSTGRES_PORT ?= 5432
+HELM_LOCAL_POSTGRES_DATABASE ?= okapi_oscar
+HELM_LOCAL_POSTGRES_MIGRATION_USER ?= okapi_web_migration_user
+HELM_LOCAL_POSTGRES_MIGRATION_PASSWORD ?= okapi_web_migration_password
+HELM_LOCAL_POSTGRES_USER ?= okapi_web_user
+HELM_LOCAL_POSTGRES_PASSWORD ?= okapi_web_password
+HELM_LOCAL_OSCAR_USER ?= okapi_oscar_user
+HELM_LOCAL_OSCAR_PASSWORD ?= okapi_oscar_password
+HELM_INFRA_NAMESPACE ?= $(HELM_NS)
+POSTGRES_RELEASE ?= postgres
+POSTGRES_CHART ?= helm/postgres
+POSTGRES_DATABASE ?= okapi_oscar
+POSTGRES_USER ?= okapi_oscar_user_admin
+POSTGRES_PASSWORD ?= okapi_oscar_password
+HELM_OPS_FLAGS ?=
+HELM_INGESTER_FLAGS ?=
+HELM_OSCAR_FLAGS ?=
+HELM_WEB_FLAGS ?=
 
-.PHONY: test-infra test-infra-up test-infra-down init-test-postgres otel-harness otel-harness-down kill-stray-instances embed-frontend docker-okapi-ingester docker-okapi-web docker-okapi-ops docker-okapi-oscar docker-all docker-build-ci docker-publish docker-smoke-up docker-smoke-test docker-smoke-down docker-smoke docker-push-web docker-push-oscar docker-push-ingester docker-push-ops docker-push-all package-dashboard-yaml-lint lint-dashboard-yamls release spotless
+.PHONY: test-infra test-infra-up test-infra-down init-test-postgres otel-harness otel-harness-down kill-stray-instances embed-frontend docker-okapi-ingester docker-okapi-web docker-okapi-ops docker-okapi-oscar docker-all docker-build-ci docker-publish docker-smoke-up docker-smoke-test docker-smoke-down docker-smoke docker-push-web docker-push-oscar docker-push-ingester docker-push-ops docker-push-all package-dashboard-yaml-lint lint-dashboard-yamls helm-infra-local helm-infra-down helm-local helm-local-down helm-okapi-web helm-okapi-ingester helm-okapi-oscar helm-okapi-ops helm-package helm-push helm-validate release spotless
 
 spotless:
 	mvn spotless:apply
@@ -138,7 +165,7 @@ docker-okapi-oscar: package
 
 docker-all: docker-okapi-ingester docker-okapi-web docker-okapi-ops docker-okapi-oscar
 
-docker-build-ci: DOCKER_BUILD = docker buildx build --platform linux/amd64 --load
+docker-build-ci: DOCKER_BUILD = docker buildx build --platform $(DOCKER_PLATFORM) --load
 docker-build-ci: embed-frontend docker-all
 
 docker-publish: DOCKER_BUILD = docker buildx build --platform $(DOCKER_PLATFORMS) --push
@@ -221,40 +248,142 @@ DOCKER_STOP := docker stop
 test-infra-down:
 	$(TEST_INFRA_ENV) $(DOCKER_COMPOSE) -f $(TEST_INFRA_COMPOSE) down --remove-orphans
 
+helm-infra-local:
+	kubectl create namespace $(HELM_INFRA_NAMESPACE) --dry-run=client -o yaml | kubectl apply -f -
+	$(HELM) upgrade --install $(POSTGRES_RELEASE) $(POSTGRES_CHART) \
+		--namespace $(HELM_INFRA_NAMESPACE) \
+		--set-string auth.database=$(POSTGRES_DATABASE) \
+		--set-string auth.username=$(POSTGRES_USER) \
+		--set-string auth.password=$(POSTGRES_PASSWORD) \
+		--wait \
+		--timeout $(HELM_LOCAL_TIMEOUT)
+	$(MAKE) helm-clickhouse HELM_NS=$(HELM_INFRA_NAMESPACE)
+
+helm-local:
+	$(HELM) upgrade --install ops helm/ops \
+		--namespace $(HELM_NS) \
+		--create-namespace \
+		--wait \
+		--timeout $(HELM_LOCAL_TIMEOUT) \
+		--set-string clickhouse.host=$(HELM_LOCAL_CLICKHOUSE_HOST) \
+		--set-string clickhouse.port=$(HELM_LOCAL_CLICKHOUSE_PORT) \
+		--set-string clickhouse.username=$(HELM_LOCAL_CLICKHOUSE_USER) \
+		--set-string clickhouse.password=$(HELM_LOCAL_CLICKHOUSE_PASSWORD) \
+		--set-string image.repository=$(HELM_LOCAL_IMAGE_REPO)/ops \
+		--set-string image.tag=$(HELM_LOCAL_IMAGE_TAG) \
+		--set-string postgres.url=jdbc:postgresql://$(HELM_LOCAL_POSTGRES_HOST):$(HELM_LOCAL_POSTGRES_PORT)/$(HELM_LOCAL_POSTGRES_DATABASE)?currentSchema=okapi_web \
+		--set-string postgres.username=$(HELM_LOCAL_POSTGRES_MIGRATION_USER) \
+		--set-string postgres.password=$(HELM_LOCAL_POSTGRES_MIGRATION_PASSWORD) \
+		$(HELM_OPS_FLAGS)
+	$(HELM) upgrade --install ingester helm/ingester \
+		--namespace $(HELM_NS) \
+		--create-namespace \
+		--wait \
+		--timeout $(HELM_LOCAL_TIMEOUT) \
+		--set-string clickhouse.host=$(HELM_LOCAL_CLICKHOUSE_HOST) \
+		--set-string clickhouse.port=$(HELM_LOCAL_CLICKHOUSE_PORT) \
+		--set-string clickhouse.username=$(HELM_LOCAL_CLICKHOUSE_USER) \
+		--set-string clickhouse.password=$(HELM_LOCAL_CLICKHOUSE_PASSWORD) \
+		--set-string image.repository=$(HELM_LOCAL_IMAGE_REPO)/ingester \
+		--set-string image.tag=$(HELM_LOCAL_IMAGE_TAG) \
+		$(HELM_INGESTER_FLAGS)
+	$(HELM) upgrade --install oscar helm/oscar \
+		--namespace $(HELM_NS) \
+		--create-namespace \
+		--wait \
+		--timeout $(HELM_LOCAL_TIMEOUT) \
+		--set-string postgres.host=$(HELM_LOCAL_POSTGRES_HOST) \
+		--set-string postgres.port=$(HELM_LOCAL_POSTGRES_PORT) \
+		--set-string postgres.database=$(HELM_LOCAL_POSTGRES_DATABASE) \
+		--set-string postgres.username=$(HELM_LOCAL_OSCAR_USER) \
+		--set-string postgres.password=$(HELM_LOCAL_OSCAR_PASSWORD) \
+		--set-string openai.apiKey=dummy \
+		--set-string image.repository=$(HELM_LOCAL_IMAGE_REPO)/oscar \
+		--set-string image.tag=$(HELM_LOCAL_IMAGE_TAG) \
+		$(HELM_OSCAR_FLAGS)
+	$(HELM) upgrade --install web helm/web \
+		--namespace $(HELM_NS) \
+		--create-namespace \
+		--wait \
+		--timeout $(HELM_LOCAL_TIMEOUT) \
+		--set-string postgres.host=$(HELM_LOCAL_POSTGRES_HOST) \
+		--set-string postgres.port=$(HELM_LOCAL_POSTGRES_PORT) \
+		--set-string postgres.database=$(HELM_LOCAL_POSTGRES_DATABASE) \
+		--set-string postgres.username=$(HELM_LOCAL_POSTGRES_USER) \
+		--set-string postgres.password=$(HELM_LOCAL_POSTGRES_PASSWORD) \
+		--set-string image.repository=$(HELM_LOCAL_IMAGE_REPO)/web \
+		--set-string image.tag=$(HELM_LOCAL_IMAGE_TAG) \
+		$(HELM_WEB_FLAGS)
+
+helm-local-down:
+	$(HELM) uninstall web --namespace $(HELM_NS) --ignore-not-found
+	$(HELM) uninstall oscar --namespace $(HELM_NS) --ignore-not-found
+	$(HELM) uninstall ingester --namespace $(HELM_NS) --ignore-not-found
+	$(HELM) uninstall ops --namespace $(HELM_NS) --ignore-not-found
+	kubectl -n $(HELM_NS) delete job ops --ignore-not-found
+
+helm-infra-down:
+	$(HELM) uninstall $(CLICKHOUSE_RELEASE) --namespace $(HELM_INFRA_NAMESPACE) --ignore-not-found
+	$(HELM) uninstall $(POSTGRES_RELEASE) --namespace $(HELM_INFRA_NAMESPACE) --ignore-not-found
+
 
 helm-okapi-web:
 	$(MINIKUBE) image load $(REPO)/web:$(TAG)
-	$(HELM) upgrade --install $(OKAPI_WEB_RELEASE) helm/okapi-web --namespace $(HELM_NS) --create-namespace \
-	--set springOverrides.clusterEndpoint=$(OKAPI_CLUSTER_ENDPOINT)
+	$(HELM) upgrade --install $(OKAPI_WEB_RELEASE) helm/web --namespace $(HELM_NS) --create-namespace \
+	--set ingester.endpoint=$(OKAPI_CLUSTER_ENDPOINT) \
 	$(HELM_FLAGS)
 
 helm-okapi-ingester:
 	$(MINIKUBE) image load $(REPO)/ingester:$(TAG)
-	$(HELM) upgrade --install $(OKAPI_INGESTER_RELEASE) helm/okapi-ingester --namespace $(HELM_NS) --create-namespace \
-	--set springOverrides.okapi.clickhouse.host=$(CLICKHOUSE_HOST) \
-	--set springOverrides.okapi.clickhouse.port=$(CLICKHOUSE_PORT) \
-	--set springOverrides.okapi.clickhouse.username=$(CLICKHOUSE_USER) \
-	--set springOverrides.okapi.clickhouse.password=$(CLICKHOUSE_PASSWORD) \
-	--set springOverrides.okapi.clickhouse.secure=false \
-	--set springOverrides.okapi.aws.endpoint=$(OKAPI_AWS_ENDPOINT) \
-	--set springOverrides.okapi.aws.region=$(OKAPI_AWS_REGION) \
+	$(HELM) upgrade --install $(OKAPI_INGESTER_RELEASE) helm/ingester --namespace $(HELM_NS) --create-namespace \
+	--set clickhouse.host=$(CLICKHOUSE_HOST) \
+	--set clickhouse.port=$(CLICKHOUSE_PORT) \
+	--set clickhouse.username=$(CLICKHOUSE_USER) \
+	--set clickhouse.password=$(CLICKHOUSE_PASSWORD) \
 	$(HELM_FLAGS)
 
+helm-okapi-oscar:
+	$(MINIKUBE) image load $(REPO)/oscar:$(TAG)
+	$(HELM) upgrade --install $(OKAPI_OSCAR_RELEASE) helm/oscar --namespace $(HELM_NS) --create-namespace \
+	--set image.repository=$(REPO)/oscar \
+	--set image.tag=$(TAG) \
+	$(HELM_FLAGS)
+
+helm-okapi-ops:
+	$(HELM) upgrade --install $(OKAPI_OPS_RELEASE) helm/ops --namespace $(HELM_NS) --create-namespace \
+	--wait --timeout 15m $(HELM_FLAGS)
+
 helm-clickhouse:
-	$(HELM) repo add jetstack $(CERT_MANAGER_REPO) --force-update
-	$(HELM) repo update
-	$(HELM) upgrade --install $(CERT_MANAGER_RELEASE) $(CERT_MANAGER_CHART) --namespace $(CERT_MANAGER_NS) --create-namespace --set installCRDs=true $(HELM_FLAGS)
-	$(HELM) upgrade --install okapi-clickhouse oci://ghcr.io/clickhouse/clickhouse-operator-helm \
-	--create-namespace \
-	-n $(HELM_NS)
+	$(HELM) upgrade --install $(CLICKHOUSE_RELEASE) $(CLICKHOUSE_CHART) \
+		--namespace $(HELM_NS) \
+		--create-namespace \
+		--set-string auth.password=$(HELM_LOCAL_CLICKHOUSE_PASSWORD) \
+		--wait \
+		--timeout $(HELM_LOCAL_TIMEOUT) \
+		$(HELM_FLAGS)
 
 helm-package:
-	rm -f $(HELM_CHART_DIST)/okapi-ingester-*.tgz $(HELM_CHART_DIST)/okapi-web-*.tgz
+	@test -n "$(HELM_CHART_VERSION)" || (echo "HELM_CHART_VERSION is required, for example: make helm-package HELM_CHART_VERSION=0.0.3" >&2; exit 1)
+	rm -f $(HELM_CHART_DIST)/ingester-*.tgz $(HELM_CHART_DIST)/web-*.tgz $(HELM_CHART_DIST)/oscar-*.tgz $(HELM_CHART_DIST)/ops-*.tgz
 	mkdir -p $(HELM_CHART_DIST)
-	$(HELM) package helm/okapi-ingester --destination $(HELM_CHART_DIST)
-	$(HELM) package helm/okapi-web --destination $(HELM_CHART_DIST)
-	$(HELM) push $(HELM_CHART_DIST)/okapi-ingester-*.tgz $(HELM_CHART_REPO)
-	$(HELM) push $(HELM_CHART_DIST)/okapi-web-*.tgz $(HELM_CHART_REPO)
+	$(HELM) package helm/ingester --version $(HELM_CHART_VERSION) --app-version $(HELM_CHART_APP_VERSION) --destination $(HELM_CHART_DIST)
+	$(HELM) package helm/web --version $(HELM_CHART_VERSION) --app-version $(HELM_CHART_APP_VERSION) --destination $(HELM_CHART_DIST)
+	$(HELM) package helm/oscar --version $(HELM_CHART_VERSION) --app-version $(HELM_CHART_APP_VERSION) --destination $(HELM_CHART_DIST)
+	$(HELM) package helm/ops --version $(HELM_CHART_VERSION) --app-version $(HELM_CHART_APP_VERSION) --destination $(HELM_CHART_DIST)
+
+helm-push:
+	$(HELM) push $(HELM_CHART_DIST)/ingester-*.tgz $(HELM_CHART_REPO)
+	$(HELM) push $(HELM_CHART_DIST)/web-*.tgz $(HELM_CHART_REPO)
+	$(HELM) push $(HELM_CHART_DIST)/oscar-*.tgz $(HELM_CHART_REPO)
+	$(HELM) push $(HELM_CHART_DIST)/ops-*.tgz $(HELM_CHART_REPO)
+
+helm-validate:
+	$(HELM) lint --strict helm/ingester helm/web helm/oscar helm/ops helm/clickhouse helm/postgres
+	$(MAKE) helm-package HELM_CHART_VERSION=$(HELM_VALIDATE_VERSION) HELM_CHART_APP_VERSION=$(HELM_VALIDATE_VERSION)
+	$(HELM) template ops helm/ops --namespace okapi -f deployment-artifacts/values-yaml/ha/ops-values.yaml >/dev/null
+	$(HELM) template ingester helm/ingester --namespace okapi -f deployment-artifacts/values-yaml/ha/okapi-ingester-values.yaml >/dev/null
+	$(HELM) template oscar helm/oscar --namespace okapi -f deployment-artifacts/values-yaml/ha/oscar-values.yaml >/dev/null
+	$(HELM) template web helm/web --namespace okapi -f deployment-artifacts/values-yaml/ha/okapi-web-values.yaml >/dev/null
 
 testnetwork:
 	sh test-network.sh $(OKAPI_TEST_NET)

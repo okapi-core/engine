@@ -1,0 +1,49 @@
+replicaCount: 1
+
+image:
+  repository: ghcr.io/okapi-core/oscar
+  tag: latest
+  pullPolicy: IfNotPresent
+
+serviceAccount:
+  create: false
+  name: ""
+
+service:
+  type: ClusterIP
+  port: 9002
+
+ingester:
+  endpoint: http://ingester:9009
+
+postgres:
+  host: postgres
+  port: 5432
+  database: okapi_oscar
+  schema: okapi_oscar
+  username: okapi_oscar_user
+  password: ""
+  existingSecret: ""
+  usernameKey: username
+  passwordKey: password
+
+openai:
+  apiKey: ""
+  apiKeyPath: env://OPENAI_API_KEY
+  existingSecret: ""
+  apiKeyKey: api-key
+
+vault:
+  address: ""
+
+env: []
+envFrom: []
+resources: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext: {}
+securityContext: {}

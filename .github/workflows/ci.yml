@@ -61,6 +61,9 @@ jobs:
           docker --version
           docker compose version
 
+      - name: Validate Helm charts
+        run: make helm-validate HELM_VALIDATE_VERSION=0.0.0-ci.${{ github.run_number }}
+
       - name: Run test suite
         run: make test
 

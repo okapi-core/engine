@@ -1,0 +1,104 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "ops.fullname" . }}
+  labels:
+    {{- include "ops.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  backoffLimit: {{ .Values.job.backoffLimit }}
+  activeDeadlineSeconds: {{ .Values.job.activeDeadlineSeconds }}
+  {{- with .Values.job.ttlSecondsAfterFinished }}
+  ttlSecondsAfterFinished: {{ . }}
+  {{- end }}
+  template:
+    metadata:
+      labels:
+        {{- include "ops.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: ops
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["/bin/sh", "-ec"]
+          args:
+            - >-
+              SECURE_FLAG="";
+              if [ "${OKAPI_CLICKHOUSE_SECURE}" = "true" ]; then SECURE_FLAG="--secure"; fi;
+              java -jar /app/app.jar ch-migrate
+              --host "${OKAPI_CLICKHOUSE_HOST}"
+              --port "${OKAPI_CLICKHOUSE_PORT}"
+              ${SECURE_FLAG}
+              --user "${OKAPI_CLICKHOUSE_USERNAME}"
+              --password "${OKAPI_CLICKHOUSE_PASSWORD}" &&
+              java -jar /app/app.jar pg-migrate
+          env:
+            - name: OKAPI_CLICKHOUSE_HOST
+              value: {{ .Values.clickhouse.host | quote }}
+            - name: OKAPI_CLICKHOUSE_PORT
+              value: {{ .Values.clickhouse.port | quote }}
+            - name: OKAPI_CLICKHOUSE_SECURE
+              value: {{ .Values.clickhouse.secure | quote }}
+            - name: OKAPI_CLICKHOUSE_USERNAME
+              {{- if .Values.clickhouse.existingSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.clickhouse.existingSecret }}
+                  key: {{ .Values.clickhouse.usernameKey }}
+              {{- else }}
+              value: {{ .Values.clickhouse.username | quote }}
+              {{- end }}
+            - name: OKAPI_CLICKHOUSE_PASSWORD
+              {{- if .Values.clickhouse.existingSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.clickhouse.existingSecret }}
+                  key: {{ .Values.clickhouse.passwordKey }}
+              {{- else }}
+              value: {{ .Values.clickhouse.password | quote }}
+              {{- end }}
+            - name: OKAPI_WEB_DB_MIGRATION_URL
+              value: {{ .Values.postgres.url | quote }}
+            - name: OKAPI_WEB_DB_MIGRATION_USER
+              {{- if .Values.postgres.existingSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.existingSecret }}
+                  key: {{ .Values.postgres.usernameKey }}
+              {{- else }}
+              value: {{ .Values.postgres.username | quote }}
+              {{- end }}
+            - name: OKAPI_WEB_DB_MIGRATION_PASSWORD
+              {{- if .Values.postgres.existingSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.existingSecret }}
+                  key: {{ .Values.postgres.passwordKey }}
+              {{- else }}
+              value: {{ .Values.postgres.password | quote }}
+              {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

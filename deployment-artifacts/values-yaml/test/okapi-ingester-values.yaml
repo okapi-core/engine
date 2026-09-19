@@ -1,0 +1,30 @@
+replicaCount: 1
+
+image:
+  repository: ghcr.io/okapi-core/ingester
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8080
+
+springOverrides:
+  server:
+    port: 8080
+  okapi:
+    clickhouse:
+      host: clickhouse
+      port: 8123
+      secure: false
+      username: default
+      password: okapi_testing_password
+      chMetricsWal: /tmp/okapi/wal/metrics
+      chLogsWal: /tmp/okapi/wal/logs
+      chTracesWal: /tmp/okapi/wal/traces
+      chMetricsWalCfg:
+        segmentSize: 1048576
+      chLogsCfg:
+        segmentSize: 1048576
+      chTracesWalCfg:
+        segmentSize: 1048576

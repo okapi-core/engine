@@ -106,6 +106,29 @@ jobs:
             TAG=${{ steps.release.outputs.tag }} \
             FRONTEND_DIST=frontend/dist
 
+      - name: Package release Helm charts locally
+        run: |
+          make helm-package \
+            HELM_CHART_VERSION=${{ steps.release.outputs.tag }} \
+            HELM_CHART_APP_VERSION=${{ steps.release.outputs.tag }}
+
+      - name: Create Kind validation cluster
+        uses: helm/kind-action@v1.10.0
+        with:
+          cluster_name: okapi-release
+
+      - name: Validate packaged Helm charts
+        run: |
+          CLUSTER_NAME=okapi-release \
+          IMAGE_REPO=ghcr.io/okapi-core \
+          IMAGE_TAG=${{ steps.release.outputs.tag }} \
+          CHART_VERSION=${{ steps.release.outputs.tag }} \
+          scripts/helm-validation.sh
+
+      - name: Delete Kind validation cluster
+        if: always()
+        run: kind delete cluster --name okapi-release || true
+
       - name: Run Docker smoke test
         run: |
           make docker-smoke \
@@ -129,6 +152,10 @@ jobs:
             REPO=ghcr.io/okapi-core \
             TAG=${{ steps.release.outputs.tag }} \
             FRONTEND_DIST=frontend/dist
+
+      - name: Package and publish Helm charts
+        run: |
+          make helm-push
 
       - name: Upload test infrastructure logs
         if: always()

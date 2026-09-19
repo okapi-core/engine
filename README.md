@@ -91,6 +91,76 @@ okapictl install --k8s
 
 For direct Helm usage and configuration options, see the [Helm documentation](./helm/README.md).
 
+## Deploying Okapi
+
+The Okapi Helm charts deploy only Okapi. ClickHouse and PostgreSQL are
+external dependencies and must already be reachable from the Kubernetes
+namespace where Okapi is installed.
+
+The charts are published as OCI artifacts in GHCR. For a release such as
+`0.0.2`, install the migration job first, followed by the services:
+
+```sh
+export OKAPI_VERSION=0.0.2
+export OKAPI_NAMESPACE=okapi
+
+helm upgrade --install ops oci://ghcr.io/okapi-core/ops \
+  --version "$OKAPI_VERSION" \
+  --namespace "$OKAPI_NAMESPACE" --create-namespace \
+  -f deployment-artifacts/values-yaml/ha/ops-values.yaml --wait
+
+helm upgrade --install ingester oci://ghcr.io/okapi-core/ingester \
+  --version "$OKAPI_VERSION" \
+  --namespace "$OKAPI_NAMESPACE" \
+  -f deployment-artifacts/values-yaml/ha/okapi-ingester-values.yaml --wait
+
+helm upgrade --install oscar oci://ghcr.io/okapi-core/oscar \
+  --version "$OKAPI_VERSION" \
+  --namespace "$OKAPI_NAMESPACE" \
+  -f deployment-artifacts/values-yaml/ha/oscar-values.yaml --wait
+
+helm upgrade --install web oci://ghcr.io/okapi-core/web \
+  --version "$OKAPI_VERSION" \
+  --namespace "$OKAPI_NAMESPACE" \
+  -f deployment-artifacts/values-yaml/ha/okapi-web-values.yaml --wait
+```
+
+The sample files contain placeholders for database service names. Replace
+them and provide credentials through Kubernetes Secrets before installing.
+
+### Production high-availability deployment
+
+Production database topology, storage, backups, ClickHouse replication, and
+PostgreSQL high availability are outside the scope of Okapi. Configure those
+systems first, then create an application Secret containing the keys expected
+by the sample values files:
+
+```sh
+kubectl -n okapi create secret generic okapi-secrets \
+  --from-literal=clickhouse-username='<clickhouse-user>' \
+  --from-literal=clickhouse-password='<clickhouse-password>' \
+  --from-literal=migration-username='<postgres-migration-user>' \
+  --from-literal=migration-password='<postgres-migration-password>' \
+  --from-literal=oscar-username='<postgres-oscar-user>' \
+  --from-literal=oscar-password='<postgres-oscar-password>' \
+  --from-literal=web-username='<postgres-web-user>' \
+  --from-literal=web-password='<postgres-web-password>' \
+  --from-literal=openai-api-key='<openai-api-key>'
+```
+
+Edit the four files in
+`deployment-artifacts/values-yaml/ha/` with the service DNS names for the
+external databases. The examples configure three replicas, HPA, and a
+PodDisruptionBudget for the stateless services. Expose `web` through an
+Ingress or LoadBalancer and keep `ingester` and `oscar` internal unless your
+architecture requires otherwise.
+
+The chart `values.yaml` files under `helm/` document the complete schema and
+development defaults, but they are not production configurations: they use
+single replicas, `latest` image defaults, inline value placeholders, and
+ClusterIP services. Use the HA sample overrides as the starting point for a
+real deployment and store environment-specific Secrets outside Git.
+
 ## Configure OpenTelemetry to send data to Okapi
 
 Okapi accepts OTLP/HTTP on the ingester endpoint. For a local installation,

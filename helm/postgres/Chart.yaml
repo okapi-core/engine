@@ -1,0 +1,6 @@
+apiVersion: v2
+name: postgres
+description: Single-node PostgreSQL for local Okapi development and tests
+type: application
+version: 0.0.1
+appVersion: "16"

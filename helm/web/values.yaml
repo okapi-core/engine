@@ -1,0 +1,70 @@
+replicaCount: 1
+
+image:
+  repository: ghcr.io/okapi-core/web
+  tag: latest
+  pullPolicy: IfNotPresent
+
+postgres:
+  host: postgres
+  port: 5432
+  database: okapi
+  schema: okapi_web
+  username: okapi_web_user
+  password: ""
+  existingSecret: ""
+  usernameKey: username
+  passwordKey: password
+
+ingester:
+  endpoint: http://ingester:9009
+
+oscar:
+  endpoint: http://oscar:9002
+
+serviceAccount:
+  create: false
+  name: ""
+
+service:
+  type: ClusterIP
+  port: 9001
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: okapi-web.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+resources: {}
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+podAnnotations: {}
+
+podLabels: {}
+
+env: []
+
+springOverrides: {}
+
+envFrom: []
+
+hpa:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 80
+
+pdb:
+  enabled: false
+  minAvailable: 1
