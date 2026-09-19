@@ -1,0 +1,113 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "oscar.fullname" . }}
+  labels:
+    {{- include "oscar.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "oscar.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "oscar.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.serviceAccount.create }}
+      serviceAccountName: {{ include "oscar.fullname" . }}
+      {{- else if .Values.serviceAccount.name }}
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      {{- end }}
+      containers:
+        - name: oscar
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- with .Values.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          env:
+            - name: OKAPI_CLUSTER_ENDPOINT
+              value: {{ .Values.ingester.endpoint | quote }}
+            - name: OKAPI_OSCAR_VAULT_ADDRESS
+              value: {{ .Values.vault.address | quote }}
+            - name: OKAPI_OSCAR_OPENAI_API_KEY_PATH
+              value: {{ .Values.openai.apiKeyPath | quote }}
+            - name: OSCAR_DB_URL
+              value: {{ printf "jdbc:postgresql://%s:%v/%s?currentSchema=%s" .Values.postgres.host .Values.postgres.port .Values.postgres.database .Values.postgres.schema | quote }}
+            - name: OSCAR_DB_USER
+              {{- if .Values.postgres.existingSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.existingSecret }}
+                  key: {{ .Values.postgres.usernameKey }}
+              {{- else }}
+              value: {{ .Values.postgres.username | quote }}
+              {{- end }}
+            - name: OSCAR_DB_PASSWORD
+              {{- if .Values.postgres.existingSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.existingSecret }}
+                  key: {{ .Values.postgres.passwordKey }}
+              {{- else }}
+              value: {{ .Values.postgres.password | quote }}
+              {{- end }}
+            - name: OPENAI_API_KEY
+              {{- if .Values.openai.existingSecret }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.openai.existingSecret }}
+                  key: {{ .Values.openai.apiKeyKey }}
+              {{- else }}
+              value: {{ .Values.openai.apiKey | quote }}
+              {{- end }}
+            {{- with .Values.env }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- with .Values.envFrom }}
+          envFrom:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

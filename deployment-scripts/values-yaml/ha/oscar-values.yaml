@@ -1,0 +1,14 @@
+image:
+  repository: ghcr.io/okapi-core/oscar
+  tag: latest
+
+ingester:
+  endpoint: http://ingester:9009
+
+postgres:
+  host: postgres
+  port: 5432
+  database: okapi_oscar
+  schema: okapi_oscar
+  username: okapi_oscar_user
+  password: okapi_oscar_password

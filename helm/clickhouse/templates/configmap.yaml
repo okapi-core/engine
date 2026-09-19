@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "clickhouse.fullname" . }}-users
+  labels:
+    {{- include "clickhouse.labels" . | nindent 4 }}
+data:
+  okapi-test.xml: |
+    <clickhouse>
+        <profiles>
+            <default>
+                <enable_full_text_index>1</enable_full_text_index>
+            </default>
+        </profiles>
+    </clickhouse>

@@ -1,5 +1,0 @@
-apiVersion: v2
-name: okapi-web
-description: Okapi web service
-version: 0.1.0
-appVersion: "0.0.1"

@@ -1,4 +1,34 @@
-# Helm charts
+# Okapi Helm charts
+
+This directory contains the four independently deployable Okapi charts. They
+assume ClickHouse and PostgreSQL are provided by the surrounding platform.
+
+| Chart | Owns |
+| --- | --- |
+| `ops` | One-shot ClickHouse and PostgreSQL migrations |
+| `ingester` | OTLP ingestion and query cluster |
+| `oscar` | Oscar incident-triage service |
+| `web` | Okapi API and UI |
+
+The charts are published as OCI artifacts under `oci://ghcr.io/okapi-core`.
+
+## Local Minikube test
+
+The Okapi charts do not install databases. For a disposable Minikube test,
+the repository provides a separate infrastructure target that installs
+PostgreSQL and the repository-owned single-node ClickHouse test chart:
+
+```sh
+make helm-infra-local
+make helm-local
+```
+
+`helm-local` uses the pinned published Okapi image tag `0.0.2` by default.
+Override `HELM_LOCAL_IMAGE_REPO` and `HELM_LOCAL_IMAGE_TAG` to test local
+images.
+
+The infrastructure target uses the `okapi` namespace by default. Override it
+with `HELM_INFRA_NAMESPACE` and `HELM_NS` when using a temporary namespace.
 
 Example:
 
@@ -16,8 +46,10 @@ springOverrides:
 Install:
 
 ```sh
-helm install okapi-web helm/okapi-web -f values.yaml
-helm install okapi-ingester helm/okapi-ingester -f values.yaml
+helm upgrade --install ops helm/ops -f ops-values.yaml --wait
+helm upgrade --install ingester helm/ingester -f ingester-values.yaml --wait
+helm upgrade --install oscar helm/oscar -f oscar-values.yaml --wait
+helm upgrade --install web helm/web -f web-values.yaml --wait
 ```
 
 ## HA deployment (self-hosted)
@@ -31,42 +63,46 @@ Steps:
 
 2) Ensure AWS credentials are available to the okapi workloads.
 
-3) Deploy okapi-ingester as a replicated service (ClusterIP). We need to point to ClickHouse via `springOverrides`.
+3) Deploy ingester as a replicated service (ClusterIP), pointing it at the externally managed ClickHouse service.
 
 ```sh
-helm install okapi-ingester helm/okapi-ingester \
+helm install ingester helm/ingester \
   --namespace okapi --create-namespace \
   --set service.type=ClusterIP \
-  --set springOverrides.okapi.clickhouse.host=clickhouse.okapi.svc.cluster.local \
-  --set springOverrides.okapi.clickhouse.port=8123 \
-  --set springOverrides.okapi.clickhouse.username=default \
-  --set springOverrides.okapi.clickhouse.password=secure_prod_password \
-  --set springOverrides.okapi.clickhouse.secure=false
+  --set clickhouse.host=clickhouse.okapi.svc.cluster.local \
+  --set clickhouse.port=8123 \
+  --set clickhouse.username=default \
+  --set clickhouse.password=secure_prod_password
 ```
 
-4) Deploy okapi-web. Similar to `okapi-ingester`, we deploy a replicated version this time passing ClusterIp of okapi-ingester via `springOverrides`. 
-Note - `okapi-web` serves API calls and also serves the Okapi's web UI. Here we use a `LoadBalancer` deployment so that he IP is accessible outside of Kubernetes.
+4) Deploy Oscar and web. Oscar remains internal; web serves the API and UI and can be exposed through a LoadBalancer or Ingress.
 
 ```sh
-helm install okapi-web helm/okapi-web \
+helm install oscar helm/oscar \
+  --namespace okapi \
+  --set ingester.endpoint=http://ingester.okapi.svc.cluster.local:9009
+
+helm install web helm/web \
   --namespace okapi \
   --set replicaCount=2 \
   --set service.type=LoadBalancer \
-  --set springOverrides.clusterEndpoint=http://okapi-ingester.okapi.svc.cluster.local:9009
+  --set ingester.endpoint=http://ingester.okapi.svc.cluster.local:9009 \
+  --set oscar.endpoint=http://oscar.okapi.svc.cluster.local:9002
 ```
 
 ```sh
-kubectl get svc -n okapi okapi-web
+kubectl get svc -n okapi web
 ```
 
 To fetch the external IP for the web UI once the LoadBalancer is provisioned, run:
 
 ```sh
-kubectl get svc -n okapi okapi-web -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+kubectl get svc -n okapi web -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
 ```
 
 You can now open this UI in the browser and get started :).
 
 # Overriding spring configs
-Okapi uses SPRING_APPLICATION_JSON to supply overrides to spring configs that the various components depend on. 
-`okapi-web` and `okapi-ingester` use a single application.yaml file. The file is located at `src/main/resources/application.yaml` in the respective Maven sub-module.
+The charts expose service-specific configuration through values and support
+references to existing Kubernetes Secrets for database credentials. Additional
+Spring configuration can be supplied through `springOverrides`.

@@ -1,0 +1,6 @@
+apiVersion: v2
+name: ingester
+description: Okapi telemetry ingester service
+type: application
+version: 0.0.2
+appVersion: "0.0.2"

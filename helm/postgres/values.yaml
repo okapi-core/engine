@@ -1,0 +1,19 @@
+image:
+  repository: postgres
+  tag: "16"
+  pullPolicy: IfNotPresent
+
+auth:
+  database: okapi_oscar
+  username: okapi_oscar_user_admin
+  password: okapi_oscar_password
+
+service:
+  type: ClusterIP
+  port: 5432
+
+persistence:
+  enabled: false
+  size: 10Gi
+
+resources: {}

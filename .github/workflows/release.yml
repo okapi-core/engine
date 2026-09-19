@@ -130,6 +130,12 @@ jobs:
             TAG=${{ steps.release.outputs.tag }} \
             FRONTEND_DIST=frontend/dist
 
+      - name: Package and publish Helm charts
+        run: |
+          make helm-package \
+            HELM_CHART_VERSION=${{ steps.release.outputs.tag }} \
+            HELM_CHART_APP_VERSION=${{ steps.release.outputs.tag }}
+
       - name: Upload test infrastructure logs
         if: always()
         uses: actions/upload-artifact@v4

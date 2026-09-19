@@ -1,0 +1,14 @@
+image:
+  repository: ghcr.io/okapi-core/ops
+  tag: latest
+
+clickhouse:
+  host: clickhouse
+  port: 8123
+  username: default
+  password: okapi_testing_password
+
+postgres:
+  url: jdbc:postgresql://okapi-postgres:5432/okapi_oscar?currentSchema=okapi_web
+  username: okapi_web_migration_user
+  password: okapi_web_migration_password

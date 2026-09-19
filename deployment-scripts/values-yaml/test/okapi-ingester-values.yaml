@@ -14,7 +14,7 @@ springOverrides:
     port: 8080
   okapi:
     clickhouse:
-      host: okapi-clickhouse
+      host: clickhouse
       port: 8123
       secure: false
       username: default
