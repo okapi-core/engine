@@ -1,6 +1,6 @@
 services:
   okapi-ingester:
-    image: ${REPO:-ghcr.io/okapi-core}/okapi-ingester:${TAG:-latest}
+    image: ${REPO:-ghcr.io/okapi-core}/ingester:${TAG:-latest}
     container_name: okapi-smoke-ingester
     command:
       - --okapi.clickhouse.host=okapi-clickhouse
@@ -13,7 +13,7 @@ services:
       - okapi-test-network
 
   okapi-web:
-    image: ${REPO:-ghcr.io/okapi-core}/okapi-web:${TAG:-latest}
+    image: ${REPO:-ghcr.io/okapi-core}/web:${TAG:-latest}
     container_name: okapi-smoke-web
     command:
       - --clusterEndpoint=http://okapi-ingester:9009
@@ -35,7 +35,7 @@ services:
       - okapi-test-network
 
   okapi-oscar:
-    image: ${REPO:-ghcr.io/okapi-core}/okapi-oscar:${TAG:-latest}
+    image: ${REPO:-ghcr.io/okapi-core}/oscar:${TAG:-latest}
     container_name: okapi-smoke-oscar
     command:
       - --spring.profiles.active=dummy

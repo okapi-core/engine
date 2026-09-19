@@ -9,7 +9,7 @@ spec:
       restartPolicy: OnFailure
       containers:
         - name: okapi-ops
-          image: ghcr.io/okapi-core/okapi-ops:latest
+          image: ghcr.io/okapi-core/ops:latest
           args:
             - ch-migrate
             - --host

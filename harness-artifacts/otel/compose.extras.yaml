@@ -60,7 +60,7 @@ services:
       start_period: 5s
 
   okapi-migrate:
-    image: ${OKAPI_IMAGE_REPO:-ghcr.io/okapi-core}/okapi-ops:${TAG:-latest}
+    image: ${OKAPI_IMAGE_REPO:-ghcr.io/okapi-core}/ops:${TAG:-latest}
     container_name: okapi-otel-migrate
     depends_on:
       clickhouse:
@@ -80,7 +80,7 @@ services:
         java -jar /app/app.jar pg-migrate
 
   okapi-ingester:
-    image: ${OKAPI_IMAGE_REPO:-ghcr.io/okapi-core}/okapi-ingester:${TAG:-latest}
+    image: ${OKAPI_IMAGE_REPO:-ghcr.io/okapi-core}/ingester:${TAG:-latest}
     container_name: okapi-otel-ingester
     depends_on:
       okapi-migrate:
@@ -103,7 +103,7 @@ services:
       - okapi-ingester-wal:/wal
 
   okapi-web:
-    image: ${OKAPI_IMAGE_REPO:-ghcr.io/okapi-core}/okapi-web:${TAG:-latest}
+    image: ${OKAPI_IMAGE_REPO:-ghcr.io/okapi-core}/web:${TAG:-latest}
     container_name: okapi-otel-web
     depends_on:
       okapi-migrate:
@@ -122,7 +122,7 @@ services:
       - "9001:9001"
 
   okapi-oscar:
-    image: ${OKAPI_IMAGE_REPO:-ghcr.io/okapi-core}/okapi-oscar:${TAG:-latest}
+    image: ${OKAPI_IMAGE_REPO:-ghcr.io/okapi-core}/oscar:${TAG:-latest}
     container_name: okapi-otel-oscar
     depends_on:
       postgres:

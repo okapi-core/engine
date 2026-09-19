@@ -125,16 +125,16 @@ lint-dashboard-yamls: package-dashboard-yaml-lint
 	java -jar okapi-web/target/okapi-web-0.0.1-SNAPSHOT-dashboard-yaml-lint.jar dashboard-yamls
 
 docker-okapi-ingester: package
-	$(DOCKER_BUILD) -t $(REPO)/okapi-ingester:$(TAG) -f okapi-ingester/Dockerfile okapi-ingester
+	$(DOCKER_BUILD) -t $(REPO)/ingester:$(TAG) -f okapi-ingester/Dockerfile okapi-ingester
 
 docker-okapi-web: package
-	$(DOCKER_BUILD) -t $(REPO)/okapi-web:$(TAG) -f okapi-web/Dockerfile okapi-web
+	$(DOCKER_BUILD) -t $(REPO)/web:$(TAG) -f okapi-web/Dockerfile okapi-web
 
 docker-okapi-ops: package
-	$(DOCKER_BUILD) -t $(REPO)/okapi-ops:$(TAG) -f okapi-ops/Dockerfile okapi-ops
+	$(DOCKER_BUILD) -t $(REPO)/ops:$(TAG) -f okapi-ops/Dockerfile okapi-ops
 
 docker-okapi-oscar: package
-	$(DOCKER_BUILD) -t $(REPO)/okapi-oscar:$(TAG) -f okapi-oscar/Dockerfile okapi-oscar
+	$(DOCKER_BUILD) -t $(REPO)/oscar:$(TAG) -f okapi-oscar/Dockerfile okapi-oscar
 
 docker-all: docker-okapi-ingester docker-okapi-web docker-okapi-ops docker-okapi-oscar
 
@@ -163,16 +163,16 @@ docker-smoke: docker-smoke-up
 		REPO="$(REPO)" TAG="$(TAG)" ./scripts/docker-smoke-test.sh
 
 docker-push-web:
-	$(DOCKER_PUSH) $(REPO)/okapi-web:$(TAG)
+	$(DOCKER_PUSH) $(REPO)/web:$(TAG)
 
 docker-push-oscar:
-	$(DOCKER_PUSH) $(REPO)/okapi-oscar:$(TAG)
+	$(DOCKER_PUSH) $(REPO)/oscar:$(TAG)
 
 docker-push-ingester:
-	$(DOCKER_PUSH) $(REPO)/okapi-ingester:$(TAG)
+	$(DOCKER_PUSH) $(REPO)/ingester:$(TAG)
 
 docker-push-ops:
-	$(DOCKER_PUSH) $(REPO)/okapi-ops:$(TAG)
+	$(DOCKER_PUSH) $(REPO)/ops:$(TAG)
 
 docker-push-all: docker-push-web docker-push-oscar docker-push-ingester docker-push-ops
 
@@ -223,13 +223,13 @@ test-infra-down:
 
 
 helm-okapi-web:
-	$(MINIKUBE) image load $(REPO)/okapi-web:$(TAG)
+	$(MINIKUBE) image load $(REPO)/web:$(TAG)
 	$(HELM) upgrade --install $(OKAPI_WEB_RELEASE) helm/okapi-web --namespace $(HELM_NS) --create-namespace \
 	--set springOverrides.clusterEndpoint=$(OKAPI_CLUSTER_ENDPOINT)
 	$(HELM_FLAGS)
 
 helm-okapi-ingester:
-	$(MINIKUBE) image load $(REPO)/okapi-ingester:$(TAG)
+	$(MINIKUBE) image load $(REPO)/ingester:$(TAG)
 	$(HELM) upgrade --install $(OKAPI_INGESTER_RELEASE) helm/okapi-ingester --namespace $(HELM_NS) --create-namespace \
 	--set springOverrides.okapi.clickhouse.host=$(CLICKHOUSE_HOST) \
 	--set springOverrides.okapi.clickhouse.port=$(CLICKHOUSE_PORT) \
@@ -348,7 +348,7 @@ test-run-ingester:
 	docker run -p 9009:9009 -d \
 	--network $(OKAPI_TEST_NET) \
 	--name okapi-ingester \
-	$(REPO)/okapi-ingester:$(TAG) \
+	$(REPO)/ingester:$(TAG) \
 	--okapi.clickhouse.host=okapi-clickhouse \
 	--okapi.chMetricsWal=/wal/metrics \
 	--okapi.chLogsWal=/wal/metrics \
@@ -363,7 +363,7 @@ test-run-web:
 	-e AWS_SECRET_ACCESS_KEY=$(AWS_SECRET_ACCESS_KEY) \
 	-e AWS_REGION=$(AWS_REGION) \
 	--name okapi-web \
-	$(REPO)/okapi-web:$(TAG) \
+	$(REPO)/web:$(TAG) \
 	--clusterEndpoint=http://okapi-ingester:9009
 
 test-run: test-run-ingester test-run-web
@@ -386,9 +386,9 @@ test: package test-infra start-okapi-ingester-jar start-okapi-web-jar
 		mvn test
 
 publish-docker:
-	docker push $(REPO)/okapi-web:$(TAG)
-	docker push $(REPO)/okapi-ingester:$(TAG)
-	docker push $(REPO)/okapi-ops:$(TAG)
+	docker push $(REPO)/web:$(TAG)
+	docker push $(REPO)/ingester:$(TAG)
+	docker push $(REPO)/ops:$(TAG)
 
 publish: publish-docker
 
