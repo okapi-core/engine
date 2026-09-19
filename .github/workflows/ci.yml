@@ -4,10 +4,12 @@ on:
   push:
     branches:
       - main
+      - fix/ghcr-package-linkage
   pull_request:
 
 permissions:
   contents: read
+  packages: write
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -123,6 +125,22 @@ jobs:
       - name: Run Docker smoke test
         run: |
           make docker-smoke \
+            REPO=ghcr.io/okapi-core \
+            TAG=ci-${GITHUB_SHA}
+
+      # Temporary end-to-end GHCR publishing check for the package-linkage PR.
+      - name: Log in to GHCR for publishing check
+        if: github.event_name == 'push' && github.ref == 'refs/heads/fix/ghcr-package-linkage'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push CI images for publishing check
+        if: github.event_name == 'push' && github.ref == 'refs/heads/fix/ghcr-package-linkage'
+        run: |
+          make docker-push-all \
             REPO=ghcr.io/okapi-core \
             TAG=ci-${GITHUB_SHA}
 
