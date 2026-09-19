@@ -2,7 +2,7 @@ replicaCount: 3
 
 image:
   repository: ghcr.io/okapi-core/ingester
-  tag: latest
+  tag: 0.0.2
   pullPolicy: IfNotPresent
 
 service:
@@ -14,11 +14,9 @@ springOverrides:
     port: 8080
   okapi:
     clickhouse:
-      host: okapi-clickhouse
+      host: <clickhouse-service>
       port: 8123
       secure: false
-      username: default
-      password: okapi_testing_password
       chMetricsWal: /tmp/okapi/wal/metrics
       chLogsWal: /tmp/okapi/wal/logs
       chTracesWal: /tmp/okapi/wal/traces
@@ -28,6 +26,14 @@ springOverrides:
         segmentSize: 1048576
       chTracesWalCfg:
         segmentSize: 1048576
+
+clickhouse:
+  host: <clickhouse-service>
+  port: 8123
+  secure: false
+  existingSecret: okapi-secrets
+  usernameKey: clickhouse-username
+  passwordKey: clickhouse-password
 
 hpa:
   enabled: true

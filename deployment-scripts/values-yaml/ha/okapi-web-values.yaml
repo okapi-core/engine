@@ -2,16 +2,31 @@ replicaCount: 3
 
 image:
   repository: ghcr.io/okapi-core/web
-  tag: latest
+  tag: 0.0.2
   pullPolicy: IfNotPresent
 
 service:
   type: ClusterIP
-  port: 8080
+  port: 9001
 
 springOverrides:
   server:
-    port: 8080
+    port: 9001
+
+ingester:
+  endpoint: http://ingester:9009
+
+oscar:
+  endpoint: http://oscar:9002
+
+postgres:
+  host: <postgres-service>
+  port: 5432
+  database: okapi_oscar
+  schema: okapi_web
+  existingSecret: okapi-secrets
+  usernameKey: web-username
+  passwordKey: web-password
 
 hpa:
   enabled: true
