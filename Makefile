@@ -103,7 +103,7 @@ HELM_INGESTER_FLAGS ?=
 HELM_OSCAR_FLAGS ?=
 HELM_WEB_FLAGS ?=
 
-.PHONY: test-infra test-infra-up test-infra-down init-test-postgres otel-harness otel-harness-down kill-stray-instances embed-frontend docker-okapi-ingester docker-okapi-web docker-okapi-ops docker-okapi-oscar docker-all docker-build-ci docker-publish docker-smoke-up docker-smoke-test docker-smoke-down docker-smoke docker-push-web docker-push-oscar docker-push-ingester docker-push-ops docker-push-all package-dashboard-yaml-lint lint-dashboard-yamls helm-infra-local helm-infra-down helm-local helm-local-down helm-okapi-web helm-okapi-ingester helm-okapi-oscar helm-okapi-ops helm-package release spotless
+.PHONY: test-infra test-infra-up test-infra-down init-test-postgres otel-harness otel-harness-down kill-stray-instances embed-frontend docker-okapi-ingester docker-okapi-web docker-okapi-ops docker-okapi-oscar docker-all docker-build-ci docker-publish docker-smoke-up docker-smoke-test docker-smoke-down docker-smoke docker-push-web docker-push-oscar docker-push-ingester docker-push-ops docker-push-all package-dashboard-yaml-lint lint-dashboard-yamls helm-infra-local helm-infra-down helm-local helm-local-down helm-okapi-web helm-okapi-ingester helm-okapi-oscar helm-okapi-ops helm-package helm-push release spotless
 
 spotless:
 	mvn spotless:apply
@@ -367,6 +367,8 @@ helm-package:
 	$(HELM) package helm/web --version $(HELM_CHART_VERSION) --app-version $(HELM_CHART_APP_VERSION) --destination $(HELM_CHART_DIST)
 	$(HELM) package helm/oscar --version $(HELM_CHART_VERSION) --app-version $(HELM_CHART_APP_VERSION) --destination $(HELM_CHART_DIST)
 	$(HELM) package helm/ops --version $(HELM_CHART_VERSION) --app-version $(HELM_CHART_APP_VERSION) --destination $(HELM_CHART_DIST)
+
+helm-push:
 	$(HELM) push $(HELM_CHART_DIST)/ingester-*.tgz $(HELM_CHART_REPO)
 	$(HELM) push $(HELM_CHART_DIST)/web-*.tgz $(HELM_CHART_REPO)
 	$(HELM) push $(HELM_CHART_DIST)/oscar-*.tgz $(HELM_CHART_REPO)
