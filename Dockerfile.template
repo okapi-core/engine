@@ -1,4 +1,7 @@
 FROM eclipse-temurin:21
+
+LABEL org.opencontainers.image.source="https://github.com/okapi-core/engine"
+
 ARG PORT
 ARG PROJECT
 ARG PROFILE=prod

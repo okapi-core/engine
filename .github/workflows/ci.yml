@@ -116,7 +116,7 @@ jobs:
 
       - name: Verify local Docker images
         run: |
-          for image in okapi-ingester okapi-web okapi-ops okapi-oscar; do
+          for image in ingester web ops oscar; do
             docker image inspect "ghcr.io/okapi-core/${image}:ci-${GITHUB_SHA}" >/dev/null
           done
 
