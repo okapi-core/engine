@@ -74,7 +74,7 @@ CLICKHOUSE_PASSWORD ?=
 OKAPI_CLUSTER_ENDPOINT ?= http://okapi-ingester.$(HELM_NS).svc.cluster.local:9009
 HELM_CHART_REPO ?= oci://ghcr.io/okapi-core
 HELM_CHART_DIST ?= helm/dist
-HELM_CHART_VERSION ?= 0.0.2
+HELM_CHART_VERSION ?=
 HELM_CHART_APP_VERSION ?= $(HELM_CHART_VERSION)
 HELM_LOCAL_TIMEOUT ?= 15m
 HELM_LOCAL_IMAGE_REPO ?= $(REPO)
@@ -361,6 +361,7 @@ helm-clickhouse:
 		$(HELM_FLAGS)
 
 helm-package:
+	@test -n "$(HELM_CHART_VERSION)" || (echo "HELM_CHART_VERSION is required, for example: make helm-package HELM_CHART_VERSION=0.0.3" >&2; exit 1)
 	rm -f $(HELM_CHART_DIST)/ingester-*.tgz $(HELM_CHART_DIST)/web-*.tgz $(HELM_CHART_DIST)/oscar-*.tgz $(HELM_CHART_DIST)/ops-*.tgz
 	mkdir -p $(HELM_CHART_DIST)
 	$(HELM) package helm/ingester --version $(HELM_CHART_VERSION) --app-version $(HELM_CHART_APP_VERSION) --destination $(HELM_CHART_DIST)
