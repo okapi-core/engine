@@ -6,6 +6,7 @@ TAG ?= latest
 DOCKER_BUILD ?= docker build
 DOCKER_PUSH ?= docker push
 DOCKER_PLATFORMS ?= linux/amd64,linux/arm64
+DOCKER_PLATFORM ?= linux/amd64
 FRONTEND_DIST ?= frontend/dist
 OKAPI_WEB_PUBLIC ?= okapi-web/src/main/resources/public
 GHCR_REGISTRY ?= ghcr.io
@@ -164,7 +165,7 @@ docker-okapi-oscar: package
 
 docker-all: docker-okapi-ingester docker-okapi-web docker-okapi-ops docker-okapi-oscar
 
-docker-build-ci: DOCKER_BUILD = docker buildx build --platform linux/amd64 --load
+docker-build-ci: DOCKER_BUILD = docker buildx build --platform $(DOCKER_PLATFORM) --load
 docker-build-ci: embed-frontend docker-all
 
 docker-publish: DOCKER_BUILD = docker buildx build --platform $(DOCKER_PLATFORMS) --push
