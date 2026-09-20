@@ -55,17 +55,24 @@ jobs:
       - name: Install test dependencies
         run: sudo apt-get update && sudo apt-get install --yes socat
 
+      - name: (trial-only) Set up Helm 3.17
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.17.3
+
       - name: Show tool versions
         run: |
           java -version
           mvn --version
           docker --version
           docker compose version
+          helm version --short
 
       - name: Validate Helm charts
         run: make helm-validate HELM_VALIDATE_VERSION=0.0.0-ci.${{ github.run_number }}
 
-      - name: Log in to GHCR for Helm chart validation
+      - name: (trial-only) Log in to GHCR for Helm chart validation
+        if: github.event_name == 'push'
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -73,7 +80,8 @@ jobs:
             --username "${{ github.actor }}" \
             --password-stdin
 
-      - name: Push Helm charts to GHCR for validation
+      - name: (trial-only) Push Helm charts to GHCR for validation
+        if: github.event_name == 'push'
         run: |
           make helm-package helm-push \
             HELM_CHART_VERSION=0.0.200 \
