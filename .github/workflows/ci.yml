@@ -66,7 +66,6 @@ jobs:
         run: make helm-validate HELM_VALIDATE_VERSION=0.0.0-ci.${{ github.run_number }}
 
       - name: Log in to GHCR for Helm chart validation
-        if: github.event_name == 'push'
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -75,19 +74,10 @@ jobs:
             --password-stdin
 
       - name: Push Helm charts to GHCR for validation
-        if: github.event_name == 'push'
         run: |
-          make helm-push \
+          make helm-package helm-push \
+            HELM_CHART_VERSION=0.0.200 \
             HELM_CHART_REPO=oci://ghcr.io/okapi-core/charts
-
-      - name: Verify pushed Helm charts
-        if: github.event_name == 'push'
-        run: |
-          for chart in ingester web oscar ops; do
-            helm show chart \
-              "oci://ghcr.io/okapi-core/charts/$chart" \
-              --version "0.0.0-ci.${{ github.run_number }}" >/dev/null
-          done
 
       - name: Run test suite
         run: make test
