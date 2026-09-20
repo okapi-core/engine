@@ -154,7 +154,12 @@ jobs:
             FRONTEND_DIST=frontend/dist
 
       - name: Package and publish Helm charts
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          printf '%s' "$GHCR_TOKEN" | helm registry login ghcr.io \
+            --username "${{ github.actor }}" \
+            --password-stdin
           make helm-push \
             HELM_CHART_REPO=oci://ghcr.io/okapi-core/charts
 
