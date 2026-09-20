@@ -155,7 +155,8 @@ jobs:
 
       - name: Package and publish Helm charts
         run: |
-          make helm-push
+          make helm-push \
+            HELM_CHART_REPO=oci://ghcr.io/okapi-core/charts
 
       - name: Upload test infrastructure logs
         if: always()

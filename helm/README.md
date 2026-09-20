@@ -10,7 +10,7 @@ assume ClickHouse and PostgreSQL are provided by the surrounding platform.
 | `oscar` | Oscar incident-triage service |
 | `web` | Okapi API and UI |
 
-The charts are published as OCI artifacts under `oci://ghcr.io/okapi-core`.
+The charts are published as OCI artifacts under `oci://ghcr.io/okapi-core/charts`.
 
 ## Local Minikube test
 
