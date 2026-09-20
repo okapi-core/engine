@@ -104,22 +104,22 @@ The charts are published as OCI artifacts in GHCR. For a release such as
 export OKAPI_VERSION=0.0.2
 export OKAPI_NAMESPACE=okapi
 
-helm upgrade --install ops oci://ghcr.io/okapi-core/ops \
+helm upgrade --install ops oci://ghcr.io/okapi-core/charts/ops \
   --version "$OKAPI_VERSION" \
   --namespace "$OKAPI_NAMESPACE" --create-namespace \
   -f deployment-artifacts/values-yaml/ha/ops-values.yaml --wait
 
-helm upgrade --install ingester oci://ghcr.io/okapi-core/ingester \
+helm upgrade --install ingester oci://ghcr.io/okapi-core/charts/ingester \
   --version "$OKAPI_VERSION" \
   --namespace "$OKAPI_NAMESPACE" \
   -f deployment-artifacts/values-yaml/ha/okapi-ingester-values.yaml --wait
 
-helm upgrade --install oscar oci://ghcr.io/okapi-core/oscar \
+helm upgrade --install oscar oci://ghcr.io/okapi-core/charts/oscar \
   --version "$OKAPI_VERSION" \
   --namespace "$OKAPI_NAMESPACE" \
   -f deployment-artifacts/values-yaml/ha/oscar-values.yaml --wait
 
-helm upgrade --install web oci://ghcr.io/okapi-core/web \
+helm upgrade --install web oci://ghcr.io/okapi-core/charts/web \
   --version "$OKAPI_VERSION" \
   --namespace "$OKAPI_NAMESPACE" \
   -f deployment-artifacts/values-yaml/ha/okapi-web-values.yaml --wait
