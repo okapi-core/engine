@@ -1,0 +1,145 @@
+version: 1
+dashboard:
+  id: otel-postgres-monitoring
+  title: PostgreSQL 16 Monitoring
+  description: PostgreSQL 16 connections, transactions, buffers, tables, and background writer metrics.
+  tags: [otel, postgres, monitoring]
+  rows:
+    - id: postgres-connections
+      title: Connections
+      panels:
+        - id: connection-max
+          title: Maximum Connections
+          grammar: OKAPI_JSON
+          queries:
+            - query: >
+                {"metric":"postgresql.connection.max","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+        - id: backends
+          title: Backends
+          grammar: OKAPI_JSON
+          queries:
+            - query: >
+                {"metric":"postgresql.backends","tags":{},"metricType":"SUM","sumsQueryConfig":{"temporality":"CUMULATIVE"}}
+    - id: postgres-transactions
+      title: Transactions
+      panels:
+        - id: commits
+          title: Commits
+          grammar: OKAPI_JSON
+          queries:
+            - query: >
+                {"metric":"postgresql.commits","tags":{},"metricType":"SUM","sumsQueryConfig":{"temporality":"CUMULATIVE"}}
+        - id: rollbacks
+          title: Rollbacks
+          grammar: OKAPI_JSON
+          queries:
+            - query: >
+                {"metric":"postgresql.rollbacks","tags":{},"metricType":"SUM","sumsQueryConfig":{"temporality":"CUMULATIVE"}}
+    - id: postgres-database
+      title: Database Objects and Size
+      panels:
+        - id: database-size
+          title: Database Size
+          grammar: OKAPI_JSON
+          queries:
+            - query: >
+                {"metric":"postgresql.db_size","tags":{},"metricType":"SUM","sumsQueryConfig":{"temporality":"CUMULATIVE"}}
+        - id: database-count
+          title: Databases
+          grammar: OKAPI_JSON
+          queries:
+            - query: >
+                {"metric":"postgresql.database.count","tags":{},"metricType":"SUM","sumsQueryConfig":{"temporality":"CUMULATIVE"}}
+        - id: table-count
+          title: Tables
+          grammar: OKAPI_JSON
+          queries:
+            - query: >
+                {"metric":"postgresql.table.count","tags":{},"metricType":"SUM","sumsQueryConfig":{"temporality":"CUMULATIVE"}}
+    - id: postgres-buffer-activity
+      title: Buffer and Tuple Activity
+      panels:
+        - id: blocks-hit
+          title: Blocks Hit
+          grammar: OKAPI_JSON
+          queries:
+            - query: >
+                {"metric":"postgresql.blks_hit","tags":{},"metricType":"SUM","sumsQueryConfig":{"temporality":"CUMULATIVE"}}
+        - id: blocks-read
+          title: Blocks Read
+          grammar: OKAPI_JSON
+          queries:
+            - query: >
+                {"metric":"postgresql.blks_read","tags":{},"metricType":"SUM","sumsQueryConfig":{"temporality":"CUMULATIVE"}}
+        - id: tuples-fetched
+          title: Tuples Fetched
+          grammar: OKAPI_JSON
+          queries:
+            - query: >
+                {"metric":"postgresql.tup_fetched","tags":{},"metricType":"SUM","sumsQueryConfig":{"temporality":"CUMULATIVE"}}
+        - id: tuples-returned
+          title: Tuples Returned
+          grammar: OKAPI_JSON
+          queries:
+            - query: >
+                {"metric":"postgresql.tup_returned","tags":{},"metricType":"SUM","sumsQueryConfig":{"temporality":"CUMULATIVE"}}
+        - id: tuples-inserted
+          title: Tuples Inserted
+          grammar: OKAPI_JSON
+          queries:
+            - query: >
+                {"metric":"postgresql.tup_inserted","tags":{},"metricType":"SUM","sumsQueryConfig":{"temporality":"CUMULATIVE"}}
+        - id: tuples-updated
+          title: Tuples Updated
+          grammar: OKAPI_JSON
+          queries:
+            - query: >
+                {"metric":"postgresql.tup_updated","tags":{},"metricType":"SUM","sumsQueryConfig":{"temporality":"CUMULATIVE"}}
+        - id: tuples-deleted
+          title: Tuples Deleted
+          grammar: OKAPI_JSON
+          queries:
+            - query: >
+                {"metric":"postgresql.tup_deleted","tags":{},"metricType":"SUM","sumsQueryConfig":{"temporality":"CUMULATIVE"}}
+    - id: postgres-background-writer
+      title: Background Writer
+      panels:
+        - id: buffers-allocated
+          title: Buffers Allocated
+          grammar: OKAPI_JSON
+          queries:
+            - query: >
+                {"metric":"postgresql.bgwriter.buffers.allocated","tags":{},"metricType":"SUM","sumsQueryConfig":{"temporality":"CUMULATIVE"}}
+        - id: buffers-written
+          title: Buffers Written
+          grammar: OKAPI_JSON
+          queries:
+            - query: >
+                {"metric":"postgresql.bgwriter.buffers.writes","tags":{},"metricType":"SUM","sumsQueryConfig":{"temporality":"CUMULATIVE"}}
+        - id: checkpoint-count
+          title: Checkpoints
+          grammar: OKAPI_JSON
+          queries:
+            - query: >
+                {"metric":"postgresql.bgwriter.checkpoint.count","tags":{},"metricType":"SUM","sumsQueryConfig":{"temporality":"CUMULATIVE"}}
+        - id: checkpoint-duration
+          title: Checkpoint Duration
+          grammar: OKAPI_JSON
+          queries:
+            - query: >
+                {"metric":"postgresql.bgwriter.duration","tags":{},"metricType":"SUM","sumsQueryConfig":{"temporality":"CUMULATIVE"}}
+        - id: maxwritten-clean
+          title: Maxwritten Clean
+          grammar: OKAPI_JSON
+          queries:
+            - query: >
+                {"metric":"postgresql.bgwriter.maxwritten","tags":{},"metricType":"SUM","sumsQueryConfig":{"temporality":"CUMULATIVE"}}
+    - id: postgres-locks
+      title: Locks and Deadlocks
+      panels:
+        - id: deadlocks
+          title: Deadlocks
+          grammar: OKAPI_JSON
+          queries:
+            - query: >
+                {"metric":"postgresql.deadlocks","tags":{},"metricType":"SUM","sumsQueryConfig":{"temporality":"CUMULATIVE"}}
