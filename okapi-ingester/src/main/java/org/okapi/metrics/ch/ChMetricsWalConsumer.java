@@ -263,8 +263,6 @@ public class ChMetricsWalConsumer {
       writeLoad.putAll(ChConstants.TBL_METRIC_EVENTS_META, sumWrites.meta());
       writeLoad.putAll(ChConstants.TBL_METRIC_EVENTS_META, exponentialHistoWrites.meta());
       var exemplarRows = exemplarWriteWork(req);
-      log.info(
-          "Writing {} exemplar rows to table {}", exemplarRows.rows.size(), exemplarRows.mainTable);
       writeLoad.putAll(ChConstants.TBL_EXEMPLAR, exemplarRows.rows());
     }
 

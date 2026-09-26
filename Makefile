@@ -14,7 +14,7 @@ CI_DOCKER_REPO ?= $(REPO)
 DOCKER_COMPOSE ?= docker compose
 SMOKE_COMPOSE ?= compose.docker-smoke.yaml
 SMOKE_PROJECT ?= okapi-docker-smoke
-OTEL_DEMO_COMMIT ?= 4baa77b
+OTEL_DEMO_COMMIT ?= 1755859
 OTEL_DEMO_DIR ?= $(HOME)/.harness/otel-demo
 OTEL_DEMO_REPO ?= https://github.com/open-telemetry/opentelemetry-demo.git
 
