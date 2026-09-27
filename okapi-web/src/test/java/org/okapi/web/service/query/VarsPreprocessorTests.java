@@ -39,15 +39,15 @@ public class VarsPreprocessorTests {
   void malformedVar() {
     var template = "hello $__{value";
     Assertions.assertThrows(
-            MalformedQueryException.class,
-            () -> VarsPreprocessor.substituteVars(template, Map.of("value", "world")));
+        MalformedQueryException.class,
+        () -> VarsPreprocessor.substituteVars(template, Map.of("value", "world")));
   }
 
   @Test
   void twoVars() throws MalformedQueryException {
     var template = "hello $__{value1} $__{value2}";
     var resub =
-            VarsPreprocessor.substituteVars(template, Map.of("value1", "world", "value2", "again"));
+        VarsPreprocessor.substituteVars(template, Map.of("value1", "world", "value2", "again"));
     Assertions.assertEquals("hello world again", resub);
   }
 
