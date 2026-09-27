@@ -119,3 +119,63 @@ ClickHouse exposes thousands of metrics. For a focused dashboard deployment,
 use a Prometheus `metric_relabel_configs` keep-list containing the metrics
 used by the dashboard. This reduces OTLP payload size and avoids delaying
 ingestion of the dashboard's time series.
+
+## Kafka
+
+The Kafka dashboards consume the metric names emitted by the OpenTelemetry
+Collector's `kafkametrics` receiver. The Collector connects to Kafka and
+exports the resulting metrics to Okapi; Okapi does not need direct network
+access to the Kafka brokers.
+
+For a cluster without authentication, configure the receiver and an OTLP/HTTP
+metrics pipeline as follows:
+
+```yaml
+receivers:
+  kafkametrics:
+    brokers:
+      - kafka-1:9092
+      # - kafka-2:9092
+    protocol_version: 2.8.0
+    collection_interval: 15s
+    scrapers:
+      - brokers
+      - topics
+      - consumers
+
+processors:
+  batch: {}
+
+exporters:
+  otlphttp/okapi:
+    # The exporter appends /v1/metrics.
+    endpoint: http://localhost:9009
+    compression: none
+    headers:
+      Content-Type: application/octet-stream
+
+service:
+  pipelines:
+    metrics:
+      receivers: [kafkametrics]
+      processors: [batch]
+      exporters: [otlphttp/okapi]
+```
+
+Replace `kafka-1:9092` with an address reachable from the Collector, and
+replace the Okapi endpoint when the ingester is not running locally. Configure
+TLS and/or SASL in the receiver when the Kafka cluster requires authentication.
+The `brokers` scraper reports cluster metrics, `topics` reports topic and
+partition metrics, and `consumers` reports consumer-group offsets, lag, and
+membership.
+
+Consumer dashboards only have data for groups that exist in Kafka. Create and
+run a consumer for the target topic before selecting the `group`, `topic`, and
+`partition` dashboard variables.
+
+The Kafka dashboards are:
+
+- [`kafka-broker-overview.v2.yaml`](kafka/kafka-broker-overview.v2.yaml)
+- [`kafka-topic-partition-offsets.v2.yaml`](kafka/kafka-topic-partition-offsets.v2.yaml)
+- [`kafka-consumer-group-lag.v2.yaml`](kafka/kafka-consumer-group-lag.v2.yaml)
+- [`kafka-consumer-offsets.v2.yaml`](kafka/kafka-consumer-offsets.v2.yaml)
