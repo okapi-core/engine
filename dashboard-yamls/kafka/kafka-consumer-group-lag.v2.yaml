@@ -2,12 +2,12 @@ version: 1
 dashboard:
   id: otel-kafka-consumer-group-lag
   title: Kafka Consumer Group Lag
-  description: Consumer lag and group health from the Kafka metrics receiver.
+  description: Consumer lag and group health from the OTel Kafka metrics receiver.
   tags: [otel, kafka, kafkametrics, monitoring]
   vars:
-    - name: consumer_group
+    - name: group
       type: TAG_VALUE
-      tag: consumer_group
+      tag: group
     - name: topic
       type: TAG_VALUE
       tag: topic
@@ -23,16 +23,16 @@ dashboard:
           grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"kafka.consumer_group.lag","tags":{"consumer_group":"$__{consumer_group}","topic":"$__{topic}","partition":"$__{partition}"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
-        - id: consumer-group-lag-max
-          title: Consumer Group Lag (Max)
+                {"metric":"kafka.consumer_group.lag","tags":{"group":"$__{group}","topic":"$__{topic}","partition":"$__{partition}"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+        - id: consumer-group-lag-sum
+          title: Consumer Group Lag Sum
           grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"kafka.consumer_group.lag","tags":{"consumer_group":"$__{consumer_group}","topic":"$__{topic}","partition":"$__{partition}"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"MAX"}}
+                {"metric":"kafka.consumer_group.lag_sum","tags":{"group":"$__{group}","topic":"$__{topic}"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
         - id: consumer-group-members
           title: Consumer Group Members
           grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"kafka.consumer_group.members","tags":{"consumer_group":"$__{consumer_group}"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"kafka.consumer_group.members","tags":{"group":"$__{group}"},"metricType":"SUM","sumsQueryConfig":{"temporality":"CUMULATIVE"}}

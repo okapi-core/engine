@@ -2,12 +2,12 @@ version: 1
 dashboard:
   id: otel-kafka-consumer-offsets
   title: Kafka Consumer Offsets
-  description: Consumer group offsets per topic and partition.
+  description: Consumer group offsets from the OTel Kafka metrics receiver.
   tags: [otel, kafka, kafkametrics, monitoring]
   vars:
-    - name: consumer_group
+    - name: group
       type: TAG_VALUE
-      tag: consumer_group
+      tag: group
     - name: topic
       type: TAG_VALUE
       tag: topic
@@ -23,10 +23,10 @@ dashboard:
           grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"kafka.consumer_group.offset","tags":{"consumer_group":"$__{consumer_group}","topic":"$__{topic}","partition":"$__{partition}"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
-        - id: consumer-group-offset-max
-          title: Consumer Group Offset (Max)
+                {"metric":"kafka.consumer_group.offset","tags":{"group":"$__{group}","topic":"$__{topic}","partition":"$__{partition}"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+        - id: consumer-group-offset-sum
+          title: Consumer Group Offset Sum
           grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"kafka.consumer_group.offset","tags":{"consumer_group":"$__{consumer_group}","topic":"$__{topic}","partition":"$__{partition}"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"MAX"}}
+                {"metric":"kafka.consumer_group.offset_sum","tags":{"group":"$__{group}","topic":"$__{topic}"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
