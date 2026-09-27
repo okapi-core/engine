@@ -2,12 +2,9 @@ version: 1
 dashboard:
   id: otel-kafka-topic-partition-offsets
   title: Kafka Topic & Partition Offsets
-  description: Per-topic and per-partition offsets from Kafka broker JMX.
-  tags: [otel, kafka, jmx, monitoring]
+  description: Per-topic and per-partition offsets from the OTel Kafka metrics receiver.
+  tags: [otel, kafka, kafkametrics, monitoring]
   vars:
-    - name: service_instance_id
-      type: TAG_VALUE
-      tag: service_instance_id
     - name: topic
       type: TAG_VALUE
       tag: topic
@@ -18,21 +15,15 @@ dashboard:
     - id: kafka-offsets
       title: Offsets
       panels:
-        - id: log-end-offset
-          title: Log End Offset
+        - id: current-offset
+          title: Current Offset
           grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"kafka.log.end_offset","tags":{"topic":"$__{topic}","partition":"$__{partition}"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
-        - id: log-start-offset
-          title: Log Start Offset
+                {"metric":"kafka.partition.current_offset","tags":{"topic":"$__{topic}","partition":"$__{partition}"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+        - id: oldest-offset
+          title: Oldest Offset
           grammar: OKAPI_JSON
           queries:
             - query: >
-                {"metric":"kafka.log.start_offset","tags":{"topic":"$__{topic}","partition":"$__{partition}"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
-        - id: log-size
-          title: Log Size
-          grammar: OKAPI_JSON
-          queries:
-            - query: >
-                {"metric":"kafka.log.size","tags":{"topic":"$__{topic}","partition":"$__{partition}"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+                {"metric":"kafka.partition.oldest_offset","tags":{"topic":"$__{topic}","partition":"$__{partition}"},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}

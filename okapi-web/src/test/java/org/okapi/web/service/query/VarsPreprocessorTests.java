@@ -3,6 +3,7 @@
  */
 package org.okapi.web.service.query;
 
+import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -22,6 +23,16 @@ public class VarsPreprocessorTests {
     var template = "hello $__{value}";
     var resub = VarsPreprocessor.substituteVars(template, Map.of("value1", ""));
     Assertions.assertEquals("hello ", resub);
+  }
+
+  @Test
+  void nullValueVar() throws MalformedQueryException {
+    var vars = new HashMap<String, String>();
+    vars.put("value", null);
+
+    var resub = VarsPreprocessor.substituteVars("hello $__{value}", vars);
+
+    Assertions.assertEquals("hello null", resub);
   }
 
   @Test

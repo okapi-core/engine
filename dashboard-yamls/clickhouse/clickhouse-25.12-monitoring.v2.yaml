@@ -1,0 +1,148 @@
+version: 1
+dashboard:
+  id: otel-clickhouse-monitoring
+  title: ClickHouse 25.12 Monitoring
+  description: ClickHouse 25.12 query, concurrency, memory, storage, and mutation metrics.
+  tags: [otel, clickhouse, monitoring]
+  rows:
+    - id: clickhouse-query-activity
+      title: Query Activity
+      panels:
+        - id: queries
+          title: Queries
+          grammar: OKAPI_JSON
+          queries:
+            - query: >
+                {"metric":"ClickHouseProfileEvents_Query","tags":{},"metricType":"SUM","sumsQueryConfig":{"temporality":"CUMULATIVE"}}
+        - id: select-queries
+          title: Select Queries
+          grammar: OKAPI_JSON
+          queries:
+            - query: >
+                {"metric":"ClickHouseProfileEvents_SelectQuery","tags":{},"metricType":"SUM","sumsQueryConfig":{"temporality":"CUMULATIVE"}}
+        - id: insert-queries
+          title: Insert Queries
+          grammar: OKAPI_JSON
+          queries:
+            - query: >
+                {"metric":"ClickHouseProfileEvents_InsertQuery","tags":{},"metricType":"SUM","sumsQueryConfig":{"temporality":"CUMULATIVE"}}
+        - id: selected-rows
+          title: Selected Rows
+          grammar: OKAPI_JSON
+          queries:
+            - query: >
+                {"metric":"ClickHouseProfileEvents_SelectedRows","tags":{},"metricType":"SUM","sumsQueryConfig":{"temporality":"CUMULATIVE"}}
+        - id: selected-bytes
+          title: Selected Bytes
+          grammar: OKAPI_JSON
+          queries:
+            - query: >
+                {"metric":"ClickHouseProfileEvents_SelectedBytes","tags":{},"metricType":"SUM","sumsQueryConfig":{"temporality":"CUMULATIVE"}}
+        - id: inserted-rows
+          title: Inserted Rows
+          grammar: OKAPI_JSON
+          queries:
+            - query: >
+                {"metric":"ClickHouseProfileEvents_InsertedRows","tags":{},"metricType":"SUM","sumsQueryConfig":{"temporality":"CUMULATIVE"}}
+        - id: inserted-bytes
+          title: Inserted Bytes
+          grammar: OKAPI_JSON
+          queries:
+            - query: >
+                {"metric":"ClickHouseProfileEvents_InsertedBytes","tags":{},"metricType":"SUM","sumsQueryConfig":{"temporality":"CUMULATIVE"}}
+    - id: clickhouse-concurrency
+      title: Concurrency
+      panels:
+        - id: queries-active
+          title: Active Queries
+          grammar: OKAPI_JSON
+          queries:
+            - query: >
+                {"metric":"ClickHouseMetrics_Query","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+        - id: non-internal-queries
+          title: Non-Internal Queries
+          grammar: OKAPI_JSON
+          queries:
+            - query: >
+                {"metric":"ClickHouseMetrics_QueryNonInternal","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+        - id: query-threads
+          title: Query Threads
+          grammar: OKAPI_JSON
+          queries:
+            - query: >
+                {"metric":"ClickHouseMetrics_QueryThread","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+        - id: merge-tasks
+          title: Merge Tasks
+          grammar: OKAPI_JSON
+          queries:
+            - query: >
+                {"metric":"ClickHouseMetrics_MergeTreeBackgroundExecutorThreadsActive","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+        - id: merges
+          title: Merges
+          grammar: OKAPI_JSON
+          queries:
+            - query: >
+                {"metric":"ClickHouseMetrics_Merge","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+    - id: clickhouse-memory-storage
+      title: Memory and Storage
+      panels:
+        - id: memory-tracking
+          title: Memory Tracking
+          grammar: OKAPI_JSON
+          queries:
+            - query: >
+                {"metric":"ClickHouseMetrics_MemoryTracking","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+        - id: memory-resident
+          title: Resident Memory
+          grammar: OKAPI_JSON
+          queries:
+            - query: >
+                {"metric":"ClickHouseAsyncMetrics_MemoryResident","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+        - id: disk-used
+          title: Disk Used
+          grammar: OKAPI_JSON
+          queries:
+            - query: >
+                {"metric":"ClickHouseAsyncMetrics_DiskUsed_default","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+        - id: disk-available
+          title: Disk Available
+          grammar: OKAPI_JSON
+          queries:
+            - query: >
+                {"metric":"ClickHouseAsyncMetrics_DiskAvailable_default","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+    - id: clickhouse-mutations
+      title: Mutations
+      panels:
+        - id: mutated-rows
+          title: Mutated Rows
+          grammar: OKAPI_JSON
+          queries:
+            - query: >
+                {"metric":"ClickHouseProfileEvents_MutatedRows","tags":{},"metricType":"SUM","sumsQueryConfig":{"temporality":"CUMULATIVE"}}
+        - id: delayed-mutations
+          title: Delayed Mutations
+          grammar: OKAPI_JSON
+          queries:
+            - query: >
+                {"metric":"ClickHouseProfileEvents_DelayedMutations","tags":{},"metricType":"SUM","sumsQueryConfig":{"temporality":"CUMULATIVE"}}
+        - id: merge-parts
+          title: Merge Parts
+          grammar: OKAPI_JSON
+          queries:
+            - query: >
+                {"metric":"ClickHouseMetrics_MergeParts","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+    - id: clickhouse-runtime
+      title: Runtime
+      panels:
+        - id: load-average
+          title: Load Average
+          grammar: OKAPI_JSON
+          queries:
+            - query: >
+                {"metric":"ClickHouseAsyncMetrics_LoadAverage1","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}
+        - id: uptime
+          title: Uptime
+          grammar: OKAPI_JSON
+          queries:
+            - query: >
+                {"metric":"ClickHouseAsyncMetrics_Uptime","tags":{},"metricType":"GAUGE","gaugeQueryConfig":{"resolution":"SECONDLY","aggregation":"AVG"}}

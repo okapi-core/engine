@@ -4,6 +4,7 @@
 package org.okapi.web.service.query;
 
 import java.util.Map;
+import org.apache.logging.log4j.util.Strings;
 import org.okapi.exceptions.MalformedQueryException;
 
 public class VarsPreprocessor {
@@ -30,7 +31,7 @@ public class VarsPreprocessor {
         }
         var var = varRegister.toString();
         varRegister.setLength(0);
-        var varValue = vars.getOrDefault(var, "");
+        var varValue = decodeVar(vars, var);
         resub.append(varValue);
         i = j;
       } else {
@@ -38,5 +39,10 @@ public class VarsPreprocessor {
       }
     }
     return resub.toString();
+  }
+
+  private static String decodeVar(Map<String, String> vars, String key) {
+    if (vars == null) return Strings.EMPTY;
+    else return vars.getOrDefault(key, Strings.EMPTY);
   }
 }

@@ -220,6 +220,9 @@ Run the collector with:
 otelcol --config otel-collector.yaml
 ```
 
+For the database-specific prerequisites and tested PostgreSQL and ClickHouse
+dashboard configurations, see the [dashboard YAML documentation](./dashboard-yamls/README.md).
+
 For a remote or Kubernetes installation, replace `http://localhost:9009` with
 the externally reachable Okapi ingester endpoint. Keep the tenant header
 consistent with the tenant used by the Okapi installation.
