@@ -48,18 +48,18 @@ public class CreateChTablesSpec {
   }
 
   public static void migrate(Client client) {
-    client.queryAll("CREATE DATABASE IF NOT EXISTS okapi_metrics");
-    client.queryAll(getCreateGaugeTableSpec());
-    client.queryAll(getCreateHistoTableSpec());
-    client.queryAll(getCreateExponentialHistoTableSpec());
-    client.queryAll(getCreateSumTableSpec());
-    client.queryAll(getCreateMetricEventsMetaTableSpec());
-    client.queryAll(getExemplarsTableSpec());
-    client.queryAll("CREATE DATABASE IF NOT EXISTS okapi_traces");
+    client.queryAll("CREATE DATABASE IF NOT EXISTS okapi_metrics ON CLUSTER 'okapi'");
+    for (var tableSpec : ChTableSpec.getAllMetricLocalTables()) {
+      client.queryAll(tableSpec);
+    }
+    for (var tableSpec : ChTableSpec.getAllMetricDistributedTables()) {
+      client.queryAll(tableSpec);
+    }
+    client.queryAll("CREATE DATABASE IF NOT EXISTS okapi_traces ON CLUSTER 'okapi'");
     client.queryAll(getTracesTableSpec());
     client.queryAll(getSpansIngestedAttribsTableSpec());
     client.queryAll(getServiceRedEventsTableSpec());
-    client.queryAll("CREATE DATABASE IF NOT EXISTS okapi_logs");
+    client.queryAll("CREATE DATABASE IF NOT EXISTS okapi_logs ON CLUSTER 'okapi'");
     client.queryAll(getLogsTableSpec());
   }
 }

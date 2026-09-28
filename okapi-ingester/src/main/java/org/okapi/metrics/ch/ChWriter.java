@@ -5,6 +5,7 @@ package org.okapi.metrics.ch;
 
 import com.clickhouse.client.api.Client;
 import com.clickhouse.client.api.insert.InsertResponse;
+import com.clickhouse.client.api.insert.InsertSettings;
 import com.clickhouse.data.ClickHouseFormat;
 import com.google.common.collect.Multimap;
 import com.google.gson.Gson;
@@ -25,6 +26,10 @@ public class ChWriter {
   private final Client client;
   private final OkapiInternalMetrics metrics;
   private final Gson gson = new Gson();
+  private static final InsertSettings SYNCHRONOUS_INSERT_SETTINGS =
+      new InsertSettings()
+          .serverSetting("async_insert", "0")
+          .serverSetting("wait_for_async_insert", "1");
   private static final DateTimeFormatter TS_FMT =
       DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS").withZone(ZoneOffset.UTC);
 
@@ -48,7 +53,7 @@ public class ChWriter {
   public Future<InsertResponse> writeRows(String table, Collection<String> jsonRows) {
     var rows = toJsonEachRow(jsonRows).getBytes();
     var bis = new ByteArrayInputStream(rows);
-    return client.insert(table, bis, ClickHouseFormat.JSONEachRow);
+    return client.insert(table, bis, ClickHouseFormat.JSONEachRow, SYNCHRONOUS_INSERT_SETTINGS);
   }
 
   public List<Future<InsertResponse>> writeAll(Multimap<String, String> writeLoad) {
@@ -90,7 +95,8 @@ public class ChWriter {
             .toList();
     var data = toJsonEachRow(jsonRows).getBytes();
     var bis = new ByteArrayInputStream(data);
-    return client.insert(ChConstants.TBL_HISTOS, bis, ClickHouseFormat.JSONEachRow);
+    return client.insert(
+        ChConstants.TBL_HISTOS, bis, ClickHouseFormat.JSONEachRow, SYNCHRONOUS_INSERT_SETTINGS);
   }
 
   private static long totalCount(long[] counts) {

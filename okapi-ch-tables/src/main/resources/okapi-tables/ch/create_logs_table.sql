@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS okapi_logs.logs_table_v1
+CREATE TABLE IF NOT EXISTS okapi_logs.logs_table_v1 ON CLUSTER 'okapi'
 (
     ts_ns Int64,
     log_stream LowCardinality(String),

@@ -1,0 +1,7 @@
+<clickhouse>
+    <macros>
+        <cluster>okapi</cluster>
+        <shard>1</shard>
+        <replica>1</replica>
+    </macros>
+</clickhouse>

@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS okapi_metrics.metric_exemplars (
+CREATE TABLE IF NOT EXISTS okapi_metrics.metric_exemplars_local ON CLUSTER 'okapi' (
     ts_nanos Int64,
     metric_name String CODEC(ZSTD),
     tags Map(String, String),
@@ -9,6 +9,6 @@ CREATE TABLE IF NOT EXISTS okapi_metrics.metric_exemplars (
     int_value Int64,
     attributes_kv_list_json String CODEC(ZSTD)
 )
-ENGINE = MergeTree
+ENGINE = ReplicatedMergeTree('/clickhouse/tables/{shard}/okapi_metrics/metric_exemplars', '{replica}')
 PARTITION BY toStartOfHour(toDateTime(ts_nanos / 1000000000))
 ORDER BY (ts_nanos, metric_name, trace_id);

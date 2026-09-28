@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS okapi_traces.spans_table_v1 (
+CREATE TABLE IF NOT EXISTS okapi_traces.spans_table_v1 ON CLUSTER 'okapi' (
     ts_start_ns Int64,
     ts_end_ns Int64,
     span_id String CODEC(ZSTD),

@@ -31,18 +31,18 @@ public class CreateChTables implements CommandLineRunner {
   }
 
   public static void migrate(Client client) {
-    client.queryAll("CREATE DATABASE IF NOT EXISTS okapi_metrics");
-    client.queryAll(ChTableSpec.getGaugeTableSpec());
-    client.queryAll(ChTableSpec.getHistoTableSpec());
-    client.queryAll(ChTableSpec.getExponentialHistoTableSpec());
-    client.queryAll(ChTableSpec.getSumTableSpec());
-    client.queryAll(ChTableSpec.getMetricEventsMetaTableSpec());
-    client.queryAll(ChTableSpec.getExemplarsTableSpec());
-    client.queryAll("CREATE DATABASE IF NOT EXISTS okapi_traces");
+    client.queryAll("CREATE DATABASE IF NOT EXISTS okapi_metrics ON CLUSTER 'okapi'");
+    for (var tableSpec : ChTableSpec.getAllMetricLocalTables()) {
+      client.queryAll(tableSpec);
+    }
+    for (var tableSpec : ChTableSpec.getAllMetricDistributedTables()) {
+      client.queryAll(tableSpec);
+    }
+    client.queryAll("CREATE DATABASE IF NOT EXISTS okapi_traces ON CLUSTER 'okapi'");
     client.queryAll(ChTableSpec.getTracesTableSpec());
     client.queryAll(ChTableSpec.getSpansIngestedAttribsTableSpec());
     client.queryAll(ChTableSpec.getServiceRedEventsTableSpec());
-    client.queryAll("CREATE DATABASE IF NOT EXISTS okapi_logs");
+    client.queryAll("CREATE DATABASE IF NOT EXISTS okapi_logs ON CLUSTER 'okapi'");
     client.queryAll(ChTableSpec.getLogsTableSpec());
   }
 }

@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS okapi_metrics.histo_raw_samples (
+CREATE TABLE IF NOT EXISTS okapi_metrics.histo_raw_samples_local ON CLUSTER 'okapi' (
     metric_name LowCardinality(String),
     tags Map(String, String),
     ts_start DateTime64(3, 'UTC'),
@@ -14,6 +14,6 @@ CREATE TABLE IF NOT EXISTS okapi_metrics.histo_raw_samples (
     day UInt8 DEFAULT toStartOfDay(ts_start),
     month UInt8 DEFAULT toStartOfMonth(ts_start)
 )
-ENGINE = MergeTree
+ENGINE = ReplicatedMergeTree('/clickhouse/tables/{shard}/okapi_metrics/histo_raw_samples', '{replica}')
 PARTITION BY toYYYYMM(ts_start)
 ORDER BY (metric_name, toUnixTimestamp(ts_start));

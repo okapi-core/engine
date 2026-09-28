@@ -15,27 +15,75 @@ public final class ChTableSpec {
   private ChTableSpec() {}
 
   public static String getGaugeTableSpec() {
+    return getGaugeDistributedTableSpec();
+  }
+
+  public static String getGaugeLocalTableSpec() {
     return readResource("create_metrics_table.sql");
   }
 
+  public static String getGaugeDistributedTableSpec() {
+    return readResource("create_metrics_distributed_table.sql");
+  }
+
   public static String getHistoTableSpec() {
+    return getHistoDistributedTableSpec();
+  }
+
+  public static String getHistoLocalTableSpec() {
     return readResource("create_histos_table.sql");
   }
 
+  public static String getHistoDistributedTableSpec() {
+    return readResource("create_histos_distributed_table.sql");
+  }
+
   public static String getExponentialHistoTableSpec() {
+    return getExponentialHistoDistributedTableSpec();
+  }
+
+  public static String getExponentialHistoLocalTableSpec() {
     return readResource("create_exponential_histos_table.sql");
   }
 
+  public static String getExponentialHistoDistributedTableSpec() {
+    return readResource("create_exponential_histos_distributed_table.sql");
+  }
+
   public static String getSumTableSpec() {
+    return getSumDistributedTableSpec();
+  }
+
+  public static String getSumLocalTableSpec() {
     return readResource("create_sums_raw_samples.sql");
   }
 
+  public static String getSumDistributedTableSpec() {
+    return readResource("create_sums_distributed_table.sql");
+  }
+
   public static String getMetricEventsMetaTableSpec() {
+    return getMetricEventsMetaDistributedTableSpec();
+  }
+
+  public static String getMetricEventsMetaLocalTableSpec() {
     return readResource("create_metric_events_stream_meta.sql");
   }
 
+  public static String getMetricEventsMetaDistributedTableSpec() {
+    return readResource("create_metric_events_stream_meta_distributed_table.sql");
+  }
+
   public static String getExemplarsTableSpec() {
+    return getExemplarsDistributedTableSpec();
+  }
+
+  public static String getExemplarsLocalTableSpec() {
     return readResource("create_exemplar_table.sql");
+  }
+
+  public static String getExemplarsDistributedTableSpec() {
+    return readResource("create_exemplars_distributed_table.sql");
   }
 
   public static String getTracesTableSpec() {
@@ -67,6 +115,28 @@ public final class ChTableSpec {
         getSpansIngestedAttribsTableSpec(),
         getServiceRedEventsTableSpec(),
         getLogsTableSpec());
+  }
+
+  /** Returns the local metric tables that must exist before distributed tables are created. */
+  public static List<String> getAllMetricLocalTables() {
+    return List.of(
+        getGaugeLocalTableSpec(),
+        getHistoLocalTableSpec(),
+        getExponentialHistoLocalTableSpec(),
+        getSumLocalTableSpec(),
+        getMetricEventsMetaLocalTableSpec(),
+        getExemplarsLocalTableSpec());
+  }
+
+  /** Returns the distributed metric tables exposed to application queries and writes. */
+  public static List<String> getAllMetricDistributedTables() {
+    return List.of(
+        getGaugeDistributedTableSpec(),
+        getHistoDistributedTableSpec(),
+        getExponentialHistoDistributedTableSpec(),
+        getSumDistributedTableSpec(),
+        getMetricEventsMetaDistributedTableSpec(),
+        getExemplarsDistributedTableSpec());
   }
 
   private static String readResource(String resourceName) {

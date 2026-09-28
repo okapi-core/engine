@@ -393,7 +393,7 @@ run-zk:
 	$(DOCKER_CMD) zookeeper --network $(OKAPI_TEST_NET) -p 2181:2181 zookeeper:latest
 
 ch:
-	$(TEST_INFRA_ENV) $(DOCKER_COMPOSE) -f $(TEST_INFRA_COMPOSE) up -d --wait clickhouse
+	$(TEST_INFRA_ENV) $(DOCKER_COMPOSE) -f $(TEST_INFRA_COMPOSE) up --build -d --wait clickhouse clickhouse-2
 
 postgres:
 	$(TEST_INFRA_ENV) $(DOCKER_COMPOSE) -f $(TEST_INFRA_COMPOSE) up -d --wait postgres
@@ -452,7 +452,7 @@ setup-test-infra:
 		exit 1; \
 	fi
 	$(TEST_INFRA_ENV) $(DOCKER_COMPOSE) -f $(TEST_INFRA_COMPOSE) \
-		up -d --wait clickhouse postgres vault
+		up --build -d --wait clickhouse clickhouse-2 postgres vault
 	$(MAKE) init-test-postgres
 	$(TEST_INFRA_ENV) OPENAI_API_KEY="$(OPENAI_API_KEY)" \
 		$(DOCKER_COMPOSE) -f $(TEST_INFRA_COMPOSE) --profile init run --rm vault-init

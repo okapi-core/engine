@@ -6,6 +6,7 @@ package org.okapi.ch;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -38,5 +39,26 @@ class ChTableSpecTest {
     assertEquals(ChTableSpec.getSpansIngestedAttribsTableSpec(), specs.get(7));
     assertEquals(ChTableSpec.getServiceRedEventsTableSpec(), specs.get(8));
     assertEquals(ChTableSpec.getLogsTableSpec(), specs.get(9));
+  }
+
+  @Test
+  void metricTablesExposeLocalAndDistributedDefinitions() {
+    var localSpecs = ChTableSpec.getAllMetricLocalTables();
+    var distributedSpecs = ChTableSpec.getAllMetricDistributedTables();
+
+    assertEquals(6, localSpecs.size());
+    assertEquals(6, distributedSpecs.size());
+    for (var spec : localSpecs) {
+      assertFalse(spec.isBlank());
+      assertFalse(spec.contains("ENGINE = Distributed"));
+      assertTrue(spec.contains("ENGINE = ReplicatedMergeTree"));
+    }
+    for (var spec : distributedSpecs) {
+      assertFalse(spec.isBlank());
+      assertFalse(spec.contains("ENGINE = ReplicatedMergeTree"));
+      assertTrue(spec.contains("ENGINE = Distributed"));
+    }
+    assertFalse(ChTableSpec.getGaugeTableSpec().isBlank());
+    assertTrue(ChTableSpec.getGaugeTableSpec().contains("ENGINE = Distributed"));
   }
 }

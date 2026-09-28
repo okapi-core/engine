@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS okapi_metrics.metric_events_stream_meta (
+CREATE TABLE IF NOT EXISTS okapi_metrics.metric_events_stream_meta_local ON CLUSTER 'okapi' (
     event_type Enum('GAUGE' = 1, 'HISTO' = 2, 'SUM' = 3),
     metric LowCardinality(String),
     tags Map(String, String),
@@ -11,6 +11,6 @@ CREATE TABLE IF NOT EXISTS okapi_metrics.metric_events_stream_meta (
     day UInt8 DEFAULT toStartOfDay(ts_start),
     month UInt8 DEFAULT toStartOfMonth(ts_start)
 )
-ENGINE = MergeTree
+ENGINE = ReplicatedMergeTree('/clickhouse/tables/{shard}/okapi_metrics/metric_events_stream_meta', '{replica}')
 PARTITION BY toYYYYMM(ts_start)
 ORDER BY (metric, event_type, toUnixTimestamp(ts_start));

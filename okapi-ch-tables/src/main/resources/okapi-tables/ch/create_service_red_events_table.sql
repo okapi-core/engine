@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS okapi_traces.service_red_events (
+CREATE TABLE IF NOT EXISTS okapi_traces.service_red_events ON CLUSTER 'okapi' (
     ts_start_nanos Int64,
     ts_end_nanos Int64,
     service_name LowCardinality(String),

@@ -1,0 +1,34 @@
+<clickhouse>
+    <listen_host>0.0.0.0</listen_host>
+    <remote_servers>
+        <okapi>
+            <shard>
+                <internal_replication>true</internal_replication>
+                <replica>
+                    <host>clickhouse</host>
+                    <port>9000</port>
+                    <user>default</user>
+                    <password>okapi_testing_password</password>
+                </replica>
+            </shard>
+            <shard>
+                <internal_replication>true</internal_replication>
+                <replica>
+                    <host>clickhouse-2</host>
+                    <port>9000</port>
+                    <user>default</user>
+                    <password>okapi_testing_password</password>
+                </replica>
+            </shard>
+        </okapi>
+    </remote_servers>
+    <zookeeper>
+        <node>
+            <host>zookeeper</host>
+            <port>2181</port>
+        </node>
+    </zookeeper>
+    <distributed_ddl>
+        <path>/clickhouse/task_queue/ddl</path>
+    </distributed_ddl>
+</clickhouse>

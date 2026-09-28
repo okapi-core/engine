@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS okapi_traces.spans_ingested_attribs (
+CREATE TABLE IF NOT EXISTS okapi_traces.spans_ingested_attribs ON CLUSTER 'okapi' (
     ts_start_ns Int64,
     ts_end_ns Int64,
     attribute_name String CODEC(ZSTD),
