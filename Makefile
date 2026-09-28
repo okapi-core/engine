@@ -203,21 +203,6 @@ docker-push-ops:
 
 docker-push-all: docker-push-web docker-push-oscar docker-push-ingester docker-push-ops
 
-release:
-	@if [ -n "$$(git status --porcelain)" ]; then \
-		echo "Working tree is not clean; commit or stash changes before releasing."; \
-		git status --short; \
-		exit 1; \
-	fi
-	@tag="release_$$(date -u +%Y%m%d_%H%M%SZ)"; \
-	if git rev-parse -q --verify "refs/tags/$$tag" >/dev/null; then \
-		echo "Tag $$tag already exists."; \
-		exit 1; \
-	fi; \
-	git tag "$$tag"; \
-	git push origin "$$tag"; \
-	echo "Pushed release tag $$tag"
-
 otel-harness:
 	mkdir -p "$(dir $(OTEL_DEMO_DIR))"
 	@if [ ! -d "$(OTEL_DEMO_DIR)/.git" ]; then \

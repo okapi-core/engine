@@ -76,7 +76,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: okapi-core/frontend
-          ref: 55aa016f43ca1a62b74e6c0480dc3be59609687a
+          ref: 6a7c533286ccb432f531abfb0ee039c03ae1bd30
           path: frontend
           persist-credentials: false
 
