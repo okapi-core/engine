@@ -39,6 +39,12 @@
             <artifactId>client-v2</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>org.okapi</groupId>
+            <artifactId>okapi-ch-tables</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+        </dependency>
+
     </dependencies>
 
     <build>

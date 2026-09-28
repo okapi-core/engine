@@ -139,13 +139,13 @@ kill-stray-instances:
 		fi; \
 	done
 
-package: copy-ch-sql
+package:
 	mvn package -T 4 -DskipTests=true
 
-package-ops: copy-ch-sql
+package-ops:
 	mvn -pl okapi-ops -am package -DskipTests=true
 
-package-dashboard-yaml-lint: copy-ch-sql
+package-dashboard-yaml-lint:
 	mvn -pl okapi-web -am package -DskipTests=true
 
 lint-dashboard-yamls: package-dashboard-yaml-lint
@@ -520,9 +520,6 @@ publish-docker:
 	docker push $(REPO)/ops:$(TAG)
 
 publish: publish-docker
-
-copy-ch-sql:
-	cp -r ./okapi-ingester/src/main/resources/ch/*.sql ./okapi-ops/src/main/resources/ch/
 
 start-oscar-jar:
 	OSCAR_DB_URL="jdbc:postgresql://$(TEST_POSTGRES_HOST):$(TEST_POSTGRES_PORT)/okapi_oscar?currentSchema=okapi_oscar" \

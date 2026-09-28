@@ -21,7 +21,7 @@ import io.opentelemetry.proto.resource.v1.Resource;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.okapi.ch.CreateChTablesSpec;
+import org.okapi.ch.CreateChTables;
 import org.okapi.metrics.ch.ChConstants;
 import org.okapi.rest.common.UnionValue;
 import org.okapi.rest.logs.ChLogFilter;
@@ -53,7 +53,7 @@ public class ChLogsSummaryServiceTests {
   private void recreateLogsTable() {
     client.queryAll("CREATE DATABASE IF NOT EXISTS okapi_logs");
     client.queryAll("DROP TABLE IF EXISTS " + ChConstants.TBL_LOGS_V1);
-    CreateChTablesSpec.migrate(client);
+    CreateChTables.migrate(client);
   }
 
   @Test

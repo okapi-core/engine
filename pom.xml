@@ -43,6 +43,7 @@
         <module>okapi-ingester-client</module>
         <module>okapi-oscar-client</module>
         <module>okapi-ql</module>
+        <module>okapi-ch-tables</module>
     </modules>
     <properties>
         <java.version>21</java.version>

@@ -25,7 +25,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.TestInstance.Lifecycle;
-import org.okapi.ch.CreateChTablesSpec;
+import org.okapi.ch.CreateChTables;
 import org.okapi.otel.OtelAnyValueDecoder;
 import org.okapi.otelshorthand.OtelShortHands;
 import org.okapi.rest.traces.*;
@@ -62,7 +62,7 @@ public class ChTraceQueryServiceTests {
     Path tempDir = Files.createTempDirectory("okapi-traces-query-");
     injector = Guice.createInjector(new TestChTracesModule(tempDir.resolve("wal"), 16));
     client = injector.getInstance(Client.class);
-    CreateChTablesSpec.migrate(client);
+    CreateChTables.migrate(client);
     truncateTable();
     ingestCorpus();
   }

@@ -16,7 +16,7 @@ import java.time.ZoneOffset;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.okapi.ch.CreateChTablesSpec;
+import org.okapi.ch.CreateChTables;
 import org.okapi.chtest.ChTestOnlyUtils;
 import org.okapi.exceptions.BadRequestException;
 import org.okapi.metrics.ch.ChConstants;
@@ -37,7 +37,7 @@ class IngesterOverviewIT {
   void setup() throws Exception {
     Injector injector = Guice.createInjector(new TestChMetricsModule(tempDir.resolve("wal"), 16));
     client = injector.getInstance(Client.class);
-    CreateChTablesSpec.migrate(client);
+    CreateChTables.migrate(client);
     truncateOverviewTables();
 
     nowMillis = 1_700_000_300_000L;
