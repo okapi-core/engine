@@ -29,6 +29,7 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.okapi.chtest.ChTestOnlyUtils;
 import org.okapi.ch.CreateChTables;
 import org.okapi.exceptions.BadRequestException;
 import org.okapi.otelshorthand.OtelShortHands;
@@ -70,7 +71,10 @@ public class ChSearchMetricsProcessorTest {
     searchProcessor = injector.getInstance(ChSearchMetricsProcessor.class);
 
     CreateChTables.migrate(client);
-    client.queryAll("TRUNCATE TABLE IF EXISTS " + ChConstants.TBL_METRIC_EVENTS_META);
+    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_GAUGES);
+    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_HISTOS);
+    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_SUM);
+    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_METRIC_EVENTS_META);
 
     ingester = injector.getInstance(ChMetricsIngester.class);
     driver = injector.getInstance(ChMetricsWalConsumerDriver.class);

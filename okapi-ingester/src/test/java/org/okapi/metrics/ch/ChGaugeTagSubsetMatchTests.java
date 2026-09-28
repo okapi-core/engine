@@ -23,6 +23,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.okapi.ch.CreateChTables;
+import org.okapi.chtest.ChTestOnlyUtils;
 import org.okapi.metrics.common.MetricPaths;
 import org.okapi.metrics.pojos.AGG_TYPE;
 import org.okapi.metrics.pojos.RES_TYPE;
@@ -179,7 +180,7 @@ public class ChGaugeTagSubsetMatchTests {
   }
 
   private void truncateGaugeTable() {
-    client.queryAll("TRUNCATE TABLE IF EXISTS okapi_metrics.gauge_raw_samples");
+    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_GAUGES);
   }
 
   private record ExpectedSeries(List<Long> times, List<Float> values) {}

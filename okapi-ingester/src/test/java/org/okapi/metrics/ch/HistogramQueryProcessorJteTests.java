@@ -22,6 +22,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.okapi.ch.CreateChTables;
+import org.okapi.chtest.ChTestOnlyUtils;
 import org.okapi.metrics.ch.template.ChMetricTemplateEngine;
 import org.okapi.rest.metrics.query.GetMetricsRequest;
 import org.okapi.rest.metrics.query.HistoQueryConfig;
@@ -40,9 +41,8 @@ public class HistogramQueryProcessorJteTests {
   void setup() {
     injector = Guice.createInjector(new TestChMetricsModule(tempDir.resolve("wal"), 16));
     client = injector.getInstance(Client.class);
-    client.queryAll("DROP TABLE IF EXISTS okapi_metrics.histo_raw_samples");
     CreateChTables.migrate(client);
-    client.queryAll("TRUNCATE TABLE IF EXISTS " + ChConstants.TBL_HISTOS);
+    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_HISTOS);
   }
 
   @Test

@@ -33,6 +33,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.okapi.bytes.OkapiBytes;
 import org.okapi.ch.CreateChTables;
+import org.okapi.chtest.ChTestOnlyUtils;
 import org.okapi.logs.TestApplication;
 import org.okapi.metrics.ch.ChConstants;
 import org.okapi.metrics.pojos.AGG_TYPE;
@@ -108,11 +109,11 @@ public class MetricsIngestionIT {
   void setUp() {
     baseUrl = "http://localhost:" + port;
     CreateChTables.migrate(chClient);
-    chClient.queryAll("TRUNCATE TABLE IF EXISTS " + ChConstants.TBL_GAUGES);
-    chClient.queryAll("TRUNCATE TABLE IF EXISTS " + ChConstants.TBL_HISTOS);
-    chClient.queryAll("TRUNCATE TABLE IF EXISTS " + ChConstants.TBL_SUM);
-    chClient.queryAll("TRUNCATE TABLE IF EXISTS " + ChConstants.TBL_EXEMPLAR);
-    chClient.queryAll("TRUNCATE TABLE IF EXISTS " + ChConstants.TBL_METRIC_EVENTS_META);
+    ChTestOnlyUtils.truncateTable(chClient, ChConstants.TBL_GAUGES);
+    ChTestOnlyUtils.truncateTable(chClient, ChConstants.TBL_HISTOS);
+    ChTestOnlyUtils.truncateTable(chClient, ChConstants.TBL_SUM);
+    ChTestOnlyUtils.truncateTable(chClient, ChConstants.TBL_EXEMPLAR);
+    ChTestOnlyUtils.truncateTable(chClient, ChConstants.TBL_METRIC_EVENTS_META);
   }
 
   @Test

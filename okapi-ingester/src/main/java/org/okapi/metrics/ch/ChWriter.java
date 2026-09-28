@@ -29,7 +29,8 @@ public class ChWriter {
   private static final InsertSettings SYNCHRONOUS_INSERT_SETTINGS =
       new InsertSettings()
           .serverSetting("async_insert", "0")
-          .serverSetting("wait_for_async_insert", "1");
+          .serverSetting("wait_for_async_insert", "1")
+          .serverSetting("distributed_foreground_insert", "1");
   private static final DateTimeFormatter TS_FMT =
       DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS").withZone(ZoneOffset.UTC);
 

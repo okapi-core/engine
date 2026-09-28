@@ -452,6 +452,8 @@ setup-test-infra:
 		exit 1; \
 	fi
 	$(TEST_INFRA_ENV) $(DOCKER_COMPOSE) -f $(TEST_INFRA_COMPOSE) \
+		down --volumes --remove-orphans
+	$(TEST_INFRA_ENV) $(DOCKER_COMPOSE) -f $(TEST_INFRA_COMPOSE) \
 		up --build -d --wait clickhouse clickhouse-2 postgres vault
 	$(MAKE) init-test-postgres
 	$(TEST_INFRA_ENV) OPENAI_API_KEY="$(OPENAI_API_KEY)" \

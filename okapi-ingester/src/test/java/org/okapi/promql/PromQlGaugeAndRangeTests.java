@@ -25,6 +25,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.okapi.chtest.ChTestOnlyUtils;
 import org.okapi.ch.CreateChTables;
 import org.okapi.metrics.ch.ChConstants;
 import org.okapi.metrics.ch.ChMetricsIngester;
@@ -51,8 +52,8 @@ public class PromQlGaugeAndRangeTests {
     injector = Guice.createInjector(new TestChMetricsModule(tempDir.resolve("wal"), 16));
     client = injector.getInstance(Client.class);
     CreateChTables.migrate(client);
-    client.queryAll("TRUNCATE TABLE IF EXISTS " + ChConstants.TBL_GAUGES);
-    client.queryAll("TRUNCATE TABLE IF EXISTS " + ChConstants.TBL_METRIC_EVENTS_META);
+    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_GAUGES);
+    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_METRIC_EVENTS_META);
   }
 
   @Test
