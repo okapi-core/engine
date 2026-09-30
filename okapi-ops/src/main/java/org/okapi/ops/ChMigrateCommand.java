@@ -6,7 +6,7 @@ package org.okapi.ops;
 import com.clickhouse.client.api.Client;
 import com.clickhouse.client.api.enums.Protocol;
 import java.util.concurrent.Callable;
-import org.okapi.ops.ch.CreateChTablesSpec;
+import org.okapi.ops.ch.ChMigrator;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
@@ -39,7 +39,7 @@ public class ChMigrateCommand implements Callable<Integer> {
             .setPassword(password)
             .build()) {
       waitForReady(client, 30_000L);
-      CreateChTablesSpec.migrate(client);
+      ChMigrator.migrate(client);
     }
     return 0;
   }

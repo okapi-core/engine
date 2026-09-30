@@ -105,7 +105,7 @@ public class ChSpanStatsQueryService {
       String templateName) {
     var template =
         ChSpanNumericalAttributeSummaryTemplate.builder()
-            .table(ChConstants.TBL_SPANS_V1)
+            .table(ChConstants.TBL_SPANS_V1_DIST)
             .attribute(attribute)
             .bucketStartExpr(bucketStartExpr)
             .aggClause(aggClause)
@@ -238,7 +238,7 @@ public class ChSpanStatsQueryService {
 
   private ChSpansStatsCountTemplate buildCountTemplate(SpansQueryStatsRequest request) {
     return ChSpansStatsCountTemplate.builder()
-        .table(ChConstants.TBL_SPANS_V1)
+        .table(ChConstants.TBL_SPANS_V1_DIST)
         .traceId(request.getTraceId())
         .kind(request.getKind())
         .serviceFilter(request.getServiceFilter())
@@ -275,7 +275,7 @@ public class ChSpanStatsQueryService {
       SpansQueryStatsRequest request, List<String> attributes, boolean approximate) {
     var templateBuilder =
         ChSpansStatsDistributionTemplate.builder()
-            .table(ChConstants.TBL_SPANS_V1)
+            .table(ChConstants.TBL_SPANS_V1_DIST)
             .approximate(approximate)
             .limit(ChConstants.TRACE_HINTS_LIMITS)
             .attributes(attributes);

@@ -49,7 +49,7 @@ public class ChLogsQueryServiceTests {
 
   private void recreateLogsTable() {
     client.queryAll("CREATE DATABASE IF NOT EXISTS okapi_logs");
-    client.queryAll("DROP TABLE IF EXISTS " + ChConstants.TBL_LOGS_V1);
+    client.queryAll("DROP TABLE IF EXISTS " + ChConstants.TBL_LOGS_V1_DIST);
     CreateChTables.migrate(client);
   }
 
@@ -312,7 +312,7 @@ public class ChLogsQueryServiceTests {
             WHERE body = 'Order confirmed order=1001 user=u123'
             """
                 .formatted(
-                    routeBucket, statusBucket, durationBucket, envBucket, ChConstants.TBL_LOGS_V1));
+                    routeBucket, statusBucket, durationBucket, envBucket, ChConstants.TBL_LOGS_V1_DIST));
 
     assertEquals(1, rows.size());
     var row = rows.getFirst();
@@ -438,7 +438,8 @@ public class ChLogsQueryServiceTests {
   }
 
   private void truncateTable() {
-    client.queryAll("TRUNCATE TABLE IF EXISTS " + ChConstants.TBL_LOGS_V1);
+    client.queryAll(
+        "TRUNCATE TABLE IF EXISTS " + ChConstants.TBL_LOGS_V1_LOCAL + " ON CLUSTER 'okapi'");
   }
 
   private void assertLineIds(List<ChLogRow> items, Set<String> expectedLineIds) {

@@ -84,8 +84,8 @@ class TraceQlQueryIT {
   void setUp() {
     baseUrl = "http://localhost:" + port;
     CreateChTables.migrate(chClient);
-    ChTestOnlyUtils.truncateTable(chClient, ChConstants.TBL_SPANS_V1);
-    ChTestOnlyUtils.truncateTable(chClient, ChConstants.TBL_SPANS_INGESTED_ATTRIBS);
+    ChTestOnlyUtils.truncateTable(chClient, ChConstants.TBL_SPANS_V1_LOCAL);
+    ChTestOnlyUtils.truncateTable(chClient, ChConstants.TBL_SPANS_INGESTED_ATTRIBS_LOCAL);
   }
 
   @Test

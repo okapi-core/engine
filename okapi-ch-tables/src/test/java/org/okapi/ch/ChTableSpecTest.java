@@ -61,4 +61,23 @@ class ChTableSpecTest {
     assertFalse(ChTableSpec.getGaugeTableSpec().isBlank());
     assertTrue(ChTableSpec.getGaugeTableSpec().contains("ENGINE = Distributed"));
   }
+
+  @Test
+  void nonMetricTablesExposeLocalAndDistributedDefinitions() {
+    var localSpecs = ChTableSpec.getAllNonMetricLocalTables();
+    var distributedSpecs = ChTableSpec.getAllNonMetricDistributedTables();
+
+    assertEquals(4, localSpecs.size());
+    assertEquals(4, distributedSpecs.size());
+    for (var spec : localSpecs) {
+      assertFalse(spec.isBlank());
+      assertFalse(spec.contains("ENGINE = Distributed"));
+      assertTrue(spec.contains("ENGINE = ReplicatedMergeTree"));
+    }
+    for (var spec : distributedSpecs) {
+      assertFalse(spec.isBlank());
+      assertFalse(spec.contains("ENGINE = ReplicatedMergeTree"));
+      assertTrue(spec.contains("ENGINE = Distributed"));
+    }
+  }
 }

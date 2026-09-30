@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS okapi_traces.spans_table_v1 ON CLUSTER 'okapi' (
+CREATE TABLE IF NOT EXISTS okapi_traces.spans_table_v1_local ON CLUSTER 'okapi' (
     ts_start_ns Int64,
     ts_end_ns Int64,
     span_id String CODEC(ZSTD),
@@ -56,6 +56,6 @@ CREATE TABLE IF NOT EXISTS okapi_traces.spans_table_v1 ON CLUSTER 'okapi' (
     attribs_number_8 Map(String, Float64),
     attribs_number_9 Map(String, Float64)
 )
-ENGINE = MergeTree
+ENGINE = ReplicatedMergeTree('/clickhouse/tables/{shard}/okapi_traces/spans_table_v1', '{replica}')
 PARTITION BY toStartOfHour(toDateTime(ts_start_ns / 1000000000))
 ORDER BY (service_name, trace_id, span_id, ts_start_ns);

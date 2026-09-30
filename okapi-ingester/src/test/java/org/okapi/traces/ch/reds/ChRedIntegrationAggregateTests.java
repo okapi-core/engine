@@ -47,7 +47,7 @@ public class ChRedIntegrationAggregateTests {
     injector = Guice.createInjector(new TestChTracesModule(tempDir.resolve("wal"), 16));
     client = injector.getInstance(Client.class);
     CreateChTables.migrate(client);
-    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_SERVICE_RED_EVENTS);
+    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_SERVICE_RED_EVENTS_LOCAL);
     redQueryService = injector.getInstance(ChRedQueryService.class);
     baseMs = TimeUtils.roundToNearestHour(1_700_000_000_000L);
     otelTestFactory = new OtelTestFactory();

@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS okapi_logs.logs_table_v1 ON CLUSTER 'okapi'
+CREATE TABLE IF NOT EXISTS okapi_logs.logs_table_v1_local ON CLUSTER 'okapi'
 (
     ts_ns Int64,
     log_stream LowCardinality(String),
@@ -50,6 +50,6 @@ CREATE TABLE IF NOT EXISTS okapi_logs.logs_table_v1 ON CLUSTER 'okapi'
     attribs_number_9 Map(String, Float64),
     INDEX body_text_idx(body) TYPE text(tokenizer = 'splitByNonAlpha') GRANULARITY 1
 )
-ENGINE = MergeTree
+ENGINE = ReplicatedMergeTree('/clickhouse/tables/{shard}/okapi_logs/logs_table_v1', '{replica}')
 PARTITION BY toStartOfHour(toDateTime(ts_ns / 1000000000))
 ORDER BY (service_name, trace_id, span_id, ts_ns, log_stream, log_level);

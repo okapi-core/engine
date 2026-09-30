@@ -52,7 +52,7 @@ public class ChLogQlTranslator {
 
     var builder =
         LogQuery.builder()
-            .table(ChConstants.TBL_LOGS_V1)
+            .table(ChConstants.TBL_LOGS_V1_DIST)
             .where(and(where))
             .selectItems(bridge.defaultLogSelectItems())
             .orderBy(

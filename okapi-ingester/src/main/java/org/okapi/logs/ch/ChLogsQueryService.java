@@ -104,7 +104,7 @@ public class ChLogsQueryService {
         LIMIT %d
         """
             .formatted(
-                expression, ChConstants.TBL_LOGS_V1, where, existsExpression, prefixClause, limit);
+                expression, ChConstants.TBL_LOGS_V1_DIST, where, existsExpression, prefixClause, limit);
     var records = client.queryAll(StringUtils.normalizeSpace(query));
     var values = new ArrayList<ChLogFieldValueSuggestion>(records.size());
     for (var record : records) {
@@ -124,7 +124,7 @@ public class ChLogsQueryService {
             : Math.min(request.getLimit(), ChConstants.LOGS_QUERY_LIMIT);
     var filters = ChLogsQueryBuilder.buildFilters(request.getFilters());
     return ChLogsQueryTemplate.builder()
-        .table(ChConstants.TBL_LOGS_V1)
+        .table(ChConstants.TBL_LOGS_V1_DIST)
         .tsStartNs(request.getTsStartNanos())
         .tsEndNs(request.getTsEndNanos())
         .filters(filters)
@@ -195,7 +195,7 @@ public class ChLogsQueryService {
                 + "' AS name, '"
                 + field.getValue()
                 + "' AS type, count() AS count FROM "
-                + ChConstants.TBL_LOGS_V1
+                + ChConstants.TBL_LOGS_V1_DIST
                 + " WHERE "
                 + timeWhere);
       }
@@ -221,7 +221,7 @@ public class ChLogsQueryService {
         WHERE %s
         GROUP BY name
         """
-        .formatted(type.name(), ChConstants.TBL_LOGS_V1, column, String.join(" AND ", clauses));
+        .formatted(type.name(), ChConstants.TBL_LOGS_V1_DIST, column, String.join(" AND ", clauses));
   }
 
   private static String timeWhere(Long tsStartNanos, Long tsEndNanos) {

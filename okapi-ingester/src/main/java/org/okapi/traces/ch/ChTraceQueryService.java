@@ -64,7 +64,7 @@ public class ChTraceQueryService {
     var duration = requestV2.getDurationFilter();
     var builder =
         ChSpansQueryTemplate.builder()
-            .table(ChConstants.TBL_SPANS_V1)
+            .table(ChConstants.TBL_SPANS_V1_DIST)
             .traceId(requestV2.getTraceId())
             .kind(requestV2.getKind());
     if (service != null) {

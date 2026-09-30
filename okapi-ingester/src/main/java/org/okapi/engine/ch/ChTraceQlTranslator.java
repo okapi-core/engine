@@ -52,7 +52,7 @@ public class ChTraceQlTranslator {
 
     var builder =
         LogQuery.builder()
-            .table(ChConstants.TBL_SPANS_V1)
+            .table(ChConstants.TBL_SPANS_V1_DIST)
             .where(and(where))
             .selectItems(bridge.defaultSpanSelectItems())
             .orderBy(

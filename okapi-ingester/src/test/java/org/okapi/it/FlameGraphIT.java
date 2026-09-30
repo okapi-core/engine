@@ -77,7 +77,7 @@ public class FlameGraphIT {
   void setUp() {
     baseUrl = "http://localhost:" + port;
     CreateChTables.migrate(chClient);
-    ChTestOnlyUtils.truncateTable(chClient, ChConstants.TBL_SPANS_V1);
+    ChTestOnlyUtils.truncateTable(chClient, ChConstants.TBL_SPANS_V1_LOCAL);
   }
 
   @Test

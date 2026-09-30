@@ -20,9 +20,9 @@ public class CorpusAwait {
           "okapi_metrics.sums_raw_samples_dist",
           "okapi_metrics.metric_exemplars_dist",
           "okapi_metrics.metric_events_stream_meta_dist",
-          "okapi_traces.service_red_events",
-          "okapi_traces.spans_table_v1",
-          "okapi_traces.spans_ingested_attribs");
+          "okapi_traces.service_red_events_dist",
+          "okapi_traces.spans_table_v1_dist",
+          "okapi_traces.spans_ingested_attribs_dist");
 
   private static final Client CH_CLIENT =
       new Client.Builder()

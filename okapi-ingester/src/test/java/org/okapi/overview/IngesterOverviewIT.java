@@ -77,8 +77,8 @@ class IngesterOverviewIT {
     ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_SUM_LOCAL);
     ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_HISTOS_LOCAL);
     ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_EXPONENTIAL_HISTOS_LOCAL);
-    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_SPANS_V1);
-    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_LOGS_V1);
+    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_SPANS_V1_LOCAL);
+    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_LOGS_V1_LOCAL);
   }
 
   private void insertInsideWindowRows() {
@@ -152,7 +152,7 @@ class IngesterOverviewIT {
   private void insertSpan(long millis, String traceId, String spanId) {
     client.queryAll(
         """
-        INSERT INTO okapi_traces.spans_table_v1
+        INSERT INTO okapi_traces.spans_table_v1_dist
           (ts_start_ns, ts_end_ns, span_id, span_status, parent_span_id, trace_id, kind,
            kind_string, service_name)
         VALUES
@@ -164,7 +164,7 @@ class IngesterOverviewIT {
   private void insertLog(long millis, String body) {
     client.queryAll(
         """
-        INSERT INTO okapi_logs.logs_table_v1 (ts_ns, log_stream, service_name, log_level, body)
+        INSERT INTO okapi_logs.logs_table_v1_dist (ts_ns, log_stream, service_name, log_level, body)
         VALUES (%s, 'overview-stream', 'overview-service', 9, '%s')
         """
             .formatted(millis * 1_000_000L, body));
