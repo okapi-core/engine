@@ -107,12 +107,15 @@ HELM_WEB_FLAGS ?=
 
 .PHONY: test-infra test-infra-up test-infra-down init-test-postgres otel-harness otel-harness-down kill-stray-instances embed-frontend docker-okapi-ingester docker-okapi-web docker-okapi-ops docker-okapi-oscar docker-all docker-build-ci docker-publish docker-smoke-up docker-smoke-test docker-smoke-down docker-smoke docker-push-web docker-push-oscar docker-push-ingester docker-push-ops docker-push-all package-dashboard-yaml-lint lint-dashboard-yamls helm-infra-local helm-infra-down helm-local helm-local-down helm-okapi-web helm-okapi-ingester helm-okapi-oscar helm-okapi-ops helm-package helm-push helm-validate release spotless
 
-spotless:
+spotless-fix:
 	mvn spotless:apply
 	@if [ -n "$$(git status --porcelain)" ]; then \
 		git add -A; \
 		git commit -m "spotless"; \
 	fi
+
+spotless-check:
+	mvn spotless:check
 
 fe-dist:
 	@python3 build-scripts/fe_dist_copy.py
@@ -453,6 +456,10 @@ setup-test-infra:
 	fi
 	$(TEST_INFRA_ENV) $(DOCKER_COMPOSE) -f $(TEST_INFRA_COMPOSE) \
 		down --volumes --remove-orphans
+	@if [ -n "$(ch_dir)" ] && [ "$(ch_dir)" != "/" ]; then \
+		rm -rf "$(ch_dir)/ch_data" "$(ch_dir)/ch_data_2" \
+			"$(ch_dir)/ch_logs" "$(ch_dir)/ch_logs_2"; \
+	fi
 	$(TEST_INFRA_ENV) $(DOCKER_COMPOSE) -f $(TEST_INFRA_COMPOSE) \
 		up --build -d --wait clickhouse clickhouse-2 postgres vault
 	$(MAKE) init-test-postgres
@@ -472,7 +479,7 @@ run-ingester:
 build: run-ingester
 	mvn package -T 4
 
-all: package test-infra build docker-all
+all: spotless-check package test-infra build docker-all
 
 test-run-ingester:
 	$(DOCKER_RM) okapi-ingester
