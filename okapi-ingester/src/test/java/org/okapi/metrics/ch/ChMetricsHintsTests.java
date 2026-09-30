@@ -28,7 +28,8 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.okapi.ch.CreateChTablesSpec;
+import org.okapi.ch.CreateChTables;
+import org.okapi.chtest.ChTestOnlyUtils;
 import org.okapi.rest.TimeInterval;
 import org.okapi.rest.metrics.query.METRIC_TYPE;
 import org.okapi.rest.search.GetMetricNameHints;
@@ -49,11 +50,11 @@ public class ChMetricsHintsTests {
     testSession = UUID.randomUUID().toString();
     injector = Guice.createInjector(new TestChMetricsModule(tempDir.resolve("wal"), 16));
     client = injector.getInstance(Client.class);
-    CreateChTablesSpec.migrate(client);
-    client.queryAll("TRUNCATE TABLE IF EXISTS " + ChConstants.TBL_GAUGES);
-    client.queryAll("TRUNCATE TABLE IF EXISTS " + ChConstants.TBL_HISTOS);
-    client.queryAll("TRUNCATE TABLE IF EXISTS " + ChConstants.TBL_SUM);
-    client.queryAll("TRUNCATE TABLE IF EXISTS " + ChConstants.TBL_METRIC_EVENTS_META);
+    CreateChTables.migrate(client);
+    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_GAUGES_LOCAL);
+    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_HISTOS_LOCAL);
+    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_SUM_LOCAL);
+    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_METRIC_EVENTS_META_LOCAL);
   }
 
   @Test

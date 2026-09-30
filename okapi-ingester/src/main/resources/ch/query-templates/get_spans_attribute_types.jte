@@ -3,7 +3,7 @@
 SELECT
 attribute_name,
 attribute_type
-FROM okapi_traces.spans_ingested_attribs
+FROM okapi_traces.spans_ingested_attribs_dist
 WHERE attribute_name IN (
 @for(int i = 0; i < data.getAttributes().size(); i++)
     '${data.getAttributes().get(i)}'@if(i < data.getAttributes().size() - 1),@endif

@@ -33,6 +33,12 @@
 
         <dependency>
             <groupId>org.okapi</groupId>
+            <artifactId>okapi-ch-tables</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.okapi</groupId>
             <artifactId>okapi-protos</artifactId>
             <version>${project.version}</version>
         </dependency>

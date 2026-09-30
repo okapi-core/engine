@@ -17,7 +17,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.TestInstance.Lifecycle;
-import org.okapi.ch.CreateChTablesSpec;
+import org.okapi.ch.CreateChTables;
 import org.okapi.engine.ch.ChLogsEngine;
 import org.okapi.logs.core.FakeLogsEventEmitter;
 import org.okapi.logs.core.LogsEvent;
@@ -49,8 +49,8 @@ public class ChLogsQueryServiceTests {
 
   private void recreateLogsTable() {
     client.queryAll("CREATE DATABASE IF NOT EXISTS okapi_logs");
-    client.queryAll("DROP TABLE IF EXISTS " + ChConstants.TBL_LOGS_V1);
-    CreateChTablesSpec.migrate(client);
+    client.queryAll("DROP TABLE IF EXISTS " + ChConstants.TBL_LOGS_V1_DIST);
+    CreateChTables.migrate(client);
   }
 
   @Test
@@ -312,7 +312,11 @@ public class ChLogsQueryServiceTests {
             WHERE body = 'Order confirmed order=1001 user=u123'
             """
                 .formatted(
-                    routeBucket, statusBucket, durationBucket, envBucket, ChConstants.TBL_LOGS_V1));
+                    routeBucket,
+                    statusBucket,
+                    durationBucket,
+                    envBucket,
+                    ChConstants.TBL_LOGS_V1_DIST));
 
     assertEquals(1, rows.size());
     var row = rows.getFirst();
@@ -438,7 +442,8 @@ public class ChLogsQueryServiceTests {
   }
 
   private void truncateTable() {
-    client.queryAll("TRUNCATE TABLE IF EXISTS " + ChConstants.TBL_LOGS_V1);
+    client.queryAll(
+        "TRUNCATE TABLE IF EXISTS " + ChConstants.TBL_LOGS_V1_LOCAL + " ON CLUSTER 'okapi'");
   }
 
   private void assertLineIds(List<ChLogRow> items, Set<String> expectedLineIds) {

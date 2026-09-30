@@ -55,7 +55,7 @@ public class ChSearchMetricsProcessor {
   public Set<ChSearchMetricsRow> getMetricsInTimeWindow(long tsStartMillis, long tsEndMillis) {
     var template =
         ChSearchMetricsQueryTemplate.builder()
-            .table(ChConstants.TBL_METRIC_EVENTS_META)
+            .table(ChConstants.TBL_METRIC_EVENTS_META_DIST)
             .startMs(tsStartMillis)
             .endMs(tsEndMillis)
             .build();

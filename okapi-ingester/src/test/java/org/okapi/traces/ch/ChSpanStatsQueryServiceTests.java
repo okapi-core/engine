@@ -27,7 +27,7 @@ import org.junit.jupiter.api.TestInstance.Lifecycle;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.okapi.ch.CreateChTablesSpec;
+import org.okapi.ch.CreateChTables;
 import org.okapi.metrics.pojos.AGG_TYPE;
 import org.okapi.metrics.pojos.RES_TYPE;
 import org.okapi.otelshorthand.OtelShortHands;
@@ -47,7 +47,7 @@ public class ChSpanStatsQueryServiceTests {
     Path tempDir = Files.createTempDirectory("okapi-traces-stats-");
     injector = Guice.createInjector(new TestChTracesModule(tempDir.resolve("wal"), 16));
     client = injector.getInstance(Client.class);
-    CreateChTablesSpec.migrate(client);
+    CreateChTables.migrate(client);
     truncateTables();
     ingestCorpus();
   }
@@ -174,8 +174,8 @@ public class ChSpanStatsQueryServiceTests {
   }
 
   private void truncateTables() {
-    client.queryAll("TRUNCATE TABLE okapi_traces.spans_table_v1");
-    client.queryAll("TRUNCATE TABLE okapi_traces.spans_ingested_attribs");
+    client.queryAll("TRUNCATE TABLE okapi_traces.spans_table_v1_local ON CLUSTER 'okapi'");
+    client.queryAll("TRUNCATE TABLE okapi_traces.spans_ingested_attribs_local ON CLUSTER 'okapi'");
   }
 
   private ResourceSpans buildStatsSpan(

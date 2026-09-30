@@ -152,7 +152,7 @@ public class HistogramQueryProcessor {
     var query =
         renderHistoQuery(
             ChGetHistoQueryTemplate.builder()
-                .table(ChConstants.TBL_HISTOS)
+                .table(ChConstants.TBL_HISTOS_DIST)
                 .metric(metrics)
                 .tags(tags)
                 .histoType(histoType.name())

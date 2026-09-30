@@ -12,7 +12,7 @@ spec:
     clusters:
       - name: okapi
         layout:
-          shardsCount: 1
+          shardsCount: 2
           replicasCount: 2
   templates:
     serviceTemplates:

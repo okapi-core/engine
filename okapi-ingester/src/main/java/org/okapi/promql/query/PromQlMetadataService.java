@@ -41,7 +41,7 @@ public class PromQlMetadataService {
     templateEngine.render(
         ChTemplateFiles.GET_METRIC_METADATA,
         ChMetricMetadataQueryTemplate.builder()
-            .table(ChConstants.TBL_METRIC_EVENTS_META)
+            .table(ChConstants.TBL_METRIC_EVENTS_META_DIST)
             .metric(metricFilter)
             .startMs(startMs)
             .endMs(endMs)

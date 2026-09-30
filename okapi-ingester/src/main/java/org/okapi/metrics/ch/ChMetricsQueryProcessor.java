@@ -59,7 +59,7 @@ public class ChMetricsQueryProcessor {
         renderQuery(
             ChTemplateFiles.GET_METRIC_HINTS,
             MetricHintsQueryTemplate.builder()
-                .table(ChConstants.TBL_METRIC_EVENTS_META)
+                .table(ChConstants.TBL_METRIC_EVENTS_META_DIST)
                 .eventType(metricType == null ? null : metricType.name())
                 .metricPrefix(request.getMetricPrefix() == null ? "" : request.getMetricPrefix())
                 .startMs(interval.getStart())
@@ -84,7 +84,7 @@ public class ChMetricsQueryProcessor {
         renderQuery(
             ChTemplateFiles.GET_TAG_HINTS,
             MetricHintsQueryTemplate.builder()
-                .table(ChConstants.TBL_METRIC_EVENTS_META)
+                .table(ChConstants.TBL_METRIC_EVENTS_META_DIST)
                 .eventType(metricType == null ? null : metricType.name())
                 .metric(request.getMetricName())
                 .tagPrefix(request.getTagPrefix() == null ? "" : request.getTagPrefix())
@@ -112,7 +112,7 @@ public class ChMetricsQueryProcessor {
         renderQuery(
             ChTemplateFiles.GET_TAG_VALUE_HINTS,
             MetricHintsQueryTemplate.builder()
-                .table(ChConstants.TBL_METRIC_EVENTS_META)
+                .table(ChConstants.TBL_METRIC_EVENTS_META_DIST)
                 .eventType(metricType == null ? null : metricType.name())
                 .metric(request.getMetricName())
                 .tag(request.getTag())

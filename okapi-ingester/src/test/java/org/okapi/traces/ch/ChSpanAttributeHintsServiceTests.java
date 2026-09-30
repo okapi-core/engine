@@ -21,7 +21,7 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.okapi.ch.CreateChTablesSpec;
+import org.okapi.ch.CreateChTables;
 import org.okapi.otelshorthand.OtelShortHands;
 import org.okapi.rest.traces.SpanAttributeHint;
 import org.okapi.rest.traces.SpanAttributeHintsRequest;
@@ -44,7 +44,7 @@ public class ChSpanAttributeHintsServiceTests {
   void setup() {
     injector = Guice.createInjector(new TestChTracesModule(tempDir.resolve("wal"), 16));
     client = injector.getInstance(Client.class);
-    CreateChTablesSpec.migrate(client);
+    CreateChTables.migrate(client);
     truncateTables();
   }
 
@@ -166,8 +166,8 @@ public class ChSpanAttributeHintsServiceTests {
   }
 
   private void truncateTables() {
-    client.queryAll("TRUNCATE TABLE okapi_traces.spans_table_v1");
-    client.queryAll("TRUNCATE TABLE okapi_traces.spans_ingested_attribs");
+    client.queryAll("TRUNCATE TABLE okapi_traces.spans_table_v1_local ON CLUSTER 'okapi'");
+    client.queryAll("TRUNCATE TABLE okapi_traces.spans_ingested_attribs_local ON CLUSTER 'okapi'");
   }
 
   private ResourceSpans buildSpan(

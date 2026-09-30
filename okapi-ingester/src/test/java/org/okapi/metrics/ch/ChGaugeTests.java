@@ -14,7 +14,8 @@ import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.okapi.ch.CreateChTablesSpec;
+import org.okapi.ch.CreateChTables;
+import org.okapi.chtest.ChTestOnlyUtils;
 import org.okapi.metrics.pojos.AGG_TYPE;
 import org.okapi.metrics.pojos.RES_TYPE;
 import org.okapi.rest.metrics.query.GaugeQueryConfig;
@@ -36,7 +37,7 @@ public class ChGaugeTests {
   void setup() {
     injector = Guice.createInjector(new TestChMetricsModule(tempDir.resolve("wal"), 16));
     client = injector.getInstance(Client.class);
-    CreateChTablesSpec.migrate(client);
+    CreateChTables.migrate(client);
     truncateGaugeTable();
   }
 
@@ -296,6 +297,6 @@ public class ChGaugeTests {
   }
 
   private void truncateGaugeTable() {
-    client.queryAll("TRUNCATE TABLE IF EXISTS okapi_metrics.gauge_raw_samples");
+    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_GAUGES_LOCAL);
   }
 }

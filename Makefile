@@ -107,12 +107,15 @@ HELM_WEB_FLAGS ?=
 
 .PHONY: test-infra test-infra-up test-infra-down init-test-postgres otel-harness otel-harness-down kill-stray-instances embed-frontend docker-okapi-ingester docker-okapi-web docker-okapi-ops docker-okapi-oscar docker-all docker-build-ci docker-publish docker-smoke-up docker-smoke-test docker-smoke-down docker-smoke docker-push-web docker-push-oscar docker-push-ingester docker-push-ops docker-push-all package-dashboard-yaml-lint lint-dashboard-yamls helm-infra-local helm-infra-down helm-local helm-local-down helm-okapi-web helm-okapi-ingester helm-okapi-oscar helm-okapi-ops helm-package helm-push helm-validate release spotless
 
-spotless:
+spotless-fix:
 	mvn spotless:apply
 	@if [ -n "$$(git status --porcelain)" ]; then \
 		git add -A; \
 		git commit -m "spotless"; \
 	fi
+
+spotless-check:
+	mvn spotless:check
 
 fe-dist:
 	@python3 build-scripts/fe_dist_copy.py
@@ -139,13 +142,13 @@ kill-stray-instances:
 		fi; \
 	done
 
-package: copy-ch-sql
+package:
 	mvn package -T 4 -DskipTests=true
 
-package-ops: copy-ch-sql
+package-ops:
 	mvn -pl okapi-ops -am package -DskipTests=true
 
-package-dashboard-yaml-lint: copy-ch-sql
+package-dashboard-yaml-lint:
 	mvn -pl okapi-web -am package -DskipTests=true
 
 lint-dashboard-yamls: package-dashboard-yaml-lint
@@ -378,7 +381,7 @@ run-zk:
 	$(DOCKER_CMD) zookeeper --network $(OKAPI_TEST_NET) -p 2181:2181 zookeeper:latest
 
 ch:
-	$(TEST_INFRA_ENV) $(DOCKER_COMPOSE) -f $(TEST_INFRA_COMPOSE) up -d --wait clickhouse
+	$(TEST_INFRA_ENV) $(DOCKER_COMPOSE) -f $(TEST_INFRA_COMPOSE) up --build -d --wait clickhouse clickhouse-2
 
 postgres:
 	$(TEST_INFRA_ENV) $(DOCKER_COMPOSE) -f $(TEST_INFRA_COMPOSE) up -d --wait postgres
@@ -437,7 +440,13 @@ setup-test-infra:
 		exit 1; \
 	fi
 	$(TEST_INFRA_ENV) $(DOCKER_COMPOSE) -f $(TEST_INFRA_COMPOSE) \
-		up -d --wait clickhouse postgres vault
+		down --volumes --remove-orphans
+	@if [ -n "$(ch_dir)" ] && [ "$(ch_dir)" != "/" ]; then \
+		rm -rf "$(ch_dir)/ch_data" "$(ch_dir)/ch_data_2" \
+			"$(ch_dir)/ch_logs" "$(ch_dir)/ch_logs_2"; \
+	fi
+	$(TEST_INFRA_ENV) $(DOCKER_COMPOSE) -f $(TEST_INFRA_COMPOSE) \
+		up --build -d --wait clickhouse clickhouse-2 postgres vault
 	$(MAKE) init-test-postgres
 	$(TEST_INFRA_ENV) OPENAI_API_KEY="$(OPENAI_API_KEY)" \
 		$(DOCKER_COMPOSE) -f $(TEST_INFRA_COMPOSE) --profile init run --rm vault-init
@@ -455,7 +464,7 @@ run-ingester:
 build: run-ingester
 	mvn package -T 4
 
-all: package test-infra build docker-all
+all: spotless-check package test-infra build docker-all
 
 test-run-ingester:
 	$(DOCKER_RM) okapi-ingester
@@ -505,9 +514,6 @@ publish-docker:
 	docker push $(REPO)/ops:$(TAG)
 
 publish: publish-docker
-
-copy-ch-sql:
-	cp -r ./okapi-ingester/src/main/resources/ch/*.sql ./okapi-ops/src/main/resources/ch/
 
 start-oscar-jar:
 	OSCAR_DB_URL="jdbc:postgresql://$(TEST_POSTGRES_HOST):$(TEST_POSTGRES_PORT)/okapi_oscar?currentSchema=okapi_oscar" \

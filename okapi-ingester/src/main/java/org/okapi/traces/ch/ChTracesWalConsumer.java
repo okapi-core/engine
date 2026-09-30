@@ -94,11 +94,12 @@ public class ChTracesWalConsumer {
     }
 
     Multimap<String, String> writeLoad = ArrayListMultimap.create();
-    writeLoad.putAll(ChConstants.TBL_SPANS_V1, rows.stream().map(gson::toJson).toList());
+    writeLoad.putAll(ChConstants.TBL_SPANS_V1_DIST, rows.stream().map(gson::toJson).toList());
     writeLoad.putAll(
-        ChConstants.TBL_SPANS_INGESTED_ATTRIBS, attribRows.stream().map(gson::toJson).toList());
+        ChConstants.TBL_SPANS_INGESTED_ATTRIBS_DIST,
+        attribRows.stream().map(gson::toJson).toList());
     writeLoad.putAll(
-        ChConstants.TBL_SERVICE_RED_EVENTS, redEvents.stream().map(gson::toJson).toList());
+        ChConstants.TBL_SERVICE_RED_EVENTS_DIST, redEvents.stream().map(gson::toJson).toList());
     chWriter.writeSyncWithBestEffort(writeLoad);
 
     if (!batch.isEmpty()) {

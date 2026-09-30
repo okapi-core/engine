@@ -54,7 +54,7 @@ public class ChLogsSummaryService {
   private long queryCount(String where) {
     var records =
         client.queryAll(
-            "SELECT count() AS count FROM " + ChConstants.TBL_LOGS_V1 + " WHERE " + where);
+            "SELECT count() AS count FROM " + ChConstants.TBL_LOGS_V1_DIST + " WHERE " + where);
     if (records.isEmpty()) {
       return 0;
     }
@@ -70,7 +70,7 @@ public class ChLogsSummaryService {
         GROUP BY bucket_start_ms
         ORDER BY bucket_start_ms
         """
-            .formatted(bucketMillis, bucketMillis, ChConstants.TBL_LOGS_V1, where);
+            .formatted(bucketMillis, bucketMillis, ChConstants.TBL_LOGS_V1_DIST, where);
     var records = client.queryAll(StringUtils.normalizeSpace(query));
     var out = new ArrayList<ChLogsTimelinePoint>(records.size());
     for (var record : records) {
@@ -100,7 +100,7 @@ public class ChLogsSummaryService {
                 bucketMillis,
                 bucketMillis,
                 ChLogsQueryBuilder.severityExpr(),
-                ChConstants.TBL_LOGS_V1,
+                ChConstants.TBL_LOGS_V1_DIST,
                 where);
     var records = client.queryAll(StringUtils.normalizeSpace(query));
     var out = new ArrayList<ChLogsSeverityTimelinePoint>(records.size());
@@ -126,7 +126,7 @@ public class ChLogsSummaryService {
         GROUP BY log_level, severity
         ORDER BY log_level
         """
-            .formatted(ChLogsQueryBuilder.severityExpr(), ChConstants.TBL_LOGS_V1, where);
+            .formatted(ChLogsQueryBuilder.severityExpr(), ChConstants.TBL_LOGS_V1_DIST, where);
     var records = client.queryAll(StringUtils.normalizeSpace(query));
     var out = new ArrayList<ChLogsSeverityCount>(records.size());
     for (var record : records) {
@@ -151,7 +151,7 @@ public class ChLogsSummaryService {
         ORDER BY count DESC, value ASC
         LIMIT %d
         """
-            .formatted(column, ChConstants.TBL_LOGS_V1, where, limit);
+            .formatted(column, ChConstants.TBL_LOGS_V1_DIST, where, limit);
     var records = client.queryAll(StringUtils.normalizeSpace(query));
     var out = new ArrayList<ChLogsFacetCount>(records.size());
     for (var record : records) {
@@ -183,7 +183,7 @@ public class ChLogsSummaryService {
         ORDER BY error + fatal DESC, total DESC, service_name ASC
         LIMIT %d
         """
-            .formatted(ChConstants.TBL_LOGS_V1, where, limit);
+            .formatted(ChConstants.TBL_LOGS_V1_DIST, where, limit);
     var records = client.queryAll(StringUtils.normalizeSpace(query));
     var out = new ArrayList<ChLogsServiceSeveritySummary>(records.size());
     for (var record : records) {

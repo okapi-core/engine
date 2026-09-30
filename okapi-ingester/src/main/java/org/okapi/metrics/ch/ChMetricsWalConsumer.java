@@ -61,7 +61,7 @@ public class ChMetricsWalConsumer {
         metaRows.add(metricMetadataRow(req, METRIC_TYPE.GAUGE, null, ts, ts));
       }
     }
-    return new ChWriteWork(ChConstants.TBL_GAUGES, gaugeSamples, metaRows);
+    return new ChWriteWork(ChConstants.TBL_GAUGES_DIST, gaugeSamples, metaRows);
   }
 
   public ChWriteWork getHistoSamples(ExportMetricsRequest req) {
@@ -105,7 +105,7 @@ public class ChMetricsWalConsumer {
                 req, METRIC_TYPE.HISTO, pt.getTemporality().name(), pt.getStart(), pt.getEnd()));
       }
     }
-    return new ChWriteWork(ChConstants.TBL_HISTOS, histoSamples, metaRows);
+    return new ChWriteWork(ChConstants.TBL_HISTOS_DIST, histoSamples, metaRows);
   }
 
   public ChWriteWork getSumSamples(ExportMetricsRequest req) {
@@ -139,7 +139,7 @@ public class ChMetricsWalConsumer {
                 pt.getEnd()));
       }
     }
-    return new ChWriteWork(ChConstants.TBL_SUM, sumSamples, meta);
+    return new ChWriteWork(ChConstants.TBL_SUM_DIST, sumSamples, meta);
   }
 
   public ChWriteWork getExponentialHistoSamples(ExportMetricsRequest req) {
@@ -180,7 +180,7 @@ public class ChMetricsWalConsumer {
                 point.getEnd()));
       }
     }
-    return new ChWriteWork(ChConstants.TBL_EXPONENTIAL_HISTOS, samples, metaRows);
+    return new ChWriteWork(ChConstants.TBL_EXPONENTIAL_HISTOS_DIST, samples, metaRows);
   }
 
   private String metricMetadataRow(
@@ -233,7 +233,7 @@ public class ChMetricsWalConsumer {
 
   public ChWriteWork exemplarWriteWork(ExportMetricsRequest request) {
     var exemplars = reqToExemplars(request).stream().map(gson::toJson).toList();
-    return new ChWriteWork(ChConstants.TBL_EXEMPLAR, exemplars, Collections.emptyList());
+    return new ChWriteWork(ChConstants.TBL_EXEMPLAR_DIST, exemplars, Collections.emptyList());
   }
 
   public void consumeRecords() throws IOException {
@@ -258,12 +258,12 @@ public class ChMetricsWalConsumer {
       var exponentialHistoWrites = getExponentialHistoSamples(req);
       writeLoad.putAll(exponentialHistoWrites.mainTable(), exponentialHistoWrites.rows());
 
-      writeLoad.putAll(ChConstants.TBL_METRIC_EVENTS_META, gaugeWrites.meta());
-      writeLoad.putAll(ChConstants.TBL_METRIC_EVENTS_META, histoWrites.meta());
-      writeLoad.putAll(ChConstants.TBL_METRIC_EVENTS_META, sumWrites.meta());
-      writeLoad.putAll(ChConstants.TBL_METRIC_EVENTS_META, exponentialHistoWrites.meta());
+      writeLoad.putAll(ChConstants.TBL_METRIC_EVENTS_META_DIST, gaugeWrites.meta());
+      writeLoad.putAll(ChConstants.TBL_METRIC_EVENTS_META_DIST, histoWrites.meta());
+      writeLoad.putAll(ChConstants.TBL_METRIC_EVENTS_META_DIST, sumWrites.meta());
+      writeLoad.putAll(ChConstants.TBL_METRIC_EVENTS_META_DIST, exponentialHistoWrites.meta());
       var exemplarRows = exemplarWriteWork(req);
-      writeLoad.putAll(ChConstants.TBL_EXEMPLAR, exemplarRows.rows());
+      writeLoad.putAll(ChConstants.TBL_EXEMPLAR_DIST, exemplarRows.rows());
     }
 
     chWriter.writeSyncWithBestEffort(writeLoad);

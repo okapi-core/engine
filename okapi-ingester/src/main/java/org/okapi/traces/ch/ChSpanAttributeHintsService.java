@@ -3,7 +3,7 @@
  */
 package org.okapi.traces.ch;
 
-import static org.okapi.metrics.ch.ChConstants.TBL_SPANS_V1;
+import static org.okapi.metrics.ch.ChConstants.TBL_SPANS_V1_DIST;
 
 import com.clickhouse.client.api.Client;
 import com.clickhouse.client.api.query.GenericRecord;
@@ -195,7 +195,7 @@ public class ChSpanAttributeHintsService {
       end = ts.getTsMillisEnd() * 1_000_000L;
     }
     return ChSpansAttributeHintsQueryTemplate.builder()
-        .table(ChConstants.TBL_SPANS_INGESTED_ATTRIBS)
+        .table(ChConstants.TBL_SPANS_INGESTED_ATTRIBS_DIST)
         .tsStartNs(start)
         .tsEndNs(end)
         .limit(ChConstants.TRACE_HINTS_LIMITS)
@@ -207,7 +207,7 @@ public class ChSpanAttributeHintsService {
     var attr = request.getAttributeName();
     int bucket = ChSpanAttributeBucketer.bucketForKey(attr);
     return ChSpanAttributeValuesCustomTemplate.builder()
-        .table(TBL_SPANS_V1)
+        .table(TBL_SPANS_V1_DIST)
         .attributeName(attr)
         .bucket(bucket)
         .valueExpr("attribs_str_" + bucket + "['" + attr + "']")
@@ -222,7 +222,7 @@ public class ChSpanAttributeHintsService {
     var attr = request.getAttributeName();
     int bucket = ChSpanAttributeBucketer.bucketForKey(attr);
     return ChSpanAttributeValuesCustomTemplate.builder()
-        .table(TBL_SPANS_V1)
+        .table(TBL_SPANS_V1_DIST)
         .attributeName(attr)
         .bucket(bucket)
         .valueExpr("attribs_number_" + bucket + "['" + attr + "']")
@@ -235,7 +235,7 @@ public class ChSpanAttributeHintsService {
   private ChSpanAttributeValuesDefaultTemplate buildDefaultStringTemplate(
       SpanAttributeValueHintsRequest request) {
     return ChSpanAttributeValuesDefaultTemplate.builder()
-        .table(ChConstants.TBL_SPANS_V1)
+        .table(ChConstants.TBL_SPANS_V1_DIST)
         .attributeName(request.getAttributeName())
         .limit(VALUE_HINTS_LIMIT)
         .tsStartNs(toStartNs(request.getTimestampFilter()))
@@ -246,7 +246,7 @@ public class ChSpanAttributeHintsService {
   private ChSpanAttributeValuesDefaultTemplate buildDefaultNumericTemplate(
       SpanAttributeValueHintsRequest request) {
     return ChSpanAttributeValuesDefaultTemplate.builder()
-        .table(ChConstants.TBL_SPANS_V1)
+        .table(ChConstants.TBL_SPANS_V1_DIST)
         .attributeName(request.getAttributeName())
         .limit(VALUE_HINTS_LIMIT)
         .tsStartNs(toStartNs(request.getTimestampFilter()))

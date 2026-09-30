@@ -32,7 +32,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.okapi.bytes.OkapiBytes;
-import org.okapi.ch.CreateChTablesSpec;
+import org.okapi.ch.CreateChTables;
+import org.okapi.chtest.ChTestOnlyUtils;
 import org.okapi.logs.TestApplication;
 import org.okapi.metrics.ch.ChConstants;
 import org.okapi.metrics.pojos.AGG_TYPE;
@@ -107,12 +108,12 @@ public class MetricsIngestionIT {
   @BeforeEach
   void setUp() {
     baseUrl = "http://localhost:" + port;
-    CreateChTablesSpec.migrate(chClient);
-    chClient.queryAll("TRUNCATE TABLE IF EXISTS " + ChConstants.TBL_GAUGES);
-    chClient.queryAll("TRUNCATE TABLE IF EXISTS " + ChConstants.TBL_HISTOS);
-    chClient.queryAll("TRUNCATE TABLE IF EXISTS " + ChConstants.TBL_SUM);
-    chClient.queryAll("TRUNCATE TABLE IF EXISTS " + ChConstants.TBL_EXEMPLAR);
-    chClient.queryAll("TRUNCATE TABLE IF EXISTS " + ChConstants.TBL_METRIC_EVENTS_META);
+    CreateChTables.migrate(chClient);
+    ChTestOnlyUtils.truncateTable(chClient, ChConstants.TBL_GAUGES_LOCAL);
+    ChTestOnlyUtils.truncateTable(chClient, ChConstants.TBL_HISTOS_LOCAL);
+    ChTestOnlyUtils.truncateTable(chClient, ChConstants.TBL_SUM_LOCAL);
+    ChTestOnlyUtils.truncateTable(chClient, ChConstants.TBL_EXEMPLAR_LOCAL);
+    ChTestOnlyUtils.truncateTable(chClient, ChConstants.TBL_METRIC_EVENTS_META_LOCAL);
   }
 
   @Test
@@ -312,7 +313,8 @@ public class MetricsIngestionIT {
             () -> {
               var count =
                   chClient
-                      .queryAll("SELECT count() AS exemplar_count FROM " + ChConstants.TBL_EXEMPLAR)
+                      .queryAll(
+                          "SELECT count() AS exemplar_count FROM " + ChConstants.TBL_EXEMPLAR_DIST)
                       .getFirst()
                       .getLong("exemplar_count");
               assertEquals(3L, count);

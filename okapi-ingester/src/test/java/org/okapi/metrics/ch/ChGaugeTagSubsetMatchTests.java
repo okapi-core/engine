@@ -22,7 +22,8 @@ import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.okapi.ch.CreateChTablesSpec;
+import org.okapi.ch.CreateChTables;
+import org.okapi.chtest.ChTestOnlyUtils;
 import org.okapi.metrics.common.MetricPaths;
 import org.okapi.metrics.pojos.AGG_TYPE;
 import org.okapi.metrics.pojos.RES_TYPE;
@@ -49,7 +50,7 @@ public class ChGaugeTagSubsetMatchTests {
   void setup() throws Exception {
     injector = Guice.createInjector(new TestChMetricsModule(tempDir.resolve("wal"), 16));
     client = injector.getInstance(Client.class);
-    CreateChTablesSpec.migrate(client);
+    CreateChTables.migrate(client);
     truncateGaugeTable();
     ingester = injector.getInstance(ChMetricsIngester.class);
     driver = injector.getInstance(ChMetricsWalConsumerDriver.class);
@@ -179,7 +180,7 @@ public class ChGaugeTagSubsetMatchTests {
   }
 
   private void truncateGaugeTable() {
-    client.queryAll("TRUNCATE TABLE IF EXISTS okapi_metrics.gauge_raw_samples");
+    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_GAUGES_LOCAL);
   }
 
   private record ExpectedSeries(List<Long> times, List<Float> values) {}

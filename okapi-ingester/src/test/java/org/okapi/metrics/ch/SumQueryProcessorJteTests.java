@@ -21,7 +21,8 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.okapi.ch.CreateChTablesSpec;
+import org.okapi.ch.CreateChTables;
+import org.okapi.chtest.ChTestOnlyUtils;
 import org.okapi.rest.metrics.query.GetMetricsRequest;
 import org.okapi.rest.metrics.query.GetSumsQueryConfig;
 import org.okapi.rest.metrics.query.METRIC_TYPE;
@@ -39,8 +40,8 @@ public class SumQueryProcessorJteTests {
   void setup() throws IOException {
     injector = Guice.createInjector(new TestChMetricsModule(tempDir.resolve("wal"), 16));
     client = injector.getInstance(Client.class);
-    CreateChTablesSpec.migrate(client);
-    client.queryAll("TRUNCATE TABLE IF EXISTS " + ChConstants.TBL_SUM);
+    CreateChTables.migrate(client);
+    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_SUM_LOCAL);
   }
 
   @Test
@@ -83,7 +84,7 @@ public class SumQueryProcessorJteTests {
                 "histo_type",
                 "DELTA"));
 
-    writer.writeRows(ChConstants.TBL_SUM, List.of(row1, row2)).get();
+    writer.writeRows(ChConstants.TBL_SUM_DIST, List.of(row1, row2)).get();
 
     var req =
         GetMetricsRequest.builder()

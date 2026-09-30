@@ -16,7 +16,7 @@ import java.time.ZoneOffset;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.okapi.ch.CreateChTablesSpec;
+import org.okapi.ch.CreateChTables;
 import org.okapi.chtest.ChTestOnlyUtils;
 import org.okapi.exceptions.BadRequestException;
 import org.okapi.metrics.ch.ChConstants;
@@ -37,7 +37,7 @@ class IngesterOverviewIT {
   void setup() throws Exception {
     Injector injector = Guice.createInjector(new TestChMetricsModule(tempDir.resolve("wal"), 16));
     client = injector.getInstance(Client.class);
-    CreateChTablesSpec.migrate(client);
+    CreateChTables.migrate(client);
     truncateOverviewTables();
 
     nowMillis = 1_700_000_300_000L;
@@ -73,12 +73,12 @@ class IngesterOverviewIT {
   }
 
   private void truncateOverviewTables() {
-    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_GAUGES);
-    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_SUM);
-    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_HISTOS);
-    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_EXPONENTIAL_HISTOS);
-    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_SPANS_V1);
-    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_LOGS_V1);
+    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_GAUGES_LOCAL);
+    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_SUM_LOCAL);
+    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_HISTOS_LOCAL);
+    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_EXPONENTIAL_HISTOS_LOCAL);
+    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_SPANS_V1_LOCAL);
+    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_LOGS_V1_LOCAL);
   }
 
   private void insertInsideWindowRows() {
@@ -105,7 +105,7 @@ class IngesterOverviewIT {
   private void insertGauge(long millis, String metric) {
     client.queryAll(
         """
-        INSERT INTO okapi_metrics.gauge_raw_samples (timestamp, metric, tags, value, unit)
+        INSERT INTO okapi_metrics.gauge_raw_samples_dist (timestamp, metric, tags, value, unit)
         VALUES (toDateTime64(%s/1000.0, 3, 'UTC'), '%s', map('env', 'test'), 1.0, '1')
         """
             .formatted(millis, metric));
@@ -114,7 +114,7 @@ class IngesterOverviewIT {
   private void insertSum(long millis, String metric) {
     client.queryAll(
         """
-        INSERT INTO okapi_metrics.sums_raw_samples
+        INSERT INTO okapi_metrics.sums_raw_samples_dist
           (metric_name, tags, ts_start, ts_end, value, unit, sums_type)
         VALUES
           ('%s', map('env', 'test'), toDateTime64(%s/1000.0, 3, 'UTC'),
@@ -126,7 +126,7 @@ class IngesterOverviewIT {
   private void insertHisto(long millis, String metric) {
     client.queryAll(
         """
-        INSERT INTO okapi_metrics.histo_raw_samples
+        INSERT INTO okapi_metrics.histo_raw_samples_dist
           (metric_name, tags, ts_start, ts_end, buckets, counts, sum, count, unit, histo_type)
         VALUES
           ('%s', map('env', 'test'), toDateTime64(%s/1000.0, 3, 'UTC'),
@@ -138,7 +138,7 @@ class IngesterOverviewIT {
   private void insertExponentialHisto(long millis, String metric) {
     client.queryAll(
         """
-        INSERT INTO okapi_metrics.exponential_histo_raw_samples
+        INSERT INTO okapi_metrics.exponential_histo_raw_samples_dist
           (metric_name, tags, ts_start, ts_end, scale, zero_threshold, zero_count,
            positive_offset, positive_counts, negative_offset, negative_counts, sum, count, unit,
            histo_type)
@@ -152,7 +152,7 @@ class IngesterOverviewIT {
   private void insertSpan(long millis, String traceId, String spanId) {
     client.queryAll(
         """
-        INSERT INTO okapi_traces.spans_table_v1
+        INSERT INTO okapi_traces.spans_table_v1_dist
           (ts_start_ns, ts_end_ns, span_id, span_status, parent_span_id, trace_id, kind,
            kind_string, service_name)
         VALUES
@@ -164,7 +164,7 @@ class IngesterOverviewIT {
   private void insertLog(long millis, String body) {
     client.queryAll(
         """
-        INSERT INTO okapi_logs.logs_table_v1 (ts_ns, log_stream, service_name, log_level, body)
+        INSERT INTO okapi_logs.logs_table_v1_dist (ts_ns, log_stream, service_name, log_level, body)
         VALUES (%s, 'overview-stream', 'overview-service', 9, '%s')
         """
             .formatted(millis * 1_000_000L, body));

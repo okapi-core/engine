@@ -90,7 +90,7 @@ public class ChRedQueryService {
     }
     var template =
         ChServiceRedOpMetricsTemplate.builder()
-            .table(ChConstants.TBL_SERVICE_RED_EVENTS)
+            .table(ChConstants.TBL_SERVICE_RED_EVENTS_DIST)
             .serviceName(request.getService())
             .spanName(op)
             .bucketStartExpr(buildBucketStartExpr(request.getResType()))
@@ -112,7 +112,7 @@ public class ChRedQueryService {
     }
     var template =
         ChServiceRedOpsTemplate.builder()
-            .table(ChConstants.TBL_SERVICE_RED_EVENTS)
+            .table(ChConstants.TBL_SERVICE_RED_EVENTS_DIST)
             .serviceName(request.getService())
             .timestampFilter(request.getTimestampFilter())
             .limit(TOTAL_OPS_SUMMARY_LIMIT)
@@ -135,7 +135,7 @@ public class ChRedQueryService {
     }
     var template =
         ChServiceRedOpsCountTemplate.builder()
-            .table(ChConstants.TBL_SERVICE_RED_EVENTS)
+            .table(ChConstants.TBL_SERVICE_RED_EVENTS_DIST)
             .serviceName(request.getService())
             .timestampFilter(request.getTimestampFilter())
             .build();
@@ -153,7 +153,7 @@ public class ChRedQueryService {
     }
     var template =
         ChServiceRedServicesTemplate.builder()
-            .table(ChConstants.TBL_SERVICE_RED_EVENTS)
+            .table(ChConstants.TBL_SERVICE_RED_EVENTS_DIST)
             .timestampFilter(request.getTimestampFilter())
             .build();
     var query = engine.render(ChTemplateFiles.GET_SERVICE_RED_SERVICES, template);
@@ -178,7 +178,7 @@ public class ChRedQueryService {
     }
     var template =
         ChServiceRedPeersTemplate.builder()
-            .table(ChConstants.TBL_SERVICE_RED_EVENTS)
+            .table(ChConstants.TBL_SERVICE_RED_EVENTS_DIST)
             .serviceName(request.getService())
             .timestampFilter(request.getTimestampFilter())
             .build();
@@ -213,7 +213,7 @@ public class ChRedQueryService {
   private RedMetrics queryRedMetrics(ServiceRedRequest request, String peerService) {
     var template =
         ChServiceRedMetricsTemplate.builder()
-            .table(ChConstants.TBL_SERVICE_RED_EVENTS)
+            .table(ChConstants.TBL_SERVICE_RED_EVENTS_DIST)
             .serviceName(request.getService())
             .peerServiceName(peerService)
             .bucketStartExpr(buildBucketStartExpr(request.getResType()))

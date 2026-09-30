@@ -21,7 +21,7 @@ import java.nio.file.Path;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.okapi.ch.CreateChTablesSpec;
+import org.okapi.ch.CreateChTables;
 import org.okapi.chtest.ChTestOnlyUtils;
 import org.okapi.logs.TestApplication;
 import org.okapi.metrics.ch.ChConstants;
@@ -83,9 +83,9 @@ class TraceQlQueryIT {
   @BeforeEach
   void setUp() {
     baseUrl = "http://localhost:" + port;
-    CreateChTablesSpec.migrate(chClient);
-    ChTestOnlyUtils.truncateTable(chClient, ChConstants.TBL_SPANS_V1);
-    ChTestOnlyUtils.truncateTable(chClient, ChConstants.TBL_SPANS_INGESTED_ATTRIBS);
+    CreateChTables.migrate(chClient);
+    ChTestOnlyUtils.truncateTable(chClient, ChConstants.TBL_SPANS_V1_LOCAL);
+    ChTestOnlyUtils.truncateTable(chClient, ChConstants.TBL_SPANS_INGESTED_ATTRIBS_LOCAL);
   }
 
   @Test

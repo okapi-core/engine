@@ -17,7 +17,7 @@ import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.okapi.ch.CreateChTablesSpec;
+import org.okapi.ch.CreateChTables;
 import org.okapi.chtest.ChTestOnlyUtils;
 import org.okapi.metrics.ch.ChConstants;
 import org.okapi.metrics.pojos.RES_TYPE;
@@ -47,8 +47,8 @@ public class ChRedIntegrationAdditionalTests {
   void setup() throws Exception {
     injector = Guice.createInjector(new TestChTracesModule(tempDir.resolve("wal"), 16));
     client = injector.getInstance(Client.class);
-    CreateChTablesSpec.migrate(client);
-    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_SERVICE_RED_EVENTS);
+    CreateChTables.migrate(client);
+    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_SERVICE_RED_EVENTS_LOCAL);
     redQueryService = injector.getInstance(ChRedQueryService.class);
     baseMs = TimeUtils.roundToNearestHour(1_700_000_000_000L);
     otelTestFactory = new OtelTestFactory();

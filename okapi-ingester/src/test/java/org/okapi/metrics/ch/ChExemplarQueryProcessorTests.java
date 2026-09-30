@@ -18,7 +18,7 @@ import java.util.stream.LongStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.okapi.ch.CreateChTablesSpec;
+import org.okapi.ch.CreateChTables;
 import org.okapi.chtest.ChTestOnlyUtils;
 import org.okapi.rest.common.KeyValueJson;
 import org.okapi.rest.metrics.Exemplar;
@@ -40,8 +40,8 @@ public class ChExemplarQueryProcessorTests {
   void setup() {
     injector = Guice.createInjector(new TestChMetricsModule(tempDir.resolve("wal"), 16));
     client = injector.getInstance(Client.class);
-    CreateChTablesSpec.migrate(client);
-    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_EXEMPLAR);
+    CreateChTables.migrate(client);
+    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_EXEMPLAR_LOCAL);
   }
 
   @Test

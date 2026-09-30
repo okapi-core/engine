@@ -31,7 +31,8 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.okapi.ch.CreateChTablesSpec;
+import org.okapi.ch.CreateChTables;
+import org.okapi.chtest.ChTestOnlyUtils;
 import org.okapi.logs.TestApplication;
 import org.okapi.metrics.ch.ChConstants;
 import org.okapi.spring.configs.Profiles;
@@ -89,11 +90,11 @@ public class PrometheusCompatibleIngestIT {
   @BeforeEach
   void setUp() {
     baseUrl = "http://localhost:" + port;
-    CreateChTablesSpec.migrate(chClient);
-    chClient.queryAll("TRUNCATE TABLE IF EXISTS " + ChConstants.TBL_GAUGES);
-    chClient.queryAll("TRUNCATE TABLE IF EXISTS " + ChConstants.TBL_HISTOS);
-    chClient.queryAll("TRUNCATE TABLE IF EXISTS " + ChConstants.TBL_SUM);
-    chClient.queryAll("TRUNCATE TABLE IF EXISTS " + ChConstants.TBL_METRIC_EVENTS_META);
+    CreateChTables.migrate(chClient);
+    ChTestOnlyUtils.truncateTable(chClient, ChConstants.TBL_GAUGES_LOCAL);
+    ChTestOnlyUtils.truncateTable(chClient, ChConstants.TBL_HISTOS_LOCAL);
+    ChTestOnlyUtils.truncateTable(chClient, ChConstants.TBL_SUM_LOCAL);
+    ChTestOnlyUtils.truncateTable(chClient, ChConstants.TBL_METRIC_EVENTS_META_LOCAL);
   }
 
   @Test

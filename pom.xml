@@ -43,6 +43,7 @@
         <module>okapi-ingester-client</module>
         <module>okapi-oscar-client</module>
         <module>okapi-ql</module>
+        <module>okapi-ch-tables</module>
     </modules>
     <properties>
         <java.version>21</java.version>
@@ -464,14 +465,6 @@
                 <groupId>com.diffplug.spotless</groupId>
                 <artifactId>spotless-maven-plugin</artifactId>
                 <version>${spotless.version}</version>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>check</goal>
-                        </goals>
-                        <phase>package</phase>
-                    </execution>
-                </executions>
                 <configuration>
                     <formats>
                         <format>

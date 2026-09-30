@@ -1,6 +1,12 @@
 name: okapi-test-infra
 
 services:
+  zookeeper:
+    image: zookeeper:3.9
+    container_name: okapi-zookeeper
+    networks:
+      - okapi-test-network
+
   clickhouse:
     build:
       context: .
@@ -19,6 +25,7 @@ services:
     volumes:
       - "${OKAPI_CH_DIR:-${HOME}/.okapi-data}/ch_data:/var/lib/clickhouse"
       - "${OKAPI_CH_DIR:-${HOME}/.okapi-data}/ch_logs:/var/log/clickhouse-server"
+      - "./test-infra/clickhouse/macros-1.xml:/etc/clickhouse-server/config.d/macros.xml:ro"
     healthcheck:
       test:
         [
@@ -29,6 +36,41 @@ services:
       timeout: 5s
       retries: 30
       start_period: 5s
+    depends_on:
+      zookeeper:
+        condition: service_started
+    networks:
+      - okapi-test-network
+
+  clickhouse-2:
+    build:
+      context: .
+      dockerfile: test-infra/clickhouse/Dockerfile
+    image: okapi-test-clickhouse:25.12
+    container_name: okapi-clickhouse-2
+    environment:
+      CLICKHOUSE_PASSWORD: okapi_testing_password
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    volumes:
+      - "${OKAPI_CH_DIR:-${HOME}/.okapi-data}/ch_data_2:/var/lib/clickhouse"
+      - "${OKAPI_CH_DIR:-${HOME}/.okapi-data}/ch_logs_2:/var/log/clickhouse-server"
+      - "./test-infra/clickhouse/macros-2.xml:/etc/clickhouse-server/config.d/macros.xml:ro"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "clickhouse-client --password \"$${CLICKHOUSE_PASSWORD}\" --query 'SELECT 1'",
+        ]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+      start_period: 5s
+    depends_on:
+      zookeeper:
+        condition: service_started
     networks:
       - okapi-test-network
 
