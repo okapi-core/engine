@@ -41,7 +41,7 @@ public class ChExemplarQueryProcessorTests {
     injector = Guice.createInjector(new TestChMetricsModule(tempDir.resolve("wal"), 16));
     client = injector.getInstance(Client.class);
     CreateChTables.migrate(client);
-    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_EXEMPLAR);
+    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_EXEMPLAR_LOCAL);
   }
 
   @Test

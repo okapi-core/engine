@@ -41,7 +41,7 @@ public class SumQueryProcessorJteTests {
     injector = Guice.createInjector(new TestChMetricsModule(tempDir.resolve("wal"), 16));
     client = injector.getInstance(Client.class);
     CreateChTables.migrate(client);
-    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_SUM);
+    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_SUM_LOCAL);
   }
 
   @Test
@@ -84,7 +84,7 @@ public class SumQueryProcessorJteTests {
                 "histo_type",
                 "DELTA"));
 
-    writer.writeRows(ChConstants.TBL_SUM, List.of(row1, row2)).get();
+    writer.writeRows(ChConstants.TBL_SUM_DIST, List.of(row1, row2)).get();
 
     var req =
         GetMetricsRequest.builder()

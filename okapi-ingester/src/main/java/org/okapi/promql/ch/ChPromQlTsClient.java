@@ -61,7 +61,7 @@ public class ChPromQlTsClient implements TsClient {
     templateEngine.render(
         GET_METRIC_EVENT_TYPE_EXACT_MATCH,
         ChMetricEventTypeQueryTemplate.builder()
-            .table(ChConstants.TBL_METRIC_EVENTS_META)
+            .table(ChConstants.TBL_METRIC_EVENTS_META_DIST)
             .metric(ChSqlEscaper.escapeLiteral(metric))
             .startMs(startMs)
             .endMs(endMs)
@@ -80,7 +80,7 @@ public class ChPromQlTsClient implements TsClient {
     templateEngine.render(
         GET_GAUGE_RAW_SAMPLES_EXACT_MATCH,
         ChGetGaugeRawQueryTemplate.builder()
-            .table(ChConstants.TBL_GAUGES)
+            .table(ChConstants.TBL_GAUGES_DIST)
             .metric(ChSqlEscaper.escapeLiteral(metric))
             .startMs(startMs)
             .endMs(endMs)
@@ -115,7 +115,7 @@ public class ChPromQlTsClient implements TsClient {
     templateEngine.render(
         GET_SUM_SAMPLES_EXACT_MATCH,
         ChGetSumQueryTemplate.builder()
-            .table(ChConstants.TBL_SUM)
+            .table(ChConstants.TBL_SUM_DIST)
             .metric(ChSqlEscaper.escapeLiteral(metric))
             .tags(ChSqlEscaper.escapeTags(tags))
             .unit(ChSqlEscaper.escapeLiteral(unit))
@@ -179,7 +179,7 @@ public class ChPromQlTsClient implements TsClient {
     templateEngine.render(
         GET_HISTO_SAMPLES_EXACT_MATCH,
         ChGetHistoQueryTemplate.builder()
-            .table(ChConstants.TBL_HISTOS)
+            .table(ChConstants.TBL_HISTOS_DIST)
             .metric(ChSqlEscaper.escapeLiteral(metric))
             .tags(ChSqlEscaper.escapeTags(tags))
             .unit(ChSqlEscaper.escapeLiteral(unit))
@@ -231,7 +231,7 @@ public class ChPromQlTsClient implements TsClient {
     templateEngine.render(
         GET_EXPONENTIAL_HISTO_SAMPLES_EXACT_MATCH,
         ChGetExponentialHistoQueryTemplate.builder()
-            .table(ChConstants.TBL_EXPONENTIAL_HISTOS)
+            .table(ChConstants.TBL_EXPONENTIAL_HISTOS_DIST)
             .metric(ChSqlEscaper.escapeLiteral(metric))
             .tags(ChSqlEscaper.escapeTags(tags))
             .unit(ChSqlEscaper.escapeLiteral(unit))

@@ -30,7 +30,7 @@ public class ChPromQlSeriesDiscovery implements SeriesDiscovery {
     templateEngine.render(
         ChTemplateFiles.GET_METRIC_EVENTS_SERIES,
         ChSeriesDiscoveryQueryTemplate.builder()
-            .table(ChConstants.TBL_METRIC_EVENTS_META)
+            .table(ChConstants.TBL_METRIC_EVENTS_META_DIST)
             .metric(ChSqlEscaper.escapeLiteral(metricOrNull))
             .startMs(start)
             .endMs(end)

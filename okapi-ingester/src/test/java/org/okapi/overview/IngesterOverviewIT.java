@@ -73,10 +73,10 @@ class IngesterOverviewIT {
   }
 
   private void truncateOverviewTables() {
-    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_GAUGES);
-    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_SUM);
-    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_HISTOS);
-    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_EXPONENTIAL_HISTOS);
+    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_GAUGES_LOCAL);
+    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_SUM_LOCAL);
+    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_HISTOS_LOCAL);
+    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_EXPONENTIAL_HISTOS_LOCAL);
     ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_SPANS_V1);
     ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_LOGS_V1);
   }
@@ -105,7 +105,7 @@ class IngesterOverviewIT {
   private void insertGauge(long millis, String metric) {
     client.queryAll(
         """
-        INSERT INTO okapi_metrics.gauge_raw_samples (timestamp, metric, tags, value, unit)
+        INSERT INTO okapi_metrics.gauge_raw_samples_dist (timestamp, metric, tags, value, unit)
         VALUES (toDateTime64(%s/1000.0, 3, 'UTC'), '%s', map('env', 'test'), 1.0, '1')
         """
             .formatted(millis, metric));
@@ -114,7 +114,7 @@ class IngesterOverviewIT {
   private void insertSum(long millis, String metric) {
     client.queryAll(
         """
-        INSERT INTO okapi_metrics.sums_raw_samples
+        INSERT INTO okapi_metrics.sums_raw_samples_dist
           (metric_name, tags, ts_start, ts_end, value, unit, sums_type)
         VALUES
           ('%s', map('env', 'test'), toDateTime64(%s/1000.0, 3, 'UTC'),
@@ -126,7 +126,7 @@ class IngesterOverviewIT {
   private void insertHisto(long millis, String metric) {
     client.queryAll(
         """
-        INSERT INTO okapi_metrics.histo_raw_samples
+        INSERT INTO okapi_metrics.histo_raw_samples_dist
           (metric_name, tags, ts_start, ts_end, buckets, counts, sum, count, unit, histo_type)
         VALUES
           ('%s', map('env', 'test'), toDateTime64(%s/1000.0, 3, 'UTC'),
@@ -138,7 +138,7 @@ class IngesterOverviewIT {
   private void insertExponentialHisto(long millis, String metric) {
     client.queryAll(
         """
-        INSERT INTO okapi_metrics.exponential_histo_raw_samples
+        INSERT INTO okapi_metrics.exponential_histo_raw_samples_dist
           (metric_name, tags, ts_start, ts_end, scale, zero_threshold, zero_count,
            positive_offset, positive_counts, negative_offset, negative_counts, sum, count, unit,
            histo_type)

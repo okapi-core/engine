@@ -91,10 +91,10 @@ public class PrometheusCompatibleIngestIT {
   void setUp() {
     baseUrl = "http://localhost:" + port;
     CreateChTables.migrate(chClient);
-    ChTestOnlyUtils.truncateTable(chClient, ChConstants.TBL_GAUGES);
-    ChTestOnlyUtils.truncateTable(chClient, ChConstants.TBL_HISTOS);
-    ChTestOnlyUtils.truncateTable(chClient, ChConstants.TBL_SUM);
-    ChTestOnlyUtils.truncateTable(chClient, ChConstants.TBL_METRIC_EVENTS_META);
+    ChTestOnlyUtils.truncateTable(chClient, ChConstants.TBL_GAUGES_LOCAL);
+    ChTestOnlyUtils.truncateTable(chClient, ChConstants.TBL_HISTOS_LOCAL);
+    ChTestOnlyUtils.truncateTable(chClient, ChConstants.TBL_SUM_LOCAL);
+    ChTestOnlyUtils.truncateTable(chClient, ChConstants.TBL_METRIC_EVENTS_META_LOCAL);
   }
 
   @Test

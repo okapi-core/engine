@@ -47,7 +47,7 @@ public class GaugeQueryProcessor {
     var resType = gaugeQueryConfig.getResolution();
     var templateModel =
         ChGetGaugeQueryTemplate.builder()
-            .table(ChConstants.TBL_GAUGES)
+            .table(ChConstants.TBL_GAUGES_DIST)
             .bucketExpr(bucketExpr(resType))
             .aggExpr(aggExpr(aggType))
             .metric(getMetricsRequest.getMetric())

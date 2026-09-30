@@ -42,7 +42,7 @@ public class HistogramQueryProcessorJteTests {
     injector = Guice.createInjector(new TestChMetricsModule(tempDir.resolve("wal"), 16));
     client = injector.getInstance(Client.class);
     CreateChTables.migrate(client);
-    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_HISTOS);
+    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_HISTOS_LOCAL);
   }
 
   @Test

@@ -27,7 +27,7 @@ public class ChExemplarQueryProcessor {
   public GetExemplarsResponse getExemplars(GetExemplarsRequest request) {
     var template =
         ChGetExemplarTemplate.builder()
-            .fqTable(ChConstants.TBL_EXEMPLAR)
+          .fqTable(ChConstants.TBL_EXEMPLAR_DIST)
             .tags(request.getLabels())
             .metricName(request.getMetric())
             .tsNanosStart(request.getTimeFilter().getTsStartNanos())

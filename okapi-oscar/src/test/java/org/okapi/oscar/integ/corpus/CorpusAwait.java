@@ -15,11 +15,11 @@ public class CorpusAwait {
 
   private static final List<String> TABLES =
       List.of(
-          "okapi_metrics.gauge_raw_samples",
-          "okapi_metrics.histo_raw_samples",
-          "okapi_metrics.sums_raw_samples",
-          "okapi_metrics.metric_exemplars",
-          "okapi_metrics.metric_events_stream_meta",
+          "okapi_metrics.gauge_raw_samples_dist",
+          "okapi_metrics.histo_raw_samples_dist",
+          "okapi_metrics.sums_raw_samples_dist",
+          "okapi_metrics.metric_exemplars_dist",
+          "okapi_metrics.metric_events_stream_meta_dist",
           "okapi_traces.service_red_events",
           "okapi_traces.spans_table_v1",
           "okapi_traces.spans_ingested_attribs");

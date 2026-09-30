@@ -37,8 +37,8 @@ public class ChSumTests {
     injector = Guice.createInjector(new TestChMetricsModule(tempDir.resolve("wal"), 16));
     client = injector.getInstance(Client.class);
     CreateChTables.migrate(client);
-    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_SUM);
-    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_METRIC_EVENTS_META);
+    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_SUM_LOCAL);
+    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_METRIC_EVENTS_META_LOCAL);
   }
 
   @Test

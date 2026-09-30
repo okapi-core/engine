@@ -97,7 +97,10 @@ public class ChWriter {
     var data = toJsonEachRow(jsonRows).getBytes();
     var bis = new ByteArrayInputStream(data);
     return client.insert(
-        ChConstants.TBL_HISTOS, bis, ClickHouseFormat.JSONEachRow, SYNCHRONOUS_INSERT_SETTINGS);
+        ChConstants.TBL_HISTOS_DIST,
+        bis,
+        ClickHouseFormat.JSONEachRow,
+        SYNCHRONOUS_INSERT_SETTINGS);
   }
 
   private static long totalCount(long[] counts) {

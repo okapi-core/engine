@@ -109,11 +109,11 @@ public class MetricsIngestionIT {
   void setUp() {
     baseUrl = "http://localhost:" + port;
     CreateChTables.migrate(chClient);
-    ChTestOnlyUtils.truncateTable(chClient, ChConstants.TBL_GAUGES);
-    ChTestOnlyUtils.truncateTable(chClient, ChConstants.TBL_HISTOS);
-    ChTestOnlyUtils.truncateTable(chClient, ChConstants.TBL_SUM);
-    ChTestOnlyUtils.truncateTable(chClient, ChConstants.TBL_EXEMPLAR);
-    ChTestOnlyUtils.truncateTable(chClient, ChConstants.TBL_METRIC_EVENTS_META);
+    ChTestOnlyUtils.truncateTable(chClient, ChConstants.TBL_GAUGES_LOCAL);
+    ChTestOnlyUtils.truncateTable(chClient, ChConstants.TBL_HISTOS_LOCAL);
+    ChTestOnlyUtils.truncateTable(chClient, ChConstants.TBL_SUM_LOCAL);
+    ChTestOnlyUtils.truncateTable(chClient, ChConstants.TBL_EXEMPLAR_LOCAL);
+    ChTestOnlyUtils.truncateTable(chClient, ChConstants.TBL_METRIC_EVENTS_META_LOCAL);
   }
 
   @Test
@@ -313,7 +313,8 @@ public class MetricsIngestionIT {
             () -> {
               var count =
                   chClient
-                      .queryAll("SELECT count() AS exemplar_count FROM " + ChConstants.TBL_EXEMPLAR)
+                      .queryAll(
+                          "SELECT count() AS exemplar_count FROM " + ChConstants.TBL_EXEMPLAR_DIST)
                       .getFirst()
                       .getLong("exemplar_count");
               assertEquals(3L, count);

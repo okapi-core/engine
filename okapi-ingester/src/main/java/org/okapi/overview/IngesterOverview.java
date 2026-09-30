@@ -58,10 +58,10 @@ public class IngesterOverview {
   private OverviewRow query(long startMillis, long endMillis) {
     var template =
         OverviewQueryTemplate.builder()
-            .gaugeTable(ChConstants.TBL_GAUGES)
-            .sumTable(ChConstants.TBL_SUM)
-            .histoTable(ChConstants.TBL_HISTOS)
-            .exponentialHistoTable(ChConstants.TBL_EXPONENTIAL_HISTOS)
+            .gaugeTable(ChConstants.TBL_GAUGES_DIST)
+            .sumTable(ChConstants.TBL_SUM_DIST)
+            .histoTable(ChConstants.TBL_HISTOS_DIST)
+            .exponentialHistoTable(ChConstants.TBL_EXPONENTIAL_HISTOS_DIST)
             .tracesTable(ChConstants.TBL_SPANS_V1)
             .logsTable(ChConstants.TBL_LOGS_V1)
             .startMillis(startMillis)

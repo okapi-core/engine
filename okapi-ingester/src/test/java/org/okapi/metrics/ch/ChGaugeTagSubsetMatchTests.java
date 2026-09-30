@@ -180,7 +180,7 @@ public class ChGaugeTagSubsetMatchTests {
   }
 
   private void truncateGaugeTable() {
-    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_GAUGES);
+    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_GAUGES_LOCAL);
   }
 
   private record ExpectedSeries(List<Long> times, List<Float> values) {}

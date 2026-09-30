@@ -98,7 +98,7 @@ public class SumQueryProcessor {
 
     var template =
         ChGetSumQueryTemplate.builder()
-            .table(ChConstants.TBL_SUM)
+            .table(ChConstants.TBL_SUM_DIST)
             .metric(metric)
             .tags(tags)
             .ts(ts)

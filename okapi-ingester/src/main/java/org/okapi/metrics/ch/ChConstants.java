@@ -4,12 +4,22 @@
 package org.okapi.metrics.ch;
 
 public class ChConstants {
-  public static final String TBL_GAUGES = "okapi_metrics.gauge_raw_samples";
-  public static final String TBL_HISTOS = "okapi_metrics.histo_raw_samples";
-  public static final String TBL_EXPONENTIAL_HISTOS = "okapi_metrics.exponential_histo_raw_samples";
-  public static final String TBL_SUM = "okapi_metrics.sums_raw_samples";
-  public static final String TBL_EXEMPLAR = "okapi_metrics.metric_exemplars";
-  public static final String TBL_METRIC_EVENTS_META = "okapi_metrics.metric_events_stream_meta";
+  public static final String TBL_GAUGES_LOCAL = "okapi_metrics.gauge_raw_samples_local";
+  public static final String TBL_GAUGES_DIST = "okapi_metrics.gauge_raw_samples_dist";
+  public static final String TBL_HISTOS_LOCAL = "okapi_metrics.histo_raw_samples_local";
+  public static final String TBL_HISTOS_DIST = "okapi_metrics.histo_raw_samples_dist";
+  public static final String TBL_EXPONENTIAL_HISTOS_LOCAL =
+      "okapi_metrics.exponential_histo_raw_samples_local";
+  public static final String TBL_EXPONENTIAL_HISTOS_DIST =
+      "okapi_metrics.exponential_histo_raw_samples_dist";
+  public static final String TBL_SUM_LOCAL = "okapi_metrics.sums_raw_samples_local";
+  public static final String TBL_SUM_DIST = "okapi_metrics.sums_raw_samples_dist";
+  public static final String TBL_EXEMPLAR_LOCAL = "okapi_metrics.metric_exemplars_local";
+  public static final String TBL_EXEMPLAR_DIST = "okapi_metrics.metric_exemplars_dist";
+  public static final String TBL_METRIC_EVENTS_META_LOCAL =
+      "okapi_metrics.metric_events_stream_meta_local";
+  public static final String TBL_METRIC_EVENTS_META_DIST =
+      "okapi_metrics.metric_events_stream_meta_dist";
   public static final String TBL_SERVICE_RED_EVENTS = "okapi_traces.service_red_events";
   public static final String TBL_SPANS_V1 = "okapi_traces.spans_table_v1";
   public static final String TBL_SPANS_INGESTED_ATTRIBS = "okapi_traces.spans_ingested_attribs";

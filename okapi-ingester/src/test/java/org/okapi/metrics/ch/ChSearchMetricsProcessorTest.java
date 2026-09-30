@@ -71,10 +71,10 @@ public class ChSearchMetricsProcessorTest {
     searchProcessor = injector.getInstance(ChSearchMetricsProcessor.class);
 
     CreateChTables.migrate(client);
-    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_GAUGES);
-    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_HISTOS);
-    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_SUM);
-    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_METRIC_EVENTS_META);
+    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_GAUGES_LOCAL);
+    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_HISTOS_LOCAL);
+    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_SUM_LOCAL);
+    ChTestOnlyUtils.truncateTable(client, ChConstants.TBL_METRIC_EVENTS_META_LOCAL);
 
     ingester = injector.getInstance(ChMetricsIngester.class);
     driver = injector.getInstance(ChMetricsWalConsumerDriver.class);
