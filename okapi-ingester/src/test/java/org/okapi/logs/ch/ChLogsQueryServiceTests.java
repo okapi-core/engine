@@ -312,7 +312,11 @@ public class ChLogsQueryServiceTests {
             WHERE body = 'Order confirmed order=1001 user=u123'
             """
                 .formatted(
-                    routeBucket, statusBucket, durationBucket, envBucket, ChConstants.TBL_LOGS_V1_DIST));
+                    routeBucket,
+                    statusBucket,
+                    durationBucket,
+                    envBucket,
+                    ChConstants.TBL_LOGS_V1_DIST));
 
     assertEquals(1, rows.size());
     var row = rows.getFirst();

@@ -55,7 +55,8 @@ public class ChLogsWalConsumer {
     for (var event : batch) {
       var request = ExportLogsServiceRequest.parseFrom(event.payload());
       writeLoad.putAll(
-          ChConstants.TBL_LOGS_V1_DIST, converter.toRows(request).stream().map(gson::toJson).toList());
+          ChConstants.TBL_LOGS_V1_DIST,
+          converter.toRows(request).stream().map(gson::toJson).toList());
     }
 
     chWriter.writeSyncWithBestEffort(writeLoad);
