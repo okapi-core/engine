@@ -174,8 +174,8 @@ public class ChSpanStatsQueryServiceTests {
   }
 
   private void truncateTables() {
-    client.queryAll("TRUNCATE TABLE okapi_traces.spans_table_v1_local ON CLUSTER 'okapi'");
-    client.queryAll("TRUNCATE TABLE okapi_traces.spans_ingested_attribs_local ON CLUSTER 'okapi'");
+    client.queryAll("TRUNCATE TABLE okapi_traces.spans_table_v1_local");
+    client.queryAll("TRUNCATE TABLE okapi_traces.spans_ingested_attribs_local");
   }
 
   private ResourceSpans buildStatsSpan(

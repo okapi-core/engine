@@ -442,8 +442,7 @@ public class ChLogsQueryServiceTests {
   }
 
   private void truncateTable() {
-    client.queryAll(
-        "TRUNCATE TABLE IF EXISTS " + ChConstants.TBL_LOGS_V1_LOCAL + " ON CLUSTER 'okapi'");
+    client.queryAll("TRUNCATE TABLE IF EXISTS " + ChConstants.TBL_LOGS_V1_LOCAL);
   }
 
   private void assertLineIds(List<ChLogRow> items, Set<String> expectedLineIds) {

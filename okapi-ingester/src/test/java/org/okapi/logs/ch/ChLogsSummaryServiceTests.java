@@ -46,8 +46,7 @@ public class ChLogsSummaryServiceTests {
     client = injector.getInstance(Client.class);
     summaryService = injector.getInstance(ChLogsSummaryService.class);
     recreateLogsTable();
-    client.queryAll(
-        "TRUNCATE TABLE IF EXISTS " + ChConstants.TBL_LOGS_V1_LOCAL + " ON CLUSTER 'okapi'");
+    client.queryAll("TRUNCATE TABLE IF EXISTS " + ChConstants.TBL_LOGS_V1_LOCAL);
     injector.getInstance(ChLogsWalConsumerDriver.class).onTick();
   }
 
