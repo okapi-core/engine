@@ -5,7 +5,7 @@ metadata:
   labels:
     {{- include "clickhouse.labels" . | nindent 4 }}
 spec:
-  serviceName: {{ include "clickhouse.fullname" . }}
+  serviceName: {{ include "clickhouse.fullname" . }}-headless
   replicas: {{ mul (int .Values.cluster.shards) (int .Values.cluster.replicas) }}
   selector:
     matchLabels:
