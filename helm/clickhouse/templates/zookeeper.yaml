@@ -1,0 +1,55 @@
+{{- if .Values.zookeeper.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "clickhouse.fullname" . }}-zookeeper
+  labels:
+    {{- include "clickhouse.labels" . | nindent 4 }}
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: {{ include "clickhouse.name" . }}-zookeeper
+    app.kubernetes.io/instance: {{ .Release.Name }}
+  ports:
+    - name: client
+      port: 2181
+      targetPort: client
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "clickhouse.fullname" . }}-zookeeper
+  labels:
+    app.kubernetes.io/name: {{ include "clickhouse.name" . }}-zookeeper
+    app.kubernetes.io/instance: {{ .Release.Name }}
+spec:
+  serviceName: {{ include "clickhouse.fullname" . }}-zookeeper
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "clickhouse.name" . }}-zookeeper
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "clickhouse.name" . }}-zookeeper
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      containers:
+        - name: zookeeper
+          image: "{{ .Values.zookeeper.image.repository }}:{{ .Values.zookeeper.image.tag }}"
+          imagePullPolicy: {{ .Values.zookeeper.image.pullPolicy }}
+          env:
+            - name: ZOO_MY_ID
+              value: "1"
+            - name: ZOO_4LW_COMMANDS_WHITELIST
+              value: ruok
+          ports:
+            - name: client
+              containerPort: 2181
+          readinessProbe:
+            tcpSocket:
+              port: client
+            initialDelaySeconds: 5
+            periodSeconds: 5
+{{- end }}
