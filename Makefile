@@ -381,7 +381,7 @@ run-zk:
 	$(DOCKER_CMD) zookeeper --network $(OKAPI_TEST_NET) -p 2181:2181 zookeeper:latest
 
 ch:
-	$(TEST_INFRA_ENV) $(DOCKER_COMPOSE) -f $(TEST_INFRA_COMPOSE) up --build -d --wait clickhouse clickhouse-2
+	$(TEST_INFRA_ENV) $(DOCKER_COMPOSE) -f $(TEST_INFRA_COMPOSE) up --build -d --wait clickhouse
 
 postgres:
 	$(TEST_INFRA_ENV) $(DOCKER_COMPOSE) -f $(TEST_INFRA_COMPOSE) up -d --wait postgres
@@ -442,11 +442,10 @@ setup-test-infra:
 	$(TEST_INFRA_ENV) $(DOCKER_COMPOSE) -f $(TEST_INFRA_COMPOSE) \
 		down --volumes --remove-orphans
 	@if [ -n "$(ch_dir)" ] && [ "$(ch_dir)" != "/" ]; then \
-		rm -rf "$(ch_dir)/ch_data" "$(ch_dir)/ch_data_2" \
-			"$(ch_dir)/ch_logs" "$(ch_dir)/ch_logs_2"; \
+		rm -rf "$(ch_dir)/ch_data" "$(ch_dir)/ch_logs"; \
 	fi
 	$(TEST_INFRA_ENV) $(DOCKER_COMPOSE) -f $(TEST_INFRA_COMPOSE) \
-		up --build -d --wait clickhouse clickhouse-2 postgres vault
+		up --build -d --wait clickhouse postgres vault
 	$(MAKE) init-test-postgres
 	$(TEST_INFRA_ENV) OPENAI_API_KEY="$(OPENAI_API_KEY)" \
 		$(DOCKER_COMPOSE) -f $(TEST_INFRA_COMPOSE) --profile init run --rm vault-init
