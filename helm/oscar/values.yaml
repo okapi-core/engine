@@ -19,7 +19,7 @@ ingester:
 postgres:
   host: postgres
   port: 5432
-  database: okapi_oscar
+  database: okapi_db
   schema: okapi_oscar
   username: okapi_oscar_user
   password: ""

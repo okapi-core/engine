@@ -41,7 +41,7 @@ done
 
 helm upgrade --install postgres helm/postgres \
   --namespace "$NAMESPACE" \
-  --set-string auth.database=okapi_oscar \
+  --set-string auth.database=okapi_db \
   --set-string auth.username=okapi_oscar_user_admin \
   --set-string auth.password=okapi_oscar_password \
   --wait --timeout "$HELM_TIMEOUT"
@@ -59,34 +59,34 @@ chart_ref() {
 helm upgrade --install ops "$(chart_ref ops)" \
   --namespace "$NAMESPACE" --wait --timeout "$HELM_TIMEOUT" \
   --set-string image.repository="$IMAGE_REPO/ops" --set-string image.tag="$IMAGE_TAG" \
-  --set-string clickhouse.host=clickhouse --set-string clickhouse.port=8123 \
+  --set-string clickhouse.host=okapi-clickhouse --set-string clickhouse.port=8123 \
   --set-string clickhouse.username=default --set-string clickhouse.password=okapi_testing_password \
-  --set-string postgres.url='jdbc:postgresql://postgres:5432/okapi_oscar?currentSchema=okapi_web' \
+  --set-string postgres.url='jdbc:postgresql://postgres:5432/okapi_db?currentSchema=okapi_web' \
   --set-string postgres.username=okapi_web_migration_user \
   --set-string postgres.password=okapi_web_migration_password
 
 helm upgrade --install ingester "$(chart_ref ingester)" \
   --namespace "$NAMESPACE" --wait --timeout "$HELM_TIMEOUT" \
   --set-string image.repository="$IMAGE_REPO/ingester" --set-string image.tag="$IMAGE_TAG" \
-  --set-string clickhouse.host=clickhouse --set-string clickhouse.port=8123 \
+  --set-string clickhouse.host=okapi-clickhouse --set-string clickhouse.port=8123 \
   --set-string clickhouse.username=default --set-string clickhouse.password=okapi_testing_password
 
 helm upgrade --install oscar "$(chart_ref oscar)" \
   --namespace "$NAMESPACE" --wait --timeout "$HELM_TIMEOUT" \
   --set-string image.repository="$IMAGE_REPO/oscar" --set-string image.tag="$IMAGE_TAG" \
   --set-string postgres.host=postgres --set-string postgres.port=5432 \
-  --set-string postgres.database=okapi_oscar --set-string postgres.username=okapi_oscar_user \
+  --set-string postgres.database=okapi_db --set-string postgres.username=okapi_oscar_user \
   --set-string postgres.password=okapi_oscar_password --set-string openai.apiKey=dummy
 
 helm upgrade --install web "$(chart_ref web)" \
   --namespace "$NAMESPACE" --wait --timeout "$HELM_TIMEOUT" \
   --set-string image.repository="$IMAGE_REPO/web" --set-string image.tag="$IMAGE_TAG" \
   --set-string postgres.host=postgres --set-string postgres.port=5432 \
-  --set-string postgres.database=okapi_oscar --set-string postgres.username=okapi_web_user \
+  --set-string postgres.database=okapi_db --set-string postgres.username=okapi_web_user \
   --set-string postgres.password=okapi_web_password
 
 kubectl -n "$NAMESPACE" rollout status statefulset/postgres --timeout="$HELM_TIMEOUT"
-kubectl -n "$NAMESPACE" rollout status statefulset/clickhouse --timeout="$HELM_TIMEOUT"
+kubectl -n "$NAMESPACE" rollout status statefulset/okapi-clickhouse --timeout="$HELM_TIMEOUT"
 kubectl -n "$NAMESPACE" wait --for=condition=complete job/ops --timeout="$HELM_TIMEOUT"
 for service in ingester oscar web; do
   kubectl -n "$NAMESPACE" rollout status deployment/"$service" --timeout="$HELM_TIMEOUT"

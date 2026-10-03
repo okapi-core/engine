@@ -8,7 +8,7 @@ ingester:
 postgres:
   host: <postgres-service>
   port: 5432
-  database: okapi_oscar
+  database: okapi_db
   schema: okapi_oscar
   existingSecret: okapi-secrets
   usernameKey: oscar-username

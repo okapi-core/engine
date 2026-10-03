@@ -20,10 +20,10 @@ services:
     environment:
       OKAPI_CLUSTER_ENDPOINT: http://okapi-ingester:9009
       OKAPI_OSCAR_ENDPOINT: http://okapi-oscar:9002
-      OKAPI_WEB_DB_URL: jdbc:postgresql://okapi-postgres:5432/okapi_oscar?currentSchema=okapi_web
+      OKAPI_WEB_DB_URL: jdbc:postgresql://okapi-postgres:5432/okapi_db?currentSchema=okapi_web
       OKAPI_WEB_DB_USER: okapi_web_user
       OKAPI_WEB_DB_PASSWORD: okapi_web_password
-      OKAPI_WEB_DB_MIGRATION_URL: jdbc:postgresql://okapi-postgres:5432/okapi_oscar
+      OKAPI_WEB_DB_MIGRATION_URL: jdbc:postgresql://okapi-postgres:5432/okapi_db
       OKAPI_WEB_DB_MIGRATION_USER: okapi_web_migration_user
       OKAPI_WEB_DB_MIGRATION_PASSWORD: okapi_web_migration_password
     ports:
@@ -42,7 +42,7 @@ services:
       - --okapi.oscar.model.core-model-provider=dummy
       - --okapi.oscar.vault.address=
       - --okapi.oscar.cluster.endpoint=http://okapi-ingester:9009
-      - --spring.datasource.url=jdbc:postgresql://okapi-postgres:5432/okapi_oscar?currentSchema=okapi_oscar
+      - --spring.datasource.url=jdbc:postgresql://okapi-postgres:5432/okapi_db?currentSchema=okapi_oscar
       - --spring.datasource.username=okapi_oscar_user
       - --spring.datasource.password=okapi_oscar_password
     ports:

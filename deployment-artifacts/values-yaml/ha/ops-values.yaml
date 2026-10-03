@@ -10,7 +10,7 @@ clickhouse:
   passwordKey: clickhouse-password
 
 postgres:
-  url: jdbc:postgresql://<postgres-service>:5432/okapi_oscar?currentSchema=okapi_web
+  url: jdbc:postgresql://<postgres-service>:5432/okapi_db?currentSchema=okapi_web
   existingSecret: okapi-secrets
   usernameKey: migration-username
   passwordKey: migration-password

@@ -27,7 +27,7 @@ receivers:
     endpoint: postgres:5432
     username: monitoring_user
     password: monitoring_password
-    databases: [okapi_oscar]
+    databases: [okapi_db]
     collection_interval: 10s
     tls:
       insecure: true

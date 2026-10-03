@@ -81,7 +81,7 @@ services:
     image: okapi-test-postgres:16
     container_name: okapi-postgres
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-okapi_oscar}
+      POSTGRES_DB: ${POSTGRES_DB:-okapi_db}
       POSTGRES_USER: ${POSTGRES_USER:-okapi_oscar_user_admin}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-okapi_oscar_password}
       OKAPI_WEB_DB_USER: ${OKAPI_WEB_DB_USER:-okapi_web_user}
