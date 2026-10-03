@@ -19,7 +19,7 @@ clickhouse:
   passwordKey: password
 
 postgres:
-  url: jdbc:postgresql://postgres:5432/okapi_oscar?currentSchema=okapi_web
+  url: jdbc:postgresql://postgres:5432/okapi_db?currentSchema=okapi_web
   username: ""
   password: ""
   existingSecret: ""

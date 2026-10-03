@@ -3,6 +3,9 @@ image:
   tag: "25.12"
   pullPolicy: IfNotPresent
 
+# Stable application-facing Service name, independent of the Helm release name.
+fullnameOverride: okapi-clickhouse
+
 auth:
   password: okapi_testing_password
 
@@ -10,6 +13,19 @@ service:
   type: ClusterIP
   httpPort: 8123
   nativePort: 9000
+
+# Fixed-size test cluster: two shards and one replica per shard.
+cluster:
+  name: okapi
+  shards: 2
+  replicas: 1
+
+zookeeper:
+  enabled: true
+  image:
+    repository: zookeeper
+    tag: "3.9"
+    pullPolicy: IfNotPresent
 
 persistence:
   enabled: false

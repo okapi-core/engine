@@ -4,7 +4,7 @@ image:
   pullPolicy: IfNotPresent
 
 auth:
-  database: okapi_oscar
+  database: okapi_db
   username: okapi_oscar_user_admin
   password: okapi_oscar_password
 

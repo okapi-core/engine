@@ -15,7 +15,7 @@ import org.junit.jupiter.api.Test;
 class PostgresMigratorIT {
   private static final String ADMIN_URL =
       System.getenv()
-          .getOrDefault("TEST_POSTGRES_ADMIN_URL", "jdbc:postgresql://127.0.0.1:5432/okapi_oscar");
+          .getOrDefault("TEST_POSTGRES_ADMIN_URL", "jdbc:postgresql://127.0.0.1:5432/okapi_db");
   private static final String ADMIN_USER =
       System.getenv().getOrDefault("TEST_POSTGRES_ADMIN_USER", "okapi_oscar_user_admin");
   private static final String ADMIN_PASSWORD =
@@ -23,7 +23,7 @@ class PostgresMigratorIT {
   private static final String MIGRATION_URL =
       System.getenv()
           .getOrDefault(
-              "OKAPI_WEB_DB_MIGRATION_URL", "jdbc:postgresql://127.0.0.1:5432/okapi_oscar");
+              "OKAPI_WEB_DB_MIGRATION_URL", "jdbc:postgresql://127.0.0.1:5432/okapi_db");
   private static final String MIGRATION_USER =
       System.getenv().getOrDefault("OKAPI_WEB_DB_MIGRATION_USER", "okapi_web_migration_user");
   private static final String MIGRATION_PASSWORD =

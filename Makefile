@@ -34,7 +34,7 @@ TEST_WEB_POSTGRES_PASSWORD ?= okapi_web_password
 TEST_WEB_POSTGRES_MIGRATION_USER ?= okapi_web_migration_user
 TEST_WEB_POSTGRES_MIGRATION_PASSWORD ?= okapi_web_migration_password
 TEST_VAULT_ADDR ?= http://127.0.0.1:8200
-POSTGRES_DB ?= okapi_oscar
+POSTGRES_DB ?= okapi_db
 POSTGRES_USER ?= okapi_oscar_user_admin
 POSTGRES_PASSWORD ?= okapi_oscar_password
 VAULT_ROOT_TOKEN ?= 0d94159a1b7e9c8f563e4e9e383185dc402ef70e
@@ -68,7 +68,7 @@ OKAPI_WEB_RELEASE ?= okapi-web
 OKAPI_INGESTER_RELEASE ?= okapi-ingester
 OKAPI_OSCAR_RELEASE ?= okapi-oscar
 OKAPI_OPS_RELEASE ?= okapi-ops
-CLICKHOUSE_HOST ?= clickhouse.$(HELM_NS).svc.cluster.local
+CLICKHOUSE_HOST ?= okapi-clickhouse.$(HELM_NS).svc.cluster.local
 CLICKHOUSE_PORT ?= 8123
 CLICKHOUSE_USER ?= default
 CLICKHOUSE_PASSWORD ?=
@@ -81,13 +81,13 @@ HELM_VALIDATE_VERSION ?= 0.0.0-ci
 HELM_LOCAL_TIMEOUT ?= 15m
 HELM_LOCAL_IMAGE_REPO ?= $(REPO)
 HELM_LOCAL_IMAGE_TAG ?= 0.0.2
-HELM_LOCAL_CLICKHOUSE_HOST ?= clickhouse
+HELM_LOCAL_CLICKHOUSE_HOST ?= okapi-clickhouse
 HELM_LOCAL_CLICKHOUSE_PORT ?= 8123
 HELM_LOCAL_CLICKHOUSE_USER ?= default
 HELM_LOCAL_CLICKHOUSE_PASSWORD ?= okapi_testing_password
 HELM_LOCAL_POSTGRES_HOST ?= postgres
 HELM_LOCAL_POSTGRES_PORT ?= 5432
-HELM_LOCAL_POSTGRES_DATABASE ?= okapi_oscar
+HELM_LOCAL_POSTGRES_DATABASE ?= okapi_db
 HELM_LOCAL_POSTGRES_MIGRATION_USER ?= okapi_web_migration_user
 HELM_LOCAL_POSTGRES_MIGRATION_PASSWORD ?= okapi_web_migration_password
 HELM_LOCAL_POSTGRES_USER ?= okapi_web_user
@@ -97,7 +97,7 @@ HELM_LOCAL_OSCAR_PASSWORD ?= okapi_oscar_password
 HELM_INFRA_NAMESPACE ?= $(HELM_NS)
 POSTGRES_RELEASE ?= postgres
 POSTGRES_CHART ?= helm/postgres
-POSTGRES_DATABASE ?= okapi_oscar
+POSTGRES_DATABASE ?= okapi_db
 POSTGRES_USER ?= okapi_oscar_user_admin
 POSTGRES_PASSWORD ?= okapi_oscar_password
 HELM_OPS_FLAGS ?=
@@ -504,7 +504,7 @@ test: package test-infra start-okapi-ingester-jar start-okapi-web-jar
 	TEST_POSTGRES_ADMIN_URL="jdbc:postgresql://$(TEST_POSTGRES_HOST):$(TEST_POSTGRES_PORT)/$(POSTGRES_DB)" \
 	TEST_POSTGRES_ADMIN_USER="$(POSTGRES_USER)" \
 	TEST_POSTGRES_ADMIN_PASSWORD="$(POSTGRES_PASSWORD)" \
-	OSCAR_DB_URL="jdbc:postgresql://$(TEST_POSTGRES_HOST):$(TEST_POSTGRES_PORT)/okapi_oscar?currentSchema=okapi_oscar" \
+	OSCAR_DB_URL="jdbc:postgresql://$(TEST_POSTGRES_HOST):$(TEST_POSTGRES_PORT)/okapi_db?currentSchema=okapi_oscar" \
 	VAULT_ADDR="$(TEST_VAULT_ADDR)" \
 		mvn test
 
@@ -516,7 +516,7 @@ publish-docker:
 publish: publish-docker
 
 start-oscar-jar:
-	OSCAR_DB_URL="jdbc:postgresql://$(TEST_POSTGRES_HOST):$(TEST_POSTGRES_PORT)/okapi_oscar?currentSchema=okapi_oscar" \
+	OSCAR_DB_URL="jdbc:postgresql://$(TEST_POSTGRES_HOST):$(TEST_POSTGRES_PORT)/okapi_db?currentSchema=okapi_oscar" \
 	OSCAR_DB_USER="okapi_oscar_user" \
 	OSCAR_DB_PASSWORD="okapi_oscar_password" \
 	OKAPI_CLUSTER_ENDPOINT="http://$(OKAPI_INGESTER_HOST):$(OKAPI_INGESTER_PORT)" \

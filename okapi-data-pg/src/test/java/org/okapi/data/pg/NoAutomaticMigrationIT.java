@@ -18,14 +18,14 @@ import org.springframework.test.context.DynamicPropertySource;
 class NoAutomaticMigrationIT {
   private static final String ADMIN_URL =
       System.getenv()
-          .getOrDefault("TEST_POSTGRES_ADMIN_URL", "jdbc:postgresql://127.0.0.1:5432/okapi_oscar");
+          .getOrDefault("TEST_POSTGRES_ADMIN_URL", "jdbc:postgresql://127.0.0.1:5432/okapi_db");
   private static final String ADMIN_USER =
       System.getenv().getOrDefault("TEST_POSTGRES_ADMIN_USER", "okapi_oscar_user_admin");
   private static final String ADMIN_PASSWORD =
       System.getenv().getOrDefault("TEST_POSTGRES_ADMIN_PASSWORD", "okapi_oscar_password");
   private static final String APP_URL =
       System.getenv()
-          .getOrDefault("OKAPI_WEB_DB_URL", "jdbc:postgresql://127.0.0.1:5432/okapi_oscar");
+          .getOrDefault("OKAPI_WEB_DB_URL", "jdbc:postgresql://127.0.0.1:5432/okapi_db");
   private static final String APP_USER =
       System.getenv().getOrDefault("OKAPI_WEB_DB_USER", "okapi_web_user");
   private static final String APP_PASSWORD =

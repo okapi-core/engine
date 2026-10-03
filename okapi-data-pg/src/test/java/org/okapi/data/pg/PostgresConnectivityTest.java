@@ -17,7 +17,7 @@ class PostgresConnectivityTest {
       System.getenv()
           .getOrDefault(
               "OKAPI_WEB_DB_URL",
-              "jdbc:postgresql://127.0.0.1:5432/okapi_oscar?currentSchema=okapi_web");
+              "jdbc:postgresql://127.0.0.1:5432/okapi_db?currentSchema=okapi_web");
   private static final String USER =
       System.getenv().getOrDefault("OKAPI_WEB_DB_USER", "okapi_web_user");
   private static final String PASSWORD =

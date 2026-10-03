@@ -8,7 +8,7 @@ image:
 postgres:
   host: postgres
   port: 5432
-  database: okapi
+  database: okapi_db
   schema: okapi_web
   username: okapi_web_user
   password: ""

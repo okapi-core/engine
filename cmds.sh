@@ -3,9 +3,9 @@ function ch_client(){
 }
 
 function pg_client(){
-	PGPASSWORD=okapi_oscar_password psql --host localhost --port 5432 --username okapi_oscar_user -d okapi_oscar
+	PGPASSWORD=okapi_oscar_password psql --host localhost --port 5432 --username okapi_oscar_user -d okapi_db
 }
 
 function pg_web_client(){
-	PGPASSWORD=okapi_web_password psql --host localhost --port 5432 --username okapi_web_user -d okapi_oscar
+	PGPASSWORD=okapi_web_password psql --host localhost --port 5432 --username okapi_web_user -d okapi_db
 }

@@ -41,8 +41,8 @@ $$;
 
 CREATE SCHEMA IF NOT EXISTS okapi_web AUTHORIZATION okapi_web_migration_user;
 ALTER SCHEMA okapi_web OWNER TO okapi_web_migration_user;
-GRANT CONNECT ON DATABASE okapi_oscar TO okapi_web_migration_user;
-GRANT CONNECT ON DATABASE okapi_oscar TO okapi_web_user;
+GRANT CONNECT ON DATABASE okapi_db TO okapi_web_migration_user;
+GRANT CONNECT ON DATABASE okapi_db TO okapi_web_user;
 GRANT USAGE ON SCHEMA okapi_web TO okapi_web_user;
 REVOKE CREATE ON SCHEMA okapi_web FROM PUBLIC;
 REVOKE CREATE ON SCHEMA okapi_web FROM okapi_web_user;

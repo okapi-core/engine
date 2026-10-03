@@ -16,7 +16,7 @@ The charts are published as OCI artifacts under `oci://ghcr.io/okapi-core/charts
 
 The Okapi charts do not install databases. For a disposable Minikube test,
 the repository provides a separate infrastructure target that installs
-PostgreSQL and the repository-owned single-node ClickHouse test chart:
+PostgreSQL and the repository-owned two-node ClickHouse test chart:
 
 ```sh
 make helm-infra-local
@@ -30,13 +30,19 @@ images.
 The infrastructure target uses the `okapi` namespace by default. Override it
 with `HELM_INFRA_NAMESPACE` and `HELM_NS` when using a temporary namespace.
 
+The test ClickHouse chart creates two fixed shards (one pod per shard), a
+headless peer-discovery service, and a single-node ZooKeeper for
+`ReplicatedMergeTree` and distributed DDL coordination. Applications continue
+to connect through the `okapi-clickhouse` ClusterIP service; the `ops` and `ingester`
+charts do not need pod-specific ClickHouse addresses.
+
 Example:
 
 ```yaml
 springOverrides:
   okapi:
     clickhouse:
-      host: clickhouse
+      host: okapi-clickhouse
       port: 8123
       secure: false
     aws:

@@ -5,8 +5,8 @@ metadata:
   labels:
     {{- include "clickhouse.labels" . | nindent 4 }}
 spec:
-  serviceName: {{ include "clickhouse.fullname" . }}
-  replicas: 1
+  serviceName: {{ include "clickhouse.fullname" . }}-headless
+  replicas: {{ mul (int .Values.cluster.shards) (int .Values.cluster.replicas) }}
   selector:
     matchLabels:
       app.kubernetes.io/name: {{ include "clickhouse.name" . }}
@@ -16,6 +16,30 @@ spec:
       labels:
         {{- include "clickhouse.labels" . | nindent 8 }}
     spec:
+      initContainers:
+        - name: configure-macros
+          image: busybox:1.36
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              ordinal="${POD_NAME##*-}"
+              shard=$((ordinal + 1))
+              sed -e "s/__CLUSTER_NAME__/{{ .Values.cluster.name }}/" \
+                  -e "s/__SHARD__/${shard}/" \
+                  -e "s/__REPLICA__/1/" \
+                  /config-template/macros.xml > /config/macros.xml
+          volumeMounts:
+            - name: config-template
+              mountPath: /config-template
+            - name: generated-config
+              mountPath: /config
       containers:
         - name: clickhouse
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -47,12 +71,26 @@ spec:
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           volumeMounts:
+            - name: cluster-config
+              mountPath: /etc/clickhouse-server/config.d/okapi-cluster.xml
+              subPath: okapi-cluster.xml
+            - name: generated-config
+              mountPath: /etc/clickhouse-server/config.d/macros.xml
+              subPath: macros.xml
             - name: users
               mountPath: /etc/clickhouse-server/users.d/okapi-test.xml
               subPath: okapi-test.xml
             - name: data
               mountPath: /var/lib/clickhouse
       volumes:
+        - name: cluster-config
+          configMap:
+            name: {{ include "clickhouse.fullname" . }}-cluster
+        - name: config-template
+          configMap:
+            name: {{ include "clickhouse.fullname" . }}-macros
+        - name: generated-config
+          emptyDir: {}
         - name: users
           configMap:
             name: {{ include "clickhouse.fullname" . }}-users
